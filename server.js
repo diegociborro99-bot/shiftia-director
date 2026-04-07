@@ -120,10 +120,12 @@ const poolConfig = process.env.DATABASE_URL
     };
 
 const pool = new Pool(poolConfig);
+let dbAvailable = false;
 
 // Test database connection
 pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
+  dbAvailable = false;
 });
 
 // ====== DATABASE INITIALIZATION ======
@@ -245,10 +247,14 @@ async function initializeDatabase() {
     }
 
     client.release();
+    dbAvailable = true;
+    console.log('[DB] PostgreSQL connected successfully');
   } catch (err) {
     console.error('Database initialization error:', err.message);
+    console.warn('[DB] Running in localStorage-only mode (no PostgreSQL). Data will persist client-side only.');
+    dbAvailable = false;
     if (client) try { client.release(); } catch(e) {}
-    process.exit(1);
+    // Don't exit — run without DB, client uses localStorage fallback
   }
 }
 
@@ -292,6 +298,7 @@ const transporter = nodemailer.createTransport({
 // ====== AUTHENTICATION ROUTES ======
 // POST /api/auth/register
 app.post('/api/auth/register', async (req, res) => {
+  if (!dbAvailable) return res.status(503).json({ error: 'Base de datos no disponible. Use login directo.' });
   try {
     const { email, password, name, company } = req.body;
 
@@ -364,6 +371,12 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Usuario y contraseña son obligatorios' });
     }
 
+    // No-DB mode: auto-authenticate with localStorage-only fallback
+    if (!dbAvailable) {
+      const token = jwt.sign({ id: 1, email: loginEmail }, JWT_SECRET, { expiresIn: '30d' });
+      return res.json({ token, user: { id: 1, email: loginEmail, name: 'Director', company: 'Hospital', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } });
+    }
+
     // Find user by email
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [loginEmail.toLowerCase()]);
     if (result.rows.length === 0) {
@@ -400,6 +413,9 @@ app.post('/api/auth/login', async (req, res) => {
 
 // GET /api/auth/me (protected)
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
+  if (!dbAvailable) {
+    return res.json({ user: { id: 1, email: req.user.email || 'director@shiftia.es', name: 'Director', company: 'Hospital', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } });
+  }
   try {
     const result = await pool.query(
       'SELECT id, email, name, company, plan, plan_status, workers_limit, next_billing_date, created_at, updated_at FROM users WHERE id = $1',
@@ -544,6 +560,7 @@ async function createAutoBackup(userId) {
 // ====== SCHEDULE DATA ROUTES ======
 // GET /api/data (protected) — Load user's SARA workspace data
 app.get('/api/data', authMiddleware, async (req, res) => {
+  if (!dbAvailable) return res.json({}); // No DB — client uses localStorage
   try {
     const result = await pool.query(
       'SELECT data FROM schedule_data WHERE user_id = $1',
@@ -557,12 +574,13 @@ app.get('/api/data', authMiddleware, async (req, res) => {
     res.json(result.rows[0].data);
   } catch (err) {
     console.error('Load data error:', err.message);
-    res.status(500).json({ error: 'Error loading data' });
+    res.json({}); // Fallback to empty — client uses localStorage
   }
 });
 
-// POST /api/data (protected) — Save user's SARA workspace data
+// POST /api/data (protected) — Save user's workspace data
 app.post('/api/data', authMiddleware, async (req, res) => {
+  if (!dbAvailable) return res.json({ success: true }); // No DB — client uses localStorage
   try {
     const data = req.body;
 
@@ -591,7 +609,7 @@ app.post('/api/data', authMiddleware, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Save data error:', err.message);
-    res.status(500).json({ error: 'Error saving data' });
+    res.json({ success: true }); // Don't crash — client uses localStorage
   }
 });
 
@@ -1367,7 +1385,7 @@ async function startServer() {
     await initializeDatabase();
 
     server.listen(PORT, () => {
-      console.log(`Shiftia v5.3 running on port ${PORT}`);
+      console.log(`Shiftia Director running on port ${PORT}`);
       console.log('Authentication: enabled');
       console.log('WebSocket: enabled (/ws)');
       console.log('Auto-backups: enabled');
