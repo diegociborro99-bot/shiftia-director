@@ -8280,17 +8280,10 @@ table.schedule tbody tr:hover {
       </select>
     </div>
     <nav class="nav-tabs" role="tablist" aria-label="Navegación principal">
-      <button class="nav-tab active" data-view="dashboard" role="tab" aria-selected="true" aria-controls="panel-dashboard"><span class="tab-icon" aria-hidden="true">◉</span> Hoy</button>
-      <button class="nav-tab" data-view="schedule" role="tab" aria-selected="false" aria-controls="panel-schedule"><span class="tab-icon" aria-hidden="true">▦</span> Planilla</button>
-      <button class="nav-tab" data-view="workers" role="tab" aria-selected="false" aria-controls="panel-workers"><span class="tab-icon" aria-hidden="true">◎</span> Equipo</button>
-      <button class="nav-tab" data-view="heatmap" role="tab" aria-selected="false" aria-controls="panel-heatmap"><span class="tab-icon" aria-hidden="true">🗓️</span> Mapa</button>
-      <button class="nav-tab" data-view="incidents" role="tab" aria-selected="false" aria-controls="panel-incidents"><span class="tab-icon" aria-hidden="true">☰</span> Historial</button>
-      <button class="nav-tab" data-view="conflicts" role="tab" aria-selected="false" aria-controls="panel-conflicts"><span class="tab-icon" aria-hidden="true">△</span> Conflictos</button>
-      <button class="nav-tab" data-view="metrics" role="tab" aria-selected="false" aria-controls="panel-metrics"><span class="tab-icon" aria-hidden="true">📊</span> Métricas</button>
-      <button class="nav-tab" data-view="guardia" role="tab" aria-selected="false" aria-controls="panel-guardia"><span class="tab-icon" aria-hidden="true">🚨</span> Guardia</button>
-      <button class="nav-tab" data-view="cobertura" role="tab" aria-selected="false" aria-controls="panel-cobertura"><span class="tab-icon" aria-hidden="true">🧠</span> Cobertura IA</button>
-      <!-- Vacaciones tab removed -->
-      <button class="nav-tab" data-view="import" role="tab" aria-selected="false" aria-controls="panel-import"><span class="tab-icon" aria-hidden="true">↑</span> Importar</button>
+      <button class="nav-tab active" data-view="import" role="tab" aria-selected="true"><span class="tab-icon" aria-hidden="true">📥</span> Importar</button>
+      <button class="nav-tab" data-view="mapa-cobertura" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true">🗺️</span> Mapa de Cobertura</button>
+      <button class="nav-tab" data-view="gestor-ausencias" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true">🏥</span> Gestor de Ausencias</button>
+      <button class="nav-tab" data-view="gestor-cobertura" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true">🧠</span> Gestor de Cobertura</button>
     </nav>
     <!-- Mobile More Menu -->
     <div class="mobile-more-menu" id="mobileMoreMenu" style="display:none;">
@@ -8310,66 +8303,108 @@ table.schedule tbody tr:hover {
 
   <!-- Main Content -->
   <main class="content" id="mainContent" role="main">
-    <!-- Dashboard -->
+    <!-- Dashboard / Home Screen -->
     <div class="view-panel active" id="dashboardPanel">
-      <div id="dailyBriefing" class="daily-briefing"></div>
-      <div class="dashboard-title" id="todayText">Miércoles, 25 de marzo</div>
-      <div class="dashboard-subtitle">Visualiza el estado de hoy y próximos días</div>
-
-      <!-- Intelligent Dashboard v5.0 -->
-      <div id="intelligentDashboard"></div>
-
-      <div class="stat-pills">
-        <div class="stat-pill">
-          <div class="stat-pill-value" id="nowCount">8</div>
-          <div class="stat-pill-label">Trabajando ahora</div>
+      <div style="max-width: 1200px; margin: 0 auto;">
+        <div style="margin-bottom: 48px;">
+          <h1 style="font-size: 42px; font-weight: 300; color: var(--accent); margin-bottom: 8px; letter-spacing: -0.5px;">Shiftia Director</h1>
+          <p style="color: var(--text2); font-size: 13px;" id="dashboardDate"></p>
         </div>
-        <div class="stat-pill">
-          <div class="stat-pill-value" id="alertCount">0</div>
-          <div class="stat-pill-label">Con Alertas</div>
-          <div id="alertSparkline" style="margin-top:6px;height:20px;display:flex;align-items:center;justify-content:center;"></div>
-        </div>
-        <div class="stat-pill">
-          <div class="stat-pill-value" id="pendingCount">2</div>
-          <div class="stat-pill-label">Pendientes</div>
-        </div>
-      </div>
 
-      <div class="roster-section">
-        <div class="section-title">Plantilla de Hoy</div>
-        <div class="roster-grid" id="todayRoster">
-          <!-- Generated -->
-        </div>
-      </div>
+        <!-- 4 Action Cards Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 48px;">
+          <!-- Card 1: Importar Planillas -->
+          <div onclick="switchView('import')" style="
+            cursor: pointer;
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 24px;
+            transition: all 0.3s ease;
+            text-align: center;
+            position: relative;
+          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 8px 24px rgba(26,54,93,0.1)';this.style.transform='scale(1.02)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none';this.style.transform='scale(1)'">
+            <div style="font-size: 48px; margin-bottom: 16px;">📥</div>
+            <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">IMPORTAR PLANILLAS</h2>
+            <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Sube PDFs de planificación. Indica planta y rol de cada trabajador.</p>
+            <div style="
+              background: rgba(201, 168, 76, 0.1);
+              border-radius: 10px;
+              padding: 12px;
+              font-size: 14px;
+              font-weight: 600;
+              color: var(--accent);
+            "><span id="importedWorkerCount">0</span> trabajadores importados</div>
+          </div>
 
-      <div class="divider"></div>
+          <!-- Card 2: Mapa de Cobertura -->
+          <div onclick="switchView('mapa-cobertura')" style="
+            cursor: pointer;
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 24px;
+            transition: all 0.3s ease;
+            text-align: center;
+          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 8px 24px rgba(26,54,93,0.1)';this.style.transform='scale(1.02)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none';this.style.transform='scale(1)'">
+            <div style="font-size: 48px; margin-bottom: 16px;">🗺️</div>
+            <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">MAPA DE COBERTURA</h2>
+            <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Visión global de cobertura por planta y turno</p>
+            <div style="
+              background: rgba(201, 168, 76, 0.1);
+              border-radius: 10px;
+              padding: 12px;
+              font-size: 14px;
+              font-weight: 600;
+              color: var(--accent);
+            "><span id="gapsDetectedCount">0</span> gaps detectados</div>
+          </div>
 
-      <div style="display:none;"><div id="weekPreview"></div></div>
+          <!-- Card 3: Gestor de Ausencias -->
+          <div onclick="switchView('gestor-ausencias')" style="
+            cursor: pointer;
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 24px;
+            transition: all 0.3s ease;
+            text-align: center;
+          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 8px 24px rgba(26,54,93,0.1)';this.style.transform='scale(1.02)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none';this.style.transform='scale(1)'">
+            <div style="font-size: 48px; margin-bottom: 16px;">🏥</div>
+            <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">GESTOR DE AUSENCIAS</h2>
+            <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Gestiona bajas, vacaciones y ausencias con IA</p>
+            <div style="
+              background: rgba(201, 168, 76, 0.1);
+              border-radius: 10px;
+              padding: 12px;
+              font-size: 14px;
+              font-weight: 600;
+              color: var(--accent);
+            "><span id="activeAbsencesCount">0</span> ausencias activas</div>
+          </div>
 
-      <div class="roster-section">
-        <div class="section-title" style="display:flex;align-items:center;gap:8px;">Radar de Riesgo <span style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:6px;background:rgba(230,126,34,0.1);color:#e67e22;">14 dias</span>
-          <button onclick="openFestivosEditor()" style="margin-left:auto;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text3);font-size:10px;cursor:pointer;font-weight:600;" title="Gestionar festivos">📅 Festivos</button>
-        </div>
-        <div id="riskRadar">
-          <!-- Generated -->
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="roster-section">
-        <div class="section-title">Resumen Semanal</div>
-        <div id="weeklyDashboard">
-          <!-- Generated -->
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="roster-section">
-        <div class="section-title">Actividad Reciente</div>
-        <div class="recent-activity" id="activityFeed">
-          <!-- Generated -->
+          <!-- Card 4: Gestor de Cobertura -->
+          <div onclick="switchView('gestor-cobertura')" style="
+            cursor: pointer;
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 24px;
+            transition: all 0.3s ease;
+            text-align: center;
+          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 8px 24px rgba(26,54,93,0.1)';this.style.transform='scale(1.02)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none';this.style.transform='scale(1)'">
+            <div style="font-size: 48px; margin-bottom: 16px;">🧠</div>
+            <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">GESTOR DE COBERTURA</h2>
+            <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Asigna días sin planificar para cubrir huecos</p>
+            <div style="
+              background: rgba(201, 168, 76, 0.1);
+              border-radius: 10px;
+              padding: 12px;
+              font-size: 14px;
+              font-weight: 600;
+              color: var(--accent);
+            "><span id="unplannedDaysCount">0</span> días sin planificar</div>
+          </div>
         </div>
       </div>
     </div>
@@ -8616,8 +8651,18 @@ table.schedule tbody tr:hover {
       <div id="vacacionesContent"></div>
     </div>
 
-    <!-- Cobertura IA -->
-    <div class="view-panel" id="coberturaPanel">
+    <!-- Mapa de Cobertura -->
+    <div class="view-panel" id="mapaPanel">
+      <div id="mapaContent"></div>
+    </div>
+
+    <!-- Gestor de Ausencias -->
+    <div class="view-panel" id="gestorAusenciasPanel">
+      <div id="gestorAusenciasContent"></div>
+    </div>
+
+    <!-- Gestor de Cobertura (formerly coberturaPanel) -->
+    <div class="view-panel" id="gestorCoberturaPanel">
       <div id="coberturaContent"></div>
     </div>
   </main>
@@ -8827,32 +8872,8 @@ const appState = {
   scheduleMode: 'normal', // 'normal' or 'compact'
 };
 
-const workers = [
-  { id: 1, name: 'Director', role: 'director', type: 'admin', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: null, flotante: true, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, noSwap: true, noSwapReason: 'Director — responsabilidades de gestion', noCover: true, noCoverReason: 'Director — no cubre ausencias', notes: 'Director de Enfermería' } },
-  { id: 2, name: 'Sonia García', role: 'enf', type: 'enf', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p1n', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: true, noSwap: true, noSwapReason: 'Conciliacion familiar — jornada reducida', noCover: true, noCoverReason: 'Conciliacion familiar — no cubre ausencias', notes: 'Conciliacion familiar' } },
-  { id: 3, name: 'Marta Valle', role: 'enf', type: 'enf', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p2n', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: true, noSwap: true, noSwapReason: 'Conciliacion familiar — jornada reducida', noCover: true, noCoverReason: 'Conciliacion familiar — no cubre ausencias', notes: 'Conciliacion familiar' } },
-  { id: 4, name: 'Diego Ciborro', role: 'enf', type: 'enf', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p3n', flotante: false, rules: { noNights: false, preferredShift: 'N', maxNightsPerMonth: null, conciliacion: false, notes: 'Prefiere noches' } },
-  { id: 5, name: 'Carmen Cerrada', role: 'enf', type: 'enf', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p2e', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 6, name: 'Iouri Zhigunov', role: 'enf', type: 'enf', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p3e', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 7, name: 'Soledad Azpiroz', role: 'enf', type: 'enf', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'endo', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 8, name: 'Rebeca Goyanes', role: 'enf', type: 'enf', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'ucin', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 9, name: 'Laura Calvo', role: 'enf', type: 'enf', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'urg', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 10, name: 'Yolanda Jiménez', role: 'enf', type: 'enf', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'quir', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 11, name: 'Iris Velarde', role: 'enf', type: 'enf', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p1n', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 12, name: 'Alejandra Rodríguez', role: 'enf', type: 'enf', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p2n', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 13, name: 'Salomé Cueto', role: 'tec', type: 'tec', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p3n', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 14, name: 'Chema', role: 'tec', type: 'tec', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p2e', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 15, name: 'Graciela', role: 'tec', type: 'tec', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p3e', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 16, name: 'Guadalupe', role: 'tec', type: 'tec', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'endo', flotante: false, rules: { noNights: false, preferredShift: 'M', maxNightsPerMonth: 10, conciliacion: false, notes: '' } },
-  { id: 17, name: 'Jenny', role: 'tec', type: 'tec', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'ucin', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 18, name: 'Patricia', role: 'tec', type: 'tec', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'urg', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 19, name: 'Aitor', role: 'tec', type: 'tec', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: null, flotante: true, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: 'Refuerzo — se contrata si hay necesidad' } },
-  { id: 20, name: 'Desirée', role: 'tec', type: 'tec', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'quir', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' } },
-  { id: 21, name: 'Beatriz', role: 'tec', type: 'tec', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p1n', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, noMicro: true, noMicroReason: 'Encargada recogida/envio muestras lab externo — siempre en laboratorio', noCover: true, noCoverReason: 'Encargada lab externo — no cubre ausencias', notes: 'Lab externo — no reubicar a micro' } },
-  { id: 22, name: 'Trinidad', role: 'tec', type: 'tec', area: 'micro', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p2n', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, noLab: true, noLabReason: 'Fija de Microbiología — no cubre Lab', notes: 'Microbiología' } },
-  { id: 23, name: 'Montserrat', role: 'tec', type: 'tec', area: 'micro', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p3n', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, noLab: true, noLabReason: 'Fija de Microbiología — no cubre Lab', notes: 'Microbiología' } },
-  { id: 24, name: 'Maria Pilar', role: 'tec', type: 'tec', area: 'micro', hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0, scheduleImported: false, planta: 'p2e', flotante: false, rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, noLab: true, noLabReason: 'Fija de Microbiología — no cubre Lab', notes: 'Microbiología' } },
-];
+const workers = [];
+let nextWorkerId = 1;
 
 const PLANTAS = [
   { id: 'p1n', name: '1º Norte', short: '1N' },
@@ -8866,6 +8887,18 @@ const PLANTAS = [
   { id: 'quir', name: 'Quirófano', short: 'QUI' }
 ];
 let selectedPlanta = 'all'; // current filter
+
+const PLANT_COVERAGE = {
+  'p1n': { M: { min: 2 }, T: { min: 2 }, N: { min: 1 } },
+  'p2n': { M: { min: 2 }, T: { min: 2 }, N: { min: 1 } },
+  'p3n': { M: { min: 2 }, T: { min: 2 }, N: { min: 1 } },
+  'p2e': { M: { min: 2 }, T: { min: 2 }, N: { min: 1 } },
+  'p3e': { M: { min: 2 }, T: { min: 2 }, N: { min: 1 } },
+  'endo': { M: { min: 2 }, T: { min: 1 }, N: { min: 0 } },
+  'ucin': { M: { min: 3 }, T: { min: 3 }, N: { min: 2 } },
+  'urg': { M: { min: 3 }, T: { min: 3 }, N: { min: 2 } },
+  'quir': { M: { min: 2 }, T: { min: 2 }, N: { min: 0 } }
+};
 
 // Persistent worker memory — survives schedule deletion and reimport
 // Stores subjective conditions, learned preferences, and custom rules
@@ -9486,21 +9519,43 @@ function toggleTheme() {
 // View Switching
 function renderCurrentView() {
   const currentView = appState.currentView || 'dashboard';
-  if (currentView === 'schedule') renderSchedule();
+  if (currentView === 'dashboard') renderDashboard();
+  else if (currentView === 'import') { renderImportManagement(); updateImportBadge(); }
+  else if (currentView === 'mapa-cobertura') renderMapaCobertura();
+  else if (currentView === 'gestor-ausencias') renderGestorAusencias();
+  else if (currentView === 'gestor-cobertura') renderCoberturaIA();
+  // Legacy views
+  else if (currentView === 'schedule') renderSchedule();
   else if (currentView === 'workers') renderWorkers();
   else if (currentView === 'heatmap') renderHeatmap();
   else if (currentView === 'incidents') renderIncidents();
   else if (currentView === 'conflicts') { detectConflicts(); renderConflicts(); }
   else if (currentView === 'metrics') { renderMetrics(); try { renderComparativa(); } catch(e) { console.warn('[Shiftia] renderComparativa error:', e); } }
-  else if (currentView === 'import') { renderImportManagement(); updateImportBadge(); }
   else if (currentView === 'guardia') renderGuardia();
-  else if (currentView === 'cobertura') renderCoberturaIA();
   else renderDashboard();
 }
 
 function switchView(view) {
+  // Map view names to panel IDs
+  const panelMap = {
+    'dashboard': 'dashboardPanel',
+    'import': 'importPanel',
+    'mapa-cobertura': 'mapaPanel',
+    'gestor-ausencias': 'gestorAusenciasPanel',
+    'gestor-cobertura': 'gestorCoberturaPanel',
+    // Legacy views (kept for backward compatibility)
+    'schedule': 'schedulePanel',
+    'workers': 'workersPanel',
+    'heatmap': 'heatmapPanel',
+    'incidents': 'incidentsPanel',
+    'conflicts': 'conflictsPanel',
+    'metrics': 'metricsPanel',
+    'guardia': 'guardiaPanel'
+  };
+
   document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
-  const panel = document.getElementById(view + 'Panel');
+  const panelId = panelMap[view] || (view + 'Panel');
+  const panel = document.getElementById(panelId);
   if (panel) panel.classList.add('active');
 
   document.querySelectorAll('.nav-tab').forEach(t => {
@@ -9515,20 +9570,54 @@ function switchView(view) {
 
   appState.currentView = view;
 
+  // Render content based on view
+  if (view === 'dashboard') renderDashboard();
+  if (view === 'import') { renderImportManagement(); updateImportBadge(); }
+  if (view === 'mapa-cobertura') renderMapaCobertura();
+  if (view === 'gestor-ausencias') renderGestorAusencias();
+  if (view === 'gestor-cobertura') renderCoberturaIA();
+
+  // Legacy view support
   if (view === 'schedule') renderSchedule();
   if (view === 'workers') renderWorkers();
   if (view === 'heatmap') renderHeatmap();
   if (view === 'incidents') renderIncidents();
   if (view === 'conflicts') { detectConflicts(); renderConflicts(); }
   if (view === 'metrics') { renderMetrics(); try { renderComparativa(); } catch(e) { console.warn('[Shiftia] renderComparativa error:', e); } }
-  if (view === 'import') { renderImportManagement(); updateImportBadge(); }
   if (view === 'guardia') renderGuardia();
-  if (view === 'cobertura') renderCoberturaIA();
-  // if (view === 'vacaciones') renderVacacionesGantt(); // Vacaciones tab removed
 }
 
 // Render Dashboard
 function renderDashboard() {
+  // Update dashboard date
+  const now = new Date();
+  const monthNames = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const dayNames = ['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
+  const dateStr = `${dayNames[now.getDay()]} ${now.getDate()} de ${monthNames[now.getMonth()]}`;
+  const dashboardDateEl = document.getElementById('dashboardDate');
+  if (dashboardDateEl) dashboardDateEl.textContent = dateStr;
+
+  // Update card counts
+  document.getElementById('importedWorkerCount').textContent = workers.length;
+
+  const unplannedDays = getUnplannedDays(now.getFullYear(), now.getMonth());
+  document.getElementById('unplannedDaysCount').textContent = unplannedDays.length;
+
+  const gaps = getCoverageGaps(now.getFullYear(), now.getMonth());
+  document.getElementById('gapsDetectedCount').textContent = gaps.length;
+
+  // Active absences count (from schedule data)
+  let activeAbsences = 0;
+  workers.forEach(w => {
+    const sch = scheduleData[`${now.getFullYear()}-${now.getMonth()}`] || genSchedule(now.getFullYear(), now.getMonth());
+    for (let i = 0; i < 31; i++) {
+      const shift = sch[w.id] ? sch[w.id][i] : '';
+      if (['BAJ','VAC'].includes(shift)) activeAbsences++;
+    }
+  });
+  document.getElementById('activeAbsencesCount').textContent = activeAbsences;
+
+  // Legacy dashboard code (kept for backward compatibility)
   document.getElementById('todayText').textContent = getTodayText();
 
   const importedCount = workers.filter(w => w.scheduleImported).length;
@@ -16603,6 +16692,161 @@ function getVacationAnalysis(year) {
   bestWindows.sort((a, b) => a.avgVac - b.avgVac);
 
   return { vacData, overlapDays, monthlyCoverageImpact, recommendations, bestWindows, dailyVacCount, dailyAbsCount, VAC_QUOTA, avgEnfVac, avgTecVac };
+}
+
+// ===== MAPA DE COBERTURA =====
+function renderMapaCobertura() {
+  const container = document.getElementById('mapaContent');
+  if (!container) return;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  let currentViewDate = new Date(year, month, 1);
+
+  const renderTable = () => {
+    const gaps = getCoverageGaps(year, month);
+    const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+    let html = `
+      <div style="margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <h2 style="font-size: 24px; font-weight: 500; margin-bottom: 4px;">Mapa de Cobertura</h2>
+          <p style="color: var(--text2); font-size: 13px;">${monthNames[currentViewDate.getMonth()]} ${currentViewDate.getFullYear()}</p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button onclick="if(this.parentElement.parentElement.dataset.navFunc) eval(this.parentElement.parentElement.dataset.navFunc('prev'))" style="padding: 8px 12px; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; cursor: pointer; font-family: inherit;">◀ Anterior</button>
+          <button onclick="if(this.parentElement.parentElement.dataset.navFunc) eval(this.parentElement.parentElement.dataset.navFunc('next'))" style="padding: 8px 12px; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; cursor: pointer; font-family: inherit;">Siguiente ▶</button>
+        </div>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid var(--border); border-radius: 12px;">
+          <thead>
+            <tr style="background: var(--surface2); border-bottom: 1px solid var(--border);">
+              <th style="padding: 12px; text-align: left; font-weight: 600; color: var(--text); border-right: 1px solid var(--border);">Planta</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600; color: var(--text); border-right: 1px solid var(--border);">Mañana (M)</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600; color: var(--text); border-right: 1px solid var(--border);">Tarde (T)</th>
+              <th style="padding: 12px; text-align: center; font-weight: 600; color: var(--text);">Noche (N)</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    PLANTAS.forEach(planta => {
+      const plantWorkers = workers.filter(w => w.planta === planta.id && w.type === 'enf');
+      const shifts = ['M', 'T', 'N'];
+      const coverageByShift = {};
+
+      shifts.forEach(shift => {
+        const minRequired = PLANT_COVERAGE[planta.id][shift].min;
+        const assigned = plantWorkers.filter(w => {
+          const sch = genSchedule(year, month);
+          const idx = currentViewDate.getDate() - 1;
+          const s = sch[w.id] ? sch[w.id][idx] : '';
+          return s === shift || (shift === 'M' && ['MR','M7H','M6R','M55'].includes(s));
+        }).length;
+        coverageByShift[shift] = { assigned, minRequired, gap: Math.max(0, minRequired - assigned) };
+      });
+
+      html += `
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 12px; font-weight: 600; color: var(--text); border-right: 1px solid var(--border);">${escHtml(planta.name)}</td>
+      `;
+
+      shifts.forEach(shift => {
+        const status = coverageByShift[shift];
+        const isMet = status.assigned >= status.minRequired;
+        const statusColor = isMet ? '#22863a' : '#cb2431';
+        const statusIcon = isMet ? '✓' : '⚠';
+        html += `
+          <td style="padding: 12px; text-align: center; border-right: 1px solid var(--border);">
+            <div style="color: ${statusColor}; font-weight: 700; font-size: 14px;">${statusIcon} ${status.assigned}/${status.minRequired}</div>
+          </td>
+        `;
+      });
+
+      html += `</tr>`;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top: 16px; padding: 12px; background: var(--surface2); border-radius: 10px; font-size: 12px; color: var(--text2);">
+        <strong>Total gaps detectados:</strong> ${gaps.length} | <strong>Trabajadores:</strong> ${workers.length}
+      </div>
+    `;
+
+    container.innerHTML = html;
+  };
+
+  renderTable();
+}
+
+// ===== GESTOR DE AUSENCIAS =====
+function renderGestorAusencias() {
+  const container = document.getElementById('gestorAusenciasContent');
+  if (!container) return;
+
+  // This delegates to the gestor overlay functionality
+  // We'll render a simple interface that opens the gestor
+  let html = `
+    <div style="max-width: 800px; margin: 0 auto;">
+      <h2 style="font-size: 28px; font-weight: 400; margin-bottom: 8px;">Gestor de Ausencias</h2>
+      <p style="color: var(--text2); font-size: 13px; margin-bottom: 32px; line-height: 1.6;">
+        Registra y gestiona bajas, vacaciones y ausencias de los trabajadores. La IA ayudará a cubrir los huecos detectados.
+      </p>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px;">
+        <div onclick="openGestor()" style="
+          cursor: pointer;
+          background: white;
+          border: 2px solid var(--border);
+          border-radius: 12px;
+          padding: 20px;
+          text-align: center;
+          transition: all 0.3s;
+        " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 4px 12px rgba(26,54,93,0.1)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+          <div style="font-size: 36px; margin-bottom: 12px;">🏥</div>
+          <h3 style="font-size: 14px; font-weight: 600; color: var(--primary); margin-bottom: 4px;">Registrar Ausencia</h3>
+          <p style="color: var(--text3); font-size: 12px;">Baja, IT, vacaciones, etc.</p>
+        </div>
+
+        <div onclick="openGestor()" style="
+          cursor: pointer;
+          background: white;
+          border: 2px solid var(--border);
+          border-radius: 12px;
+          padding: 20px;
+          text-align: center;
+          transition: all 0.3s;
+        " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 4px 12px rgba(26,54,93,0.1)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+          <div style="font-size: 36px; margin-bottom: 12px;">🔄</div>
+          <h3 style="font-size: 14px; font-weight: 600; color: var(--primary); margin-bottom: 4px;">Cambio de Turno</h3>
+          <p style="color: var(--text3); font-size: 12px;">Reassignar turnos</p>
+        </div>
+
+        <div onclick="openGestor()" style="
+          cursor: pointer;
+          background: white;
+          border: 2px solid var(--border);
+          border-radius: 12px;
+          padding: 20px;
+          text-align: center;
+          transition: all 0.3s;
+        " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 4px 12px rgba(26,54,93,0.1)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+          <div style="font-size: 36px; margin-bottom: 12px;">📋</div>
+          <h3 style="font-size: 14px; font-weight: 600; color: var(--primary); margin-bottom: 4px;">Historial</h3>
+          <p style="color: var(--text3); font-size: 12px;">Ver ausencias pasadas</p>
+        </div>
+      </div>
+
+      <div id="gestorAusenciasListContainer" style="margin-top: 32px;"></div>
+    </div>
+  `;
+
+  container.innerHTML = html;
 }
 
 // ===== COBERTURA IA =====
