@@ -8200,7 +8200,7 @@ table.schedule tbody tr:hover {
       </svg>
     </div>
     <div class="splash-title">Sh<span>iftia</span></div>
-    <div class="splash-subtitle">Hospital de Jove — Laboratorio y Hematologia</div>
+    <div class="splash-subtitle">Fundación Fundación Hospital de Jove — Dirección de Enfermería</div>
     <div class="splash-version">v5.3</div>
   </div>
 </div>
@@ -8236,7 +8236,7 @@ table.schedule tbody tr:hover {
       </svg>
       <div class="login-logo-text">Sh<span>iftia</span></div>
     </div>
-    <div class="login-hospital">Hospital de Jove — Laboratorio</div>
+    <div class="login-hospital">Fundación Fundación Hospital de Jove — Dirección de Enfermería</div>
     <form id="loginForm" onsubmit="return handleLogin(event)">
       <div class="login-field">
         <label for="loginUser">Usuario</label>
@@ -8451,7 +8451,7 @@ table.schedule tbody tr:hover {
           </div>
           <div class="af-section">
             <div class="af-title">Área</div>
-            <label class="af-option"><input type="checkbox" onchange="updateAdvFilter('areas','lab',this.checked)"> Laboratorio</label>
+            <label class="af-option"><input type="checkbox" onchange="updateAdvFilter('areas','lab',this.checked)"> General</label>
             <label class="af-option"><input type="checkbox" onchange="updateAdvFilter('areas','micro',this.checked)"> Microbiología</label>
           </div>
           <button class="af-clear-btn" onclick="clearAdvFilters()">Limpiar filtros</button>
@@ -8535,7 +8535,7 @@ table.schedule tbody tr:hover {
         <div id="importUploadPanel">
           <h2 style="font-size:24px;font-weight:300;margin-bottom:8px;">Importar planillas anuales</h2>
           <p style="color:var(--text2);font-size:13px;margin-bottom:32px;line-height:1.6;">
-            Sube los PDFs de planificación anual del Hospital de Jove. La IA extraerá automáticamente los turnos, noches, cómputo y días de convenio de cada trabajador.
+            Sube los PDFs de planificación anual del Fundación Hospital de Jove. La IA extraerá automáticamente los turnos, noches, cómputo y días de convenio de cada trabajador.
           </p>
 
           <div id="importZone" style="border:2px dashed var(--text3);border-radius:16px;padding:48px 32px;text-align:center;cursor:pointer;transition:all 0.3s;background:var(--surface);"
@@ -9596,7 +9596,7 @@ function renderDashboard() {
         workersHtml += `</div>`;
       }
       if (tecLabWkrs.length > 0) {
-        workersHtml += `<div style="margin-bottom:6px;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:3px;">Tec. Laboratorio</div>`;
+        workersHtml += `<div style="margin-bottom:6px;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:3px;">Técnico/TCAE</div>`;
         workersHtml += tecLabWkrs.map(w => `<div class="worker-name">${escHtml(w.name)} <span style="font-size:9px;color:#cc4444;font-weight:600;opacity:0.7;">TEC</span></div>`).join('');
         workersHtml += `</div>`;
       }
@@ -11796,7 +11796,7 @@ function matchWorkerFromPDFName(pdfName) {
   // ALL worker first names — checked BEFORE surnames to avoid mismatches
   const firstNameMap = [
     // Enfermeros
-    { names: ['SARA'], id: 1 },
+    { names: ['DIRECTOR','ICUEVA'], id: 1 },
     { names: ['SONIA'], id: 2 },
     { names: ['MARTA'], id: 3 },
     { names: ['DIEGO'], id: 4 },
@@ -13683,7 +13683,7 @@ function openWorkerPanel(wId) {
   const overlay = document.getElementById('workerPanelOverlay');
 
   const stats = getWorkerStats(wId);
-  const typeLabel = w.type === 'enf' ? 'Enfermeria' : (w.area === 'micro' ? 'Microbiologia' : 'Tec. Laboratorio');
+  const typeLabel = w.type === 'enf' ? 'Enfermeria' : (w.area === 'micro' ? 'Microbiologia' : 'Técnico/TCAE');
   const typeColor = w.type === 'enf' ? 'background:#fde8e8;color:#cc4444;' : (w.area === 'micro' ? 'background:#f0e6f6;color:#9a6abf;' : 'background:#e8f0fd;color:#4a9dd4;');
   const teamAnalysis = getTeamWorkloadAnalysis(w.type);
   const avgN = teamAnalysis ? teamAnalysis.avgN : 0;
@@ -14330,11 +14330,11 @@ function detectConflicts() {
         const freeTecLab = workers.filter(wx => wx.type === 'tec' && wx.area !== 'micro' && (!sch[wx.id] || !sch[wx.id][d] || sch[wx.id][d] === '' || sch[wx.id][d] === 'D')).length;
         predictedConflicts.push({
           date: dayStr, year, month, day: d, severity: freeTecLab > 0 ? 'medium' : 'high', type: 'coverage', shift: 'M',
-          title: `Faltan tec laboratorio manana${covLabel}`,
+          title: `Faltan técnicos manana${covLabel}`,
           desc: `Lab: ${mTec} tec (min ${COV.M.tec})`,
           ai: freeTecLab > 0
-            ? `Faltan ${labShortTec} tec lab pero hay ${freeTecLab} libres. Reasigna desde el Gestor de Cobertura.`
-            : `Faltan ${labShortTec} tec lab y no hay libres. Valorar contratacion temporal.`
+            ? `Faltan ${labShortTec} técnicos pero hay ${freeTecLab} libres. Reasigna desde el Gestor de Cobertura.`
+            : `Faltan ${labShortTec} técnicos y no hay libres. Valorar contratacion temporal.`
         });
       }
       // === SMART LAB/MICRO REBALANCING (weekdays only) ===
@@ -15353,7 +15353,7 @@ function analyzeHiringNeeds() {
   const failPct = Math.round(failDays/30*100);
   let html = `<div class="chat-section-label">Analisis de plantilla</div>`;
   html += `<div class="chat-metric"><span>Enfermeros activos</span><span class="chat-metric-val">${enfs.length - enfLeave.length}/${enfs.length}</span></div>`;
-  html += `<div class="chat-metric"><span>Tec. laboratorio activos</span><span class="chat-metric-val">${tecsLab.length - tecLeave.length}/${tecsLab.length}</span></div>`;
+  html += `<div class="chat-metric"><span>Técnicos/TCAE activos</span><span class="chat-metric-val">${tecsLab.length - tecLeave.length}/${tecsLab.length}</span></div>`;
   html += `<div class="chat-metric"><span>Tec. microbiologia</span><span class="chat-metric-val">${tecsMicro.length} (no computan lab)</span></div>`;
   html += `<div class="chat-metric"><span>Dias sin cobertura (30d)</span><span class="${failPct>30?'chat-metric-warn':'chat-metric-val'}">${failDays} (${failPct}%)</span></div>`;
   html += `<div class="chat-metric"><span>Desviacion noches</span><span class="${analysis.nightSpread>8?'chat-metric-warn':'chat-metric-val'}">${analysis.nightSpread} noches</span></div>`;
@@ -17258,7 +17258,7 @@ function exportWhatsApp() {
   const shiftEmoji = { M: '☀️', T: '🌅', N: '🌙', D: '😴', VAC: '🏖️', BAJ: '🏥', FOR: '📚', LAC: '🍼', MTC: '👶', HS: '📋', CAA: '📝' };
 
   let text = `📋 *TURNOS SEMANA ${monday.getDate()}-${sunday.getDate()} ${monthNames[sunday.getMonth()]} ${sunday.getFullYear()}*\n`;
-  text += `_Hospital de Jove — Laboratorio_\n\n`;
+  text += `_Fundación Hospital de Jove — Dirección de Enfermería_\n\n`;
 
   for (let d = new Date(monday); d <= sunday; d.setDate(d.getDate() + 1)) {
     if (d.getMonth() !== month) continue;
@@ -17406,7 +17406,7 @@ function exportSchedulePDF() {
   </style></head><body>`;
 
   html += `<div class="header">
-    <div><h1>Shiftia — Informe Mensual</h1><h2>Hospital de Jove · Laboratorio y Hematologia</h2></div>
+    <div><h1>Shiftia — Informe Mensual</h1><h2>Fundación Hospital de Jove · Dirección de Enfermería</h2></div>
     <div class="date">${monthNames[month]} ${year}<br>Generado: ${new Date().toLocaleDateString('es-ES')}</div>
   </div>`;
 
@@ -17452,7 +17452,7 @@ function exportSchedulePDF() {
     html += '</tbody></table></div>';
   }
 
-  html += `<div class="footer">Generado automaticamente por Shiftia v5.3 · Hospital de Jove · ${new Date().toLocaleString('es-ES')}</div>`;
+  html += `<div class="footer">Generado automaticamente por Shiftia v5.3 · Fundación Hospital de Jove · ${new Date().toLocaleString('es-ES')}</div>`;
   html += '</body></html>';
 
   // Open in new window for printing/saving as PDF
@@ -18403,7 +18403,7 @@ function buildAICoverageAnalysis(w, days, action) {
       reasoningSteps.push({
         icon: 'alert',
         title: `Lab corto de tecnicos ${labShortDays.length} dia${labShortDays.length > 1 ? 's' : ''}`,
-        detail: `${labShortDays.map(s => s.dayName + ' ' + s.dayDate.getDate() + ': ' + s.labTecM + '/' + s.needLabTec + ' tec').join(', ')}. Se necesita cobertura tecnica en laboratorio.`
+        detail: `${labShortDays.map(s => s.dayName + ' ' + s.dayDate.getDate() + ': ' + s.labTecM + '/' + s.needLabTec + ' tec').join(', ')}. Se necesita cobertura técnica.`
       });
     }
     if (microShortDays.length > 0) {
@@ -20551,8 +20551,8 @@ function showAuthError(formId, message) {
 
 // Offline credentials fallback (hashed — never store plaintext passwords in client code)
 const OFFLINE_USERS = {
-  'dir': { hash: '80949a4aedb5b911bbc842bc14a27fbe3f4e133614a096bb5a8ff13da299b949', user: { id: 1, email: 'director@shiftia.es', name: 'Director — Enfermería', company: 'Hospital de Jove', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } },
-  'director@shiftia.es': { hash: '80949a4aedb5b911bbc842bc14a27fbe3f4e133614a096bb5a8ff13da299b949', user: { id: 1, email: 'director@shiftia.es', name: 'Director — Enfermería', company: 'Hospital de Jove', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } }
+  'icueva': { hash: '80949a4aedb5b911bbc842bc14a27fbe3f4e133614a096bb5a8ff13da299b949', user: { id: 1, email: 'director@shiftia.es', name: 'Director — Enfermería', company: 'Fundación Hospital de Jove', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } },
+  'director@shiftia.es': { hash: '80949a4aedb5b911bbc842bc14a27fbe3f4e133614a096bb5a8ff13da299b949', user: { id: 1, email: 'director@shiftia.es', name: 'Director — Enfermería', company: 'Fundación Hospital de Jove', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } }
 };
 
 async function hashPassword(password) {
@@ -21267,7 +21267,7 @@ th.today-head { color: white; background: #2e8b7a; font-weight: 900; }
     pw.document.write(`<div class="header">
       <div class="header-left">
         <h1>${monthNames[month]} ${year}</h1>
-        <div class="subtitle">Hospital de Jove · ${new Date().toLocaleDateString('es-ES')}</div>
+        <div class="subtitle">Fundación Hospital de Jove · ${new Date().toLocaleDateString('es-ES')}</div>
       </div>
       <div class="header-right">
         <div class="group-title">${page.title}</div>
@@ -21400,7 +21400,7 @@ function showOnboarding() {
   const steps = [
     {
       title: 'Bienvenida a Shiftia',
-      text: 'Planificador inteligente de turnos para Hospital de Jove. Cubre ausencias con IA y gestiona tu equipo.',
+      text: 'Planificador inteligente de turnos para Fundación Hospital de Jove. Cubre ausencias con IA y gestiona tu equipo.',
       target: '.logo'
     },
     {
@@ -21612,7 +21612,7 @@ function exportCoveragePlanToPDF(plan, absentWorkerName) {
     </div>
 
     <div style="text-align:center;font-size:10px;color:#999;border-top:1px solid #ddd;padding-top:20px;">
-      Shiftia v5.3 — Planificador Inteligente de Turnos<br>Hospital de Jove
+      Shiftia v5.3 — Planificador Inteligente de Turnos<br>Fundación Hospital de Jove
     </div>
   `;
 

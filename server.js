@@ -233,7 +233,7 @@ async function initializeDatabase() {
     console.log('Database initialized: all tables created');
 
     // Seed Sara admin user (SAV)
-    const saraEmail = 'sara@shiftia.es';
+    const saraEmail = 'director@shiftia.es';
     const existingSara = await client.query('SELECT id FROM users WHERE email = $1', [saraEmail]);
 
     if (existingSara.rows.length === 0) {
@@ -242,8 +242,8 @@ async function initializeDatabase() {
       await client.query(`
         INSERT INTO users (email, password_hash, name, company, plan, plan_status, workers_limit)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `, [saraEmail, hashedPassword, 'Sara — Supervisora', 'Hospital de Jove', 'enterprise', 'active', 1000]);
-      console.log('Admin user created: sara@shiftia.es (SAV)');
+      `, [saraEmail, hashedPassword, 'Director — Enfermería', 'Fundación Hospital de Jove', 'enterprise', 'active', 1000]);
+      console.log('Admin user created: director@shiftia.es (ICUEVA)');
     }
 
     client.release();
@@ -352,7 +352,7 @@ app.post('/api/auth/register', async (req, res) => {
 
 // Username → email mapping for single-user mode
 const USERNAME_MAP = {
-  'sav': 'sara@shiftia.es',
+  'icueva': 'director@shiftia.es',
 };
 
 // POST /api/auth/login
@@ -1062,7 +1062,7 @@ app.post('/api/notify', authMiddleware, async (req, res) => {
       const mailOptions = {
         from: process.env.SMTP_FROM || 'noreply@hospital.es',
         to: workerEmail,
-        subject: 'Asignación de Cobertura — Hospital de Jove',
+        subject: 'Asignación de Cobertura — Fundación Hospital de Jove',
         html: `
           <h2>Hola ${safeWorkerName},</h2>
           <p>Se te ha asignado una cobertura por ausencia.</p>
