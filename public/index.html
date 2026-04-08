@@ -8432,9 +8432,6 @@ table.schedule tbody tr:hover {
           </div>
         </div>
 
-        <!-- Alerts Panel -->
-        <div id="alertsPanel"></div>
-
         <!-- 4 Action Cards Grid -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 48px;">
           <!-- Card 1: Importar Planillas -->
@@ -9021,7 +9018,7 @@ const PLANTAS = [
 ];
 let selectedPlanta = 'all'; // current filter
 
-const PLANT_SUPERVISORS = {
+let PLANT_SUPERVISORS = {
   'p1n': { name: 'Marta López', role: 'Supervisora' },
   'p2n': { name: 'Ana García', role: 'Supervisora' },
   'p3n': { name: 'Lucía Fernández', role: 'Supervisora' },
@@ -9783,7 +9780,7 @@ function renderDashboard() {
   if (absEl) absEl.textContent = activeAbsences;
 
   // Render alerts panel
-  try { renderAlertsPanel(); } catch(e) { console.error('Alert panel error:', e); }
+  // Alerts panel removed
 
   // Render weekly dashboard
   try { renderWeeklyDashboard(); } catch(e) { console.error('Weekly dashboard error:', e); }
@@ -11466,9 +11463,9 @@ function renderSchedule() {
       }
       if (s && s !== '') {
         const tooltip = getShiftTooltip(s, w.name, dd.day, dd.month, dd.year);
-        html += `<td class="${cls}" style="${ovfBorder}${ovfOpacity}"><span class="shift-pill shift-${s}" data-tooltip="${tooltip}" data-wid="${w.id}" data-day="${dd.dayIdx}" data-month="${dd.month}" data-year="${dd.year}" draggable="true" ondragstart="dragShift(event,${w.id},${dd.dayIdx})" ondragover="dragOverShift(event)" ondragenter="dragEnterShift(event)" ondragleave="dragLeaveShift(event)" ondrop="dropShift(event,${w.id},${dd.dayIdx})" onclick="openShiftEditor(${w.id}, ${dd.dayIdx})">${s}</span></td>`;
+        html += `<td class="${cls}" style="${ovfBorder}${ovfOpacity}"><span class="shift-pill shift-${s}" data-tooltip="${tooltip}" data-wid="${w.id}" data-day="${dd.dayIdx}" data-month="${dd.month}" data-year="${dd.year}" draggable="true" ondragstart="dragShift(event,${w.id},${dd.dayIdx})" ondragover="dragOverShift(event)" ondragenter="dragEnterShift(event)" ondragleave="dragLeaveShift(event)" ondrop="dropShift(event,${w.id},${dd.dayIdx})" onclick="openShiftEditorScheduleView(${w.id}, ${dd.dayIdx})">${s}</span></td>`;
       } else {
-        html += `<td class="${cls}" style="${ovfBorder}${ovfOpacity}"><span class="shift-pill" style="color:var(--text3);opacity:0.25;font-weight:400;font-size:13px;letter-spacing:0;" data-wid="${w.id}" data-day="${dd.dayIdx}" data-month="${dd.month}" data-year="${dd.year}" draggable="true" ondragstart="dragShift(event,${w.id},${dd.dayIdx})" ondragover="dragOverShift(event)" ondragenter="dragEnterShift(event)" ondragleave="dragLeaveShift(event)" ondrop="dropShift(event,${w.id},${dd.dayIdx})" onclick="openShiftEditor(${w.id}, ${dd.dayIdx})">–</span></td>`;
+        html += `<td class="${cls}" style="${ovfBorder}${ovfOpacity}"><span class="shift-pill" style="color:var(--text3);opacity:0.25;font-weight:400;font-size:13px;letter-spacing:0;" data-wid="${w.id}" data-day="${dd.dayIdx}" data-month="${dd.month}" data-year="${dd.year}" draggable="true" ondragstart="dragShift(event,${w.id},${dd.dayIdx})" ondragover="dragOverShift(event)" ondragenter="dragEnterShift(event)" ondragleave="dragLeaveShift(event)" ondrop="dropShift(event,${w.id},${dd.dayIdx})" onclick="openShiftEditorScheduleView(${w.id}, ${dd.dayIdx})">–</span></td>`;
       }
     });
     const hasData = wM + wT + wN > 0;
@@ -13270,8 +13267,8 @@ function purgeAllImportData() {
   showToast('Todos los datos importados eliminados');
 }
 
-// Count shifts for a worker
-function countWorkerShifts(workerId) {
+// Count shifts for a worker across ALL months
+function countWorkerShiftsAllMonths(workerId) {
   let m = 0, t = 0, n = 0, other = 0, total = 0;
   for (const key in scheduleData) {
     const sch = scheduleData[key][workerId];
@@ -13301,7 +13298,7 @@ function renderImportManagement() {
   } else {
     list.innerHTML = `<div style="font-size:14px;font-weight:500;margin-bottom:12px;">Planillas importadas <span style="font-size:11px;color:var(--text3);font-weight:400;">(${importedFiles.length})</span></div>`;
     importedFiles.forEach((f, idx) => {
-      const shifts = countWorkerShifts(f.workerId);
+      const shifts = countWorkerShiftsAllMonths(f.workerId);
       list.innerHTML += `<div style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--surface);border-radius:12px;box-shadow:var(--shadow);margin-bottom:8px;">
         <div style="width:40px;height:40px;border-radius:10px;background:rgba(196,149,106,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
         <div style="flex:1;cursor:pointer;" onclick="showImportDetail(${idx})">
@@ -13326,7 +13323,7 @@ function renderImportManagement() {
     orphanSection.style.display = '';
     orphanSection.innerHTML = `<div style="font-size:14px;font-weight:500;margin-bottom:12px;color:var(--warning);">Datos huérfanos <span style="font-size:11px;color:var(--text3);font-weight:400;">(${orphans.length} trabajadores con datos sin registro de importación)</span></div>`;
     orphans.forEach(w => {
-      const shifts = countWorkerShifts(w.id);
+      const shifts = countWorkerShiftsAllMonths(w.id);
       orphanSection.innerHTML += `<div style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--surface);border-radius:12px;box-shadow:var(--shadow);margin-bottom:8px;border-left:3px solid var(--warning);">
         <div style="width:40px;height:40px;border-radius:10px;background:rgba(230,180,80,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
         <div style="flex:1;">
@@ -13746,6 +13743,22 @@ function showImportConfigModal(workerName, existingWorker) {
           </select>
         </div>
 
+        <!-- Supervisor Assignment -->
+        <div style="margin-bottom:24px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:rgba(201,168,76,0.04);display:none;" id="importSupervisorSection">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;">
+            <div id="importSupervisorToggle" onclick="const t=this;const isOn=t.dataset.on==='true';t.dataset.on=isOn?'false':'true';t.style.background=isOn?'var(--border)':'var(--accent)';t.querySelector('div').style.transform=isOn?'translateX(0)':'translateX(20px)';" data-on="false" style="width:44px;height:24px;border-radius:12px;background:var(--border);padding:2px;cursor:pointer;transition:background 0.2s;flex-shrink:0;">
+              <div style="width:20px;height:20px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:transform 0.2s;"></div>
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--text1);display:flex;align-items:center;gap:6px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                Asignar como supervisora de planta
+              </div>
+              <div style="font-size:10px;color:var(--text3);margin-top:2px;" id="importSupervisorHint">Marca esta persona como supervisora de la planta seleccionada</div>
+            </div>
+          </label>
+        </div>
+
         <!-- Buttons -->
         <div style="display:flex;gap:12px;">
           <button id="importCancelBtn" style="flex:1;padding:12px 16px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text2);font-weight:500;cursor:pointer;font-size:13px;font-family:var(--font);transition:all 0.2s;">Cancelar</button>
@@ -13755,6 +13768,31 @@ function showImportConfigModal(workerName, existingWorker) {
     `;
 
     document.body.appendChild(overlay);
+
+    // Show/hide supervisor section when plant is selected
+    const supSection = document.getElementById('importSupervisorSection');
+    const plantaSelect = document.getElementById('importPlanta');
+    function updateSupervisorVisibility() {
+      const fijoCard = document.querySelector('#importModalidad > div:first-child');
+      const isFijo = fijoCard && fijoCard.dataset.selected === 'true';
+      const hasPlanta = plantaSelect.value !== '';
+      supSection.style.display = (isFijo && hasPlanta) ? 'block' : 'none';
+      if (hasPlanta) {
+        const pName = PLANTAS.find(p => p.id === plantaSelect.value);
+        const hint = document.getElementById('importSupervisorHint');
+        const currentSup = PLANT_SUPERVISORS[plantaSelect.value];
+        if (hint && pName) {
+          hint.textContent = currentSup ? 'Supervisora actual: ' + currentSup.name + ' — Cambiar a esta persona' : 'No hay supervisora asignada en ' + pName.name;
+        }
+      }
+    }
+    plantaSelect.addEventListener('change', updateSupervisorVisibility);
+    // Also update when modalidad changes
+    document.querySelectorAll('#importModalidad > div').forEach(card => {
+      const origClick = card.onclick;
+      card.onclick = function(e) { if (origClick) origClick.call(this, e); setTimeout(updateSupervisorVisibility, 50); };
+    });
+    updateSupervisorVisibility();
 
     // Wire up cancel
     document.getElementById('importCancelBtn').onclick = () => { overlay.remove(); resolve(null); };
@@ -13768,10 +13806,20 @@ function showImportConfigModal(workerName, existingWorker) {
       const rotativoCard = document.querySelector('#importModalidad > div:last-child');
       const modalidad = (rotativoCard && rotativoCard.dataset.selected === 'true') ? 'rotativo' : 'fijo';
       const isFlotante = modalidad === 'rotativo';
+      const supToggle = document.getElementById('importSupervisorToggle');
+      const isSupervisor = supToggle && supToggle.dataset.on === 'true' && !isFlotante && planta;
 
       if (!name) { showToast('Introduce el nombre del trabajador', 'warning'); return; }
       if (!role) { showToast('Selecciona un rol profesional', 'warning'); return; }
       if (!isFlotante && !planta) { showToast('Selecciona la planta asignada', 'warning'); return; }
+
+      // Update supervisor if toggled
+      if (isSupervisor) {
+        PLANT_SUPERVISORS[planta] = { name: name, role: 'Supervisora' };
+        logAudit('supervisor_assign', 'Asignada supervisora: ' + name + ' en ' + (PLANTAS.find(p=>p.id===planta)||{}).name, planta, null);
+        saveToStorage();
+        showToast('Supervisora asignada: ' + name, 'success');
+      }
 
       overlay.remove();
       resolve({
@@ -13779,7 +13827,8 @@ function showImportConfigModal(workerName, existingWorker) {
         role: role,
         planta: isFlotante ? null : planta,
         flotante: isFlotante,
-        modalidad: modalidad
+        modalidad: modalidad,
+        isSupervisor: !!isSupervisor
       });
     };
 
@@ -13866,7 +13915,7 @@ function showToast(msg, type = 'info', duration = 3000) {
   }, duration);
 }
 
-function openShiftEditor(wId, day) {
+function openShiftEditorScheduleView(wId, day) {
   const w = workers.find(x => x.id === wId);
   if (!w) return;
 
@@ -14800,7 +14849,9 @@ function saveToStorage() {
       workerMemory,
       coverageHistory,
       auditLog,
-      shiftiaOnboarded
+      shiftiaOnboarded,
+      plantSupervisors: PLANT_SUPERVISORS,
+      nextWorkerId
     };
     // Save to localStorage (works offline, instant)
     localStorage.setItem('shiftia_data', JSON.stringify(data));
@@ -14883,6 +14934,8 @@ async function loadFromStorage() {
       if (data.coverageHistory) { coverageHistory.length = 0; data.coverageHistory.forEach(c => coverageHistory.push(c)); }
       if (data.auditLog) { auditLog.length = 0; data.auditLog.forEach(a => auditLog.push(a)); }
       if (data.shiftiaOnboarded !== undefined) shiftiaOnboarded = data.shiftiaOnboarded;
+      if (data.plantSupervisors) { Object.assign(PLANT_SUPERVISORS, data.plantSupervisors); }
+      if (data.nextWorkerId && data.nextWorkerId > nextWorkerId) { nextWorkerId = data.nextWorkerId; }
       applyWorkerMeta(data.workerMeta);
       // Restore persistent worker memory
       if (data.workerMemory) {
@@ -14909,102 +14962,6 @@ integratePDFData = function(pd, mw) { const r = _origIntegrate(pd, mw); saveToSt
 const _origSave = saveShiftChange;
 saveShiftChange = function() { _origSave(); saveToStorage(); detectConflicts(); };
 // deleteImport now uses purgeWorkerData which handles save+detect internally
-
-// FEATURE 2: Render Weekly Dashboard
-function renderWeeklyDashboard() {
-  const dashEl = document.getElementById('weeklyDashboard');
-  if (!dashEl) return;
-
-  const now = new Date();
-  // Get Monday of this week
-  const monday = new Date(now);
-  const day = monday.getDay();
-  const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
-  monday.setDate(diff);
-
-  let html = `<div class="weekly-dashboard">`;
-
-  // Show 14 days starting from Monday
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
-    const year = d.getFullYear();
-    const month = d.getMonth();
-    const dayIdx = d.getDate() - 1;
-    const dayNum = d.getDate();
-    const dayName = ['Dom','Lun','Mar','Mié','Jue','Vie','Sab'][d.getDay()];
-
-    // Get coverage per shift
-    const sch = genSchedule(year, month);
-    const shiftCov = {M: 0, T: 0, N: 0};
-    const absenceCount = {BAJ: 0, VAC: 0, D: 0, LD: 0};
-
-    workers.forEach(w => {
-      const shift = sch[w.id] ? sch[w.id][dayIdx] : '';
-      if (['M','MR','M7H','M6R','M55'].includes(shift)) shiftCov.M++;
-      else if (shift === 'T') shiftCov.T++;
-      else if (shift === 'N') shiftCov.N++;
-      else if (shift === 'BAJ') absenceCount.BAJ++;
-      else if (shift === 'VAC') absenceCount.VAC++;
-      else if (shift === 'LD') absenceCount.LD++;
-      else if (shift === 'D' || shift === '') absenceCount.D++;
-    });
-
-    // Get coverage rules
-    const rules = getCoverageRules(year, month, dayNum);
-    const mOk = shiftCov.M >= rules.M.enf; // simplified check
-    const tOk = shiftCov.T >= rules.T.enf;
-    const nOk = shiftCov.N >= rules.N.enf;
-
-    // Determine card classes
-    const isToday = d.toDateString() === now.toDateString();
-    const isCritical = !mOk || !tOk || !nOk;
-    const cardClass = isToday ? 'today-card' : (isCritical ? 'critical-card' : '');
-
-    let totalAbsent = absenceCount.BAJ + absenceCount.VAC + absenceCount.LD;
-
-    html += `<div class="weekly-day-card ${cardClass}">`;
-    html += `<div style="font-weight:700;font-size:11px;margin-bottom:2px;">${dayName}</div>`;
-    html += `<div style="font-size:13px;color:var(--text);margin-bottom:4px;">${dayNum}</div>`;
-
-    // Coverage dots
-    html += `<div class="weekly-cov-dots">`;
-    const dotColors = { ok: '#27ae60', warn: '#e67e22', bad: '#cc4444' };
-    const mDot = mOk ? 'ok' : 'bad';
-    const tDot = tOk ? 'ok' : 'bad';
-    const nDot = nOk ? 'ok' : 'bad';
-    html += `<div class="weekly-cov-dot" style="background:${dotColors[mDot]};" title="Mañana: ${shiftCov.M}"></div>`;
-    html += `<div class="weekly-cov-dot" style="background:${dotColors[tDot]};" title="Tarde: ${shiftCov.T}"></div>`;
-    html += `<div class="weekly-cov-dot" style="background:${dotColors[nDot]};" title="Noche: ${shiftCov.N}"></div>`;
-    html += `</div>`;
-
-    // Absent badge
-    if (totalAbsent > 0) {
-      html += `<div style="font-size:9px;margin-top:4px;padding:2px 6px;background:rgba(204,68,68,0.2);border-radius:4px;color:#cc4444;font-weight:600;">Ausentes: ${totalAbsent}</div>`;
-    }
-
-    html += `</div>`;
-  }
-
-  html += `</div>`;
-
-  // Get alerts for the next 14 days
-  const alerts = generateProactiveAlerts();
-  const topAlerts = alerts.filter(a => a.severity === 'high').slice(0, 3);
-
-  if (topAlerts.length > 0) {
-    html += `<div style="margin-top:12px;padding:12px;background:var(--surface2);border-radius:8px;border-left:3px solid #e67e22;">`;
-    html += `<div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">Alertas principales</div>`;
-    topAlerts.forEach(a => {
-      const icon = a.severity === 'high' ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
-      html += `<div style="font-size:10px;color:var(--text2);margin-bottom:4px;padding:4px 0;border-bottom:1px solid rgba(0,0,0,0.05);">`;
-      html += `${icon} ${a.message || a.dayLabel}`;
-      html += `</div>`;
-    });
-    html += `</div>`;
-  }
-
-  dashEl.innerHTML = html;
-}
 
 // Generate proactive coverage alerts for the next 14 days
 function generateProactiveAlerts() {
@@ -17648,13 +17605,17 @@ function renderMapaCobertura() {
 
   // Month navigation bar
   let html = `<div style="margin:0 auto;">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; flex-wrap:wrap; gap:14px; padding-bottom:20px; border-bottom:1px solid var(--border);">
       <div>
-        <h2 style="font-family:var(--font-display); font-size:28px; font-weight:400; color:var(--primary); margin:0;">
-          ${selectedPlanta !== 'all' ? escHtml((PLANTAS.find(p=>p.id===selectedPlanta)||{}).name || '') : 'Mapa de Cobertura'}
-        </h2>
-        <p style="color:var(--text2); font-size:13px; margin-top:4px;">
-          ${selectedPlanta !== 'all' ? (PLANT_SUPERVISORS[selectedPlanta] ? 'Supervisora: ' + PLANT_SUPERVISORS[selectedPlanta].name + ' · ' : '') : ''}${monthNames[month]} ${year}
+        <div style="display:flex;align-items:center;gap:10px;">
+          <h2 style="font-family:var(--font-display); font-size:26px; font-weight:400; color:var(--primary); margin:0;">
+            ${selectedPlanta !== 'all' ? escHtml((PLANTAS.find(p=>p.id===selectedPlanta)||{}).name || '') : 'Mapa de Cobertura'}
+          </h2>
+          ${selectedPlanta !== 'all' ? '<span style="font-size:10px;font-weight:700;color:white;background:var(--primary);padding:3px 8px;border-radius:6px;letter-spacing:0.5px;">' + escHtml((PLANTAS.find(p=>p.id===selectedPlanta)||{}).short || '') + '</span>' : ''}
+        </div>
+        <p style="color:var(--text2); font-size:12px; margin-top:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          ${selectedPlanta !== 'all' ? (PLANT_SUPERVISORS[selectedPlanta] ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="var(--accent)" stroke="var(--accent)" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span style="color:var(--accent);font-weight:600;">' + escHtml(PLANT_SUPERVISORS[selectedPlanta].name) + '</span><span style="color:var(--border);">|</span>' : '<span style="color:var(--text3);font-style:italic;">Sin supervisora</span><span style="color:var(--border);">|</span>') : ''}
+          <span>${monthNames[month]} ${year}</span>
         </p>
       </div>
       <div style="display:flex; gap:8px; align-items:center;">
@@ -17738,14 +17699,17 @@ function renderMapaCobertura() {
         const roleColor = w.role === 'enf' ? '#2e8b7a' : w.role === 'tec' ? '#4a9dd4' : '#c9a84c';
         const firstLetter = (w.name || '?').charAt(0).toUpperCase();
         const flotBadge = w.flotante ? '<span style="font-size:7px; font-weight:700; color:white; background:#8b7a2e; padding:1px 4px; border-radius:3px; margin-left:4px;">F</span>' : '';
+        const isSupervisor = PLANT_SUPERVISORS[selectedPlanta] && PLANT_SUPERVISORS[selectedPlanta].name && w.name && PLANT_SUPERVISORS[selectedPlanta].name.toLowerCase().trim() === w.name.toLowerCase().trim();
+        const supBadge = isSupervisor ? '<span title="Supervisora de planta" style="display:inline-flex;align-items:center;margin-left:4px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="var(--accent)" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>' : '';
+        const supRowBorder = isSupervisor ? 'border-left:3px solid var(--accent);' : '';
 
-        html += `<td style="padding:8px 10px; font-weight:600; color:var(--text1); font-size:11px; position:sticky; left:0; background:${rowBg}; z-index:1; border-right:2px solid var(--border); white-space:nowrap;">
+        html += `<td style="padding:8px 10px; font-weight:600; color:var(--text1); font-size:11px; position:sticky; left:0; background:${rowBg}; z-index:1; border-right:2px solid var(--border); white-space:nowrap; ${supRowBorder}">
           <div style="display:flex; align-items:center; gap:8px;">
-            <div style="width:28px; height:28px; border-radius:50%; background:${roleColor}; display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:12px; flex-shrink:0;">${firstLetter}</div>
+            <div style="width:28px; height:28px; border-radius:50%; background:${isSupervisor ? 'linear-gradient(135deg, var(--accent), #b8941a)' : roleColor}; display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:12px; flex-shrink:0;">${isSupervisor ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' : firstLetter}</div>
             <div style="flex:1; min-width:0;">
               <div style="display:flex; align-items:center; gap:4px; white-space:nowrap; overflow:hidden;">
-                <span style="overflow:hidden; text-overflow:ellipsis;">${escHtml(w.name)}</span>
-                ${flotBadge}
+                <span style="overflow:hidden; text-overflow:ellipsis; ${isSupervisor ? 'color:var(--accent);font-weight:700;' : ''}">${escHtml(w.name)}</span>
+                ${supBadge}${flotBadge}
               </div>
               <span style="font-size:9px; color:white; background:${roleColor}; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px;">${roleLabel}</span>
             </div>
@@ -17884,47 +17848,133 @@ function renderMapaCobertura() {
     }
 
   } else {
-    // ============ OVERVIEW — all plants grid ============
-    html += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px;">`;
-
+    // ============ OVERVIEW — premium plant cards ============
+    // Calculate global coverage stats
+    let totalGaps = 0, totalOk = 0;
+    const plantStats = [];
     PLANTAS.forEach(planta => {
-      const plantWorkers = workers.filter(w => w.planta === planta.id);
-      const sup = PLANT_SUPERVISORS[planta.id];
+      const pw = workers.filter(w => w.planta === planta.id);
       const covData = PLANT_COVERAGE[planta.id] || {};
-      const shifts = ['M','T','N'];
-      const shiftLabels = {M:'Mañana',T:'Tarde',N:'Noche'};
-      const shiftDotColors = {M:'#2e8b7a',T:'#4a9dd4',N:'#c9a84c'};
+      const todayIdx = todayDay > 0 ? todayDay - 1 : 0;
+      let gaps = 0, ok = 0;
+      ['M','T','N'].forEach(shift => {
+        const minReq = (covData[shift] || {}).min || 0;
+        let assigned = 0;
+        pw.forEach(w => {
+          const s = sch[w.id] ? (sch[w.id][todayIdx] || '').toString().trim() : '';
+          const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+          if (eff === shift) assigned++;
+        });
+        if (assigned < minReq) { gaps += (minReq - assigned); } else { ok++; }
+      });
+      plantStats.push({ planta, pw, gaps, ok, covData });
+      totalGaps += gaps;
+      totalOk += ok;
+    });
 
-      let cardHtml = `<div onclick="selectedPlanta='${planta.id}';document.getElementById('plantaFilterLabel').textContent='${escHtml(planta.name)}';document.getElementById('plantaFilterBtn').style.borderColor='var(--primary)';renderMapaCobertura();" style="background:white;border:1.5px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(26,54,93,0.08)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='';this.style.boxShadow=''">
-        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
-          <div>
-            <div style="font-size:15px;font-weight:700;color:var(--primary);">${escHtml(planta.name)}</div>
-            ${sup ? '<div style="font-size:10px;color:var(--text3);margin-top:2px;">' + sup.name + '</div>' : ''}
-          </div>
-          <span style="font-size:10px;font-weight:600;color:var(--text3);background:var(--surface2);padding:2px 8px;border-radius:6px;">${plantWorkers.length} prof.</span>
+    // Global summary bar
+    const globalPct = PLANTAS.length * 3 > 0 ? Math.round((totalOk / (PLANTAS.length * 3)) * 100) : 0;
+    const summaryColor = totalGaps === 0 ? '#22c55e' : (totalGaps <= 3 ? '#f59e0b' : '#ef4444');
+    html += `<div style="background:white;border:1.5px solid var(--border);border-radius:16px;padding:20px 24px;margin-bottom:24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+      <div style="width:56px;height:56px;border-radius:14px;background:${summaryColor}12;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        ${totalGaps === 0
+          ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="' + summaryColor + '" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+          : '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="' + summaryColor + '" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'}
+      </div>
+      <div style="flex:1;min-width:200px;">
+        <div style="font-size:15px;font-weight:700;color:var(--text1);">${totalGaps === 0 ? 'Cobertura completa' : totalGaps + ' hueco' + (totalGaps > 1 ? 's' : '') + ' de cobertura hoy'}</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px;">${PLANTAS.length} plantas · ${workers.length} profesionales asignados · ${monthNames[month]} ${year}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:120px;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;">
+          <div style="width:${globalPct}%;height:100%;background:${summaryColor};border-radius:4px;transition:width 0.6s ease;"></div>
         </div>
-        <div style="display:flex;gap:8px;">`;
+        <span style="font-size:14px;font-weight:700;color:${summaryColor};">${globalPct}%</span>
+      </div>
+    </div>`;
+
+    // Plant cards grid
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;">`;
+
+    plantStats.forEach(({ planta, pw, gaps, covData }, idx) => {
+      const sup = PLANT_SUPERVISORS[planta.id];
+      const shifts = ['M','T','N'];
+      const shiftMeta = {M:{label:'Mañana',icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',color:'#2e8b7a'},T:{label:'Tarde',icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/></svg>',color:'#4a9dd4'},N:{label:'Noche',icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',color:'#c9a84c'}};
+
+      const todayIdx = todayDay > 0 ? todayDay - 1 : 0;
+      const statusColor = gaps === 0 ? '#22c55e' : '#ef4444';
+      const statusBg = gaps === 0 ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)';
+      const statusBorder = gaps === 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)';
+
+      let cardHtml = `<div onclick="selectedPlanta='${planta.id}';document.getElementById('plantaFilterLabel').textContent='${escHtml(planta.name)}';document.getElementById('plantaFilterBtn').style.borderColor='var(--primary)';renderMapaCobertura();" style="background:white;border:1.5px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:all 0.25s ease;position:relative;" onmouseover="this.style.borderColor='var(--primary)';this.style.transform='translateY(-3px)';this.style.boxShadow='0 12px 32px rgba(26,54,93,0.1)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='';this.style.boxShadow=''">`;
+
+      // Status strip at top
+      cardHtml += `<div style="height:3px;background:${statusColor};"></div>`;
+
+      // Card header
+      cardHtml += `<div style="padding:16px 20px 12px;">
+        <div style="display:flex;justify-content:space-between;align-items:start;">
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-family:var(--font-display);font-size:17px;font-weight:400;color:var(--primary);">${escHtml(planta.name)}</span>
+              <span style="font-size:9px;font-weight:700;color:white;background:var(--primary);padding:2px 7px;border-radius:5px;letter-spacing:0.5px;">${planta.short}</span>
+            </div>
+            ${sup ? '<div style="display:flex;align-items:center;gap:4px;margin-top:4px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="var(--accent)" stroke="var(--accent)" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span style="font-size:11px;color:var(--accent);font-weight:500;">' + escHtml(sup.name) + '</span></div>' : '<div style="font-size:10px;color:var(--text3);font-style:italic;margin-top:4px;">Sin supervisora</div>'}
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:22px;font-weight:800;color:var(--primary);line-height:1;">${pw.length}</div>
+            <div style="font-size:9px;color:var(--text3);font-weight:500;letter-spacing:0.5px;">PROFESIONALES</div>
+          </div>
+        </div>
+      </div>`;
+
+      // Shift coverage bars
+      cardHtml += `<div style="padding:0 20px 16px;">
+        <div style="display:flex;flex-direction:column;gap:8px;">`;
 
       shifts.forEach(shift => {
-        const shiftData = covData[shift] || {};
-        const minReq = shiftData.min || 0;
+        const meta = shiftMeta[shift];
+        const minReq = (covData[shift] || {}).min || 0;
         let assigned = 0;
-        const todayIdx = todayDay > 0 ? todayDay - 1 : 0;
-        plantWorkers.forEach(w => {
+        pw.forEach(w => {
           const s = sch[w.id] ? (sch[w.id][todayIdx] || '').toString().trim() : '';
           const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
           if (eff === shift) assigned++;
         });
         const isMet = assigned >= minReq;
-        const color = minReq === 0 ? '#94a3b8' : (isMet ? '#22c55e' : '#ef4444');
+        const barPct = minReq > 0 ? Math.min(100, Math.round((assigned / minReq) * 100)) : 100;
+        const barColor = minReq === 0 ? '#94a3b8' : (isMet ? meta.color : '#ef4444');
 
-        cardHtml += `<div style="flex:1;text-align:center;padding:8px 4px;background:${color}10;border-radius:8px;">
-          <div style="font-size:9px;color:var(--text3);font-weight:600;letter-spacing:0.5px;margin-bottom:2px;">${shiftLabels[shift]}</div>
-          <div style="font-size:16px;font-weight:800;color:${color};">${assigned}<span style="font-weight:400;font-size:10px;color:var(--text3);">/${minReq}</span></div>
+        cardHtml += `<div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:20px;color:${meta.color};flex-shrink:0;opacity:0.7;">${meta.icon}</div>
+          <div style="flex:1;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">
+              <span style="font-size:10px;font-weight:600;color:var(--text2);">${meta.label}</span>
+              <span style="font-size:11px;font-weight:700;color:${barColor};">${assigned}<span style="font-weight:400;color:var(--text3);font-size:10px;">/${minReq}</span></span>
+            </div>
+            <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;">
+              <div style="width:${barPct}%;height:100%;background:${barColor};border-radius:3px;transition:width 0.5s ease;"></div>
+            </div>
+          </div>
         </div>`;
       });
 
       cardHtml += `</div></div>`;
+
+      // Footer with status
+      cardHtml += `<div style="padding:10px 20px;background:${statusBg};border-top:1px solid ${statusBorder};display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          ${gaps === 0
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span style="font-size:11px;font-weight:600;color:#22c55e;">Cobertura OK</span>'
+            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span style="font-size:11px;font-weight:600;color:#ef4444;">' + gaps + ' hueco' + (gaps > 1 ? 's' : '') + '</span>'}
+        </div>
+        <div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;">
+          Ver planilla
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>`;
+
+      cardHtml += `</div>`;
       html += cardHtml;
     });
 
