@@ -16899,93 +16899,129 @@ function getVacationAnalysis(year) {
 }
 
 // ===== MAPA DE COBERTURA =====
+let mapaViewMonth = null;
+let mapaViewYear = null;
+
 function renderMapaCobertura() {
   const container = document.getElementById('mapaContent');
   if (!container) return;
 
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  let currentViewDate = new Date(year, month, 1);
+  if (mapaViewYear === null) { mapaViewYear = now.getFullYear(); mapaViewMonth = now.getMonth(); }
 
-  const renderTable = () => {
-    const gaps = getCoverageGaps(year, month);
-    const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const year = mapaViewYear;
+  const month = mapaViewMonth;
+  const sch = genSchedule(year, month);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-    let html = `
-      <div style="margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between;">
-        <div>
-          <h2 style="font-size: 24px; font-weight: 500; margin-bottom: 4px;">Mapa de Cobertura</h2>
-          <p style="color: var(--text2); font-size: 13px;">${monthNames[currentViewDate.getMonth()]} ${currentViewDate.getFullYear()}</p>
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <button onclick="if(this.parentElement.parentElement.dataset.navFunc) eval(this.parentElement.parentElement.dataset.navFunc('prev'))" style="padding: 8px 12px; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; cursor: pointer; font-family: inherit;">◀ Anterior</button>
-          <button onclick="if(this.parentElement.parentElement.dataset.navFunc) eval(this.parentElement.parentElement.dataset.navFunc('next'))" style="padding: 8px 12px; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; cursor: pointer; font-family: inherit;">Siguiente ▶</button>
-        </div>
+  // Filter plants
+  const plantasToShow = selectedPlanta === 'all' ? PLANTAS : PLANTAS.filter(p => p.id === selectedPlanta);
+
+  // Day-by-day analysis for selected day
+  const todayIdx = (year === now.getFullYear() && month === now.getMonth()) ? now.getDate() - 1 : 0;
+  const hour = now.getHours();
+  let currentShift = 'M';
+  if (hour >= 15 && hour < 22) currentShift = 'T';
+  if (hour >= 22 || hour < 8) currentShift = 'N';
+
+  let totalGaps = 0;
+
+  let html = `<div style="max-width:1200px; margin:0 auto;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:12px;">
+      <div>
+        <h2 style="font-family:var(--font-display); font-size:28px; font-weight:400; color:var(--primary); margin:0;">Mapa de Cobertura</h2>
+        <p style="color:var(--text2); font-size:13px; margin-top:4px;">${selectedPlanta === 'all' ? 'Todas las plantas' : (PLANTAS.find(p=>p.id===selectedPlanta)||{}).name || ''} · ${monthNames[month]} ${year}</p>
       </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button onclick="mapaViewMonth--;if(mapaViewMonth<0){mapaViewMonth=11;mapaViewYear--;}renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:white; border-radius:10px; cursor:pointer; font-family:var(--font); font-size:13px; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg> Anterior
+        </button>
+        <button onclick="mapaViewMonth=${now.getMonth()};mapaViewYear=${now.getFullYear()};renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:white; border-radius:10px; cursor:pointer; font-family:var(--font); font-size:13px; font-weight:600; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">Hoy</button>
+        <button onclick="mapaViewMonth++;if(mapaViewMonth>11){mapaViewMonth=0;mapaViewYear++;}renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:white; border-radius:10px; cursor:pointer; font-family:var(--font); font-size:13px; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+          Siguiente <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </div>`;
 
-      <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid var(--border); border-radius: 12px;">
-          <thead>
-            <tr style="background: var(--surface2); border-bottom: 1px solid var(--border);">
-              <th style="padding: 12px; text-align: left; font-weight: 600; color: var(--text); border-right: 1px solid var(--border);">Planta</th>
-              <th style="padding: 12px; text-align: center; font-weight: 600; color: var(--text); border-right: 1px solid var(--border);">Mañana (M)</th>
-              <th style="padding: 12px; text-align: center; font-weight: 600; color: var(--text); border-right: 1px solid var(--border);">Tarde (T)</th>
-              <th style="padding: 12px; text-align: center; font-weight: 600; color: var(--text);">Noche (N)</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
+  // Coverage table — plants × shifts
+  html += `<div style="overflow-x:auto; margin-bottom:24px;">
+    <table style="width:100%; border-collapse:separate; border-spacing:0; border:1px solid var(--border); border-radius:14px; overflow:hidden;">
+      <thead>
+        <tr style="background:var(--primary);">
+          <th style="padding:14px 16px; text-align:left; font-weight:600; color:white; font-size:13px; border-right:1px solid rgba(255,255,255,0.1);">Planta</th>
+          <th style="padding:14px 16px; text-align:left; font-weight:500; color:rgba(255,255,255,0.8); font-size:11px; border-right:1px solid rgba(255,255,255,0.1);">Supervisora</th>
+          <th style="padding:14px 16px; text-align:center; font-weight:600; color:white; font-size:13px; border-right:1px solid rgba(255,255,255,0.1);">Mañana</th>
+          <th style="padding:14px 16px; text-align:center; font-weight:600; color:white; font-size:13px; border-right:1px solid rgba(255,255,255,0.1);">Tarde</th>
+          <th style="padding:14px 16px; text-align:center; font-weight:600; color:white; font-size:13px;">Noche</th>
+        </tr>
+      </thead>
+      <tbody>`;
 
-    PLANTAS.forEach(planta => {
-      const plantWorkers = workers.filter(w => w.planta === planta.id && w.type === 'enf');
-      const shifts = ['M', 'T', 'N'];
-      const coverageByShift = {};
+  plantasToShow.forEach((planta, idx) => {
+    const plantWorkers = workers.filter(w => w.planta === planta.id);
+    const shifts = ['M', 'T', 'N'];
+    const sup = PLANT_SUPERVISORS[planta.id];
+    const rowBg = idx % 2 === 0 ? 'white' : 'var(--surface2)';
 
-      shifts.forEach(shift => {
-        const minRequired = PLANT_COVERAGE[planta.id][shift].min;
-        const assigned = plantWorkers.filter(w => {
-          const sch = genSchedule(year, month);
-          const idx = currentViewDate.getDate() - 1;
-          const s = sch[w.id] ? sch[w.id][idx] : '';
-          return s === shift || (shift === 'M' && ['MR','M7H','M6R','M55'].includes(s));
-        }).length;
-        coverageByShift[shift] = { assigned, minRequired, gap: Math.max(0, minRequired - assigned) };
+    html += `<tr style="background:${rowBg}; border-bottom:1px solid var(--border);">
+      <td style="padding:12px 16px; font-weight:600; color:var(--primary); font-size:14px; border-right:1px solid var(--border); white-space:nowrap;">${escHtml(planta.name)}</td>
+      <td style="padding:12px 16px; font-size:12px; color:var(--text2); border-right:1px solid var(--border); white-space:nowrap;">
+        ${sup ? `<span style="display:flex;align-items:center;gap:5px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${sup.name}</span>` : '—'}
+      </td>`;
+
+    shifts.forEach(shift => {
+      const covData = PLANT_COVERAGE[planta.id] || {};
+      const shiftData = covData[shift] || {};
+      const minRequired = shiftData.min || 0;
+      let assigned = 0;
+      plantWorkers.forEach(w => {
+        const s = sch[w.id] ? (sch[w.id][todayIdx] || '').toString().trim() : '';
+        const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+        if (eff === shift) assigned++;
       });
+      const gap = Math.max(0, minRequired - assigned);
+      if (gap > 0) totalGaps += gap;
+      const isMet = assigned >= minRequired;
+      const pct = minRequired > 0 ? Math.min(100, Math.round((assigned / minRequired) * 100)) : (assigned > 0 ? 100 : 0);
+      const color = isMet ? '#22c55e' : (pct >= 60 ? '#eab308' : '#ef4444');
+      const isCurrentShift = shift === currentShift && year === now.getFullYear() && month === now.getMonth();
 
-      html += `
-        <tr style="border-bottom: 1px solid var(--border);">
-          <td style="padding: 12px; font-weight: 600; color: var(--text); border-right: 1px solid var(--border);">${escHtml(planta.name)}</td>
-      `;
-
-      shifts.forEach(shift => {
-        const status = coverageByShift[shift];
-        const isMet = status.assigned >= status.minRequired;
-        const statusColor = isMet ? '#22863a' : '#cb2431';
-        const statusIcon = isMet ? '✓' : '⚠';
-        html += `
-          <td style="padding: 12px; text-align: center; border-right: 1px solid var(--border);">
-            <div style="color: ${statusColor}; font-weight: 700; font-size: 14px;">${statusIcon} ${status.assigned}/${status.minRequired}</div>
-          </td>
-        `;
-      });
-
-      html += `</tr>`;
+      html += `<td style="padding:10px 16px; text-align:center; border-right:1px solid var(--border); ${isCurrentShift ? 'background:rgba(26,54,93,0.03);' : ''}">
+        <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+          <span style="font-weight:700; font-size:16px; color:${color};">${assigned}<span style="font-weight:400;font-size:12px;color:var(--text3);">/${minRequired}</span></span>
+          <div style="width:48px; height:4px; border-radius:3px; background:var(--surface2); overflow:hidden;">
+            <div style="height:100%; width:${pct}%; background:${color}; border-radius:3px; transition:width 0.3s;"></div>
+          </div>
+          ${gap > 0 ? `<span style="font-size:9px; font-weight:600; color:#ef4444; text-transform:uppercase; letter-spacing:0.5px;">-${gap} faltan</span>` : ''}
+        </div>
+      </td>`;
     });
 
-    html += `
-          </tbody>
-        </table>
-      </div>
-      <div style="margin-top: 16px; padding: 12px; background: var(--surface2); border-radius: 10px; font-size: 12px; color: var(--text2);">
-        <strong>Total gaps detectados:</strong> ${gaps.length} | <strong>Trabajadores:</strong> ${workers.length}
-      </div>
-    `;
+    html += `</tr>`;
+  });
 
-    container.innerHTML = html;
-  };
+  html += `</tbody></table></div>`;
 
-  renderTable();
+  // Summary bar
+  const totalWorkers = selectedPlanta === 'all' ? workers.length : workers.filter(w => w.planta === selectedPlanta).length;
+  html += `<div style="display:flex; gap:16px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:200px; padding:16px 20px; background:white; border:1px solid var(--border); border-radius:12px;">
+      <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:4px;">Profesionales</div>
+      <div style="font-size:28px; font-weight:700; color:var(--primary);">${totalWorkers}</div>
+    </div>
+    <div style="flex:1; min-width:200px; padding:16px 20px; background:white; border:1px solid ${totalGaps > 0 ? 'rgba(239,68,68,0.3)' : 'var(--border)'}; border-radius:12px;">
+      <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:4px;">Huecos hoy</div>
+      <div style="font-size:28px; font-weight:700; color:${totalGaps > 0 ? '#ef4444' : '#22c55e'};">${totalGaps}</div>
+    </div>
+    <div style="flex:1; min-width:200px; padding:16px 20px; background:white; border:1px solid var(--border); border-radius:12px;">
+      <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:4px;">Plantas</div>
+      <div style="font-size:28px; font-weight:700; color:var(--primary);">${plantasToShow.length}</div>
+    </div>
+  </div>
+  </div>`;
+
+  container.innerHTML = html;
 }
 
 // ===== GESTOR DE AUSENCIAS =====
