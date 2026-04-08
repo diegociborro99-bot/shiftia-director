@@ -8380,6 +8380,7 @@ table.schedule tbody tr:hover {
       </button>
     </div>
     <nav class="nav-tabs" role="tablist" aria-label="Navegación principal">
+      <button class="nav-tab" data-view="dashboard" role="tab" aria-selected="false" style="color:var(--accent);"><span class="tab-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> Inicio</button>
       <button class="nav-tab active" data-view="import" role="tab" aria-selected="true"><span class="tab-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg></span> Importar</button>
       <button class="nav-tab" data-view="mapa-cobertura" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span> Mapa de Cobertura</button>
       <button class="nav-tab" data-view="gestor-ausencias" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 11v6"/><path d="M9 14h6"/></svg></span> Gestor de Ausencias</button>
@@ -8396,7 +8397,7 @@ table.schedule tbody tr:hover {
     <div class="topbar-right">
       <span id="wsSyncBadge" style="display:none;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;background:rgba(46,139,122,0.1);color:var(--morning);font-size:10px;font-weight:600;letter-spacing:0.3px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--morning);animation:savePulse 1.5s ease infinite;"></span><span id="wsSyncText"></span></span>
       <span class="user-display" id="userDisplay" style="font-size:12px;color:var(--text3);margin-right:8px;"></span>
-      <button class="theme-btn" id="themeToggle" aria-label="Cambiar tema claro/oscuro">🌙</button>
+      <button class="theme-btn" id="themeToggle" aria-label="Cambiar tema claro/oscuro"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
       <button class="theme-btn" id="logoutBtn" onclick="handleLogout()" title="Cerrar sesión" aria-label="Cerrar sesión" style="font-size:14px;">⏻</button>
     </div>
   </div>
@@ -8702,7 +8703,7 @@ table.schedule tbody tr:hover {
                ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='var(--surface2)'"
                ondragleave="this.style.borderColor='var(--text3)';this.style.background='var(--surface)'"
                ondrop="event.preventDefault();this.style.borderColor='var(--text3)';this.style.background='var(--surface)';handleImport(event.dataTransfer.files)">
-            <div style="font-size:36px;margin-bottom:12px;opacity:0.4;">📄</div>
+            <div style="font-size:36px;margin-bottom:12px;opacity:0.4;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
             <div style="font-size:15px;font-weight:500;margin-bottom:6px;">Arrastra los PDFs aquí</div>
             <div style="color:var(--text3);font-size:12px;margin-bottom:20px;">o haz clic para seleccionar · Formato: Planificación Anual (.pdf)</div>
             <button style="padding:10px 24px;border-radius:10px;border:none;background:var(--accent);color:white;font-size:13px;font-family:inherit;cursor:pointer;font-weight:500;" onclick="event.stopPropagation();document.getElementById('fileInput').click()">Seleccionar archivos</button>
@@ -8807,7 +8808,7 @@ table.schedule tbody tr:hover {
     <div class="gestor-modal">
       <div class="gestor-header">
         <h2><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e67e22" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> Gestor de Cobertura <span>IA 2.0</span>
-          <button id="simulationModeBtn" onclick="toggleSimulationMode()" style="margin-left:8px;padding:4px 12px;border:1px solid #3498db;background:transparent;color:#3498db;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;">🔮 Simular</button>
+          <button id="simulationModeBtn" onclick="toggleSimulationMode()" style="margin-left:8px;padding:4px 12px;border:1px solid #3498db;background:transparent;color:#3498db;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> Simular</button>
         </h2>
         <button class="gestor-close" onclick="closeGestor()">&times;</button>
       </div>
@@ -8840,35 +8841,35 @@ table.schedule tbody tr:hover {
               <div class="action-desc">Necesita el dia libre</div>
             </div>
             <div class="gestor-action-card" onclick="selectGestorAction('cambio', this)">
-              <div class="action-icon">🔀</div>
+              <div class="action-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>
               <div class="action-label">Cambio turno</div>
               <div class="action-desc">Intercambio entre 2</div>
             </div>
             <div class="gestor-action-card" onclick="selectGestorAction('maternidad', this)">
               <span class="action-badge legal">LEGAL</span>
-              <div class="action-icon">👶</div>
+              <div class="action-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg></div>
               <div class="action-label">Maternidad / Paternidad</div>
               <div class="action-desc">16 semanas protegidas</div>
             </div>
             <div class="gestor-action-card" onclick="selectGestorAction('lactancia', this)">
               <span class="action-badge partial">PARCIAL</span>
-              <div class="action-icon">🍼</div>
+              <div class="action-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3h6"/><path d="M10 3v7.4a2 2 0 0 1-.6 1.4L4.6 16.6a2 2 0 0 0-.6 1.4V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1a2 2 0 0 0-.6-1.4l-4.8-4.8a2 2 0 0 1-.6-1.4V3"/></svg></div>
               <div class="action-label">Lactancia</div>
               <div class="action-desc">Reduccion 1h/dia</div>
             </div>
             <div class="gestor-action-card" onclick="selectGestorAction('formacion', this)">
-              <div class="action-icon">📚</div>
+              <div class="action-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
               <div class="action-label">Formacion</div>
               <div class="action-desc">Curso o capacitacion</div>
             </div>
             <div class="gestor-action-card" onclick="selectGestorAction('sindical', this)">
               <span class="action-badge partial">PARCIAL</span>
-              <div class="action-icon">⚖️</div>
+              <div class="action-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M5 12H2l5-9 5 9H5z"/><path d="M19 12h-3l5-9-5 9h3z"/></svg></div>
               <div class="action-label">Permiso sindical</div>
               <div class="action-desc">Horas sindicales</div>
             </div>
             <div class="gestor-action-card" onclick="selectGestorAction('caaa', this)">
-              <div class="action-icon">🏠</div>
+              <div class="action-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
               <div class="action-label">Asuntos propios</div>
               <div class="action-desc">Dia personal</div>
             </div>
@@ -9649,7 +9650,7 @@ function getTodayText() {
 function toggleTheme() {
   appState.theme = appState.theme === 'light' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', appState.theme === 'dark' ? 'dark' : '');
-  document.getElementById('themeToggle').textContent = appState.theme === 'dark' ? '☀' : '🌙';
+  document.getElementById('themeToggle').innerHTML = appState.theme === 'dark' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
 }
 
 // View Switching
@@ -9966,7 +9967,12 @@ function selectPlanta(id) {
     btn.style.background = id === 'all' ? 'var(--bg)' : 'rgba(26,54,93,0.04)';
   }
   closePlantMap();
-  renderCurrentView();
+  // When selecting a specific plant, navigate to coverage map to show it
+  if (id !== 'all') {
+    switchView('mapa-cobertura');
+  } else {
+    renderCurrentView();
+  }
 }
 
 // Schedule Filter
@@ -10377,7 +10383,7 @@ function buildWhatIfPanel() {
   // ═══ SCENARIO 1a: 1 baja enfermeria en turno actual ═══
   const sc1Date = new Date(now);
   const sc1Shift = currentShift;
-  const sc1Icon = sc1Shift === 'N' ? '🌙' : sc1Shift === 'T' ? '🌅' : '☀️';
+  const sc1Icon = sc1Shift === 'N' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>' : sc1Shift === 'T' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/><line x1="23" y1="22" x2="1" y2="22"/><polyline points="8 6 12 2 16 6"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
 
   scenarios.push(buildTypeScenario({
     id: 'whatif_1a', icon: sc1Icon, date: sc1Date, shift: sc1Shift,
@@ -10397,14 +10403,14 @@ function buildWhatIfPanel() {
   const tmDayName = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'][tomorrow.getDay()];
 
   scenarios.push(buildTypeScenario({
-    id: 'whatif_2a', icon: '🏥', date: tomorrow, shift: 'M',
+    id: 'whatif_2a', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M9 21v-4h6v4"/></svg>', date: tomorrow, shift: 'M',
     type: 'enf', bajas: 2,
     labelDate: `mañana (${tmDayName})`, labelShift: 'Mañana'
   }));
 
   // ═══ SCENARIO 2b: 2 bajas tecnicos mañana Mañana ═══
   scenarios.push(buildTypeScenario({
-    id: 'whatif_2b', icon: '🏥', date: tomorrow, shift: 'M',
+    id: 'whatif_2b', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M9 21v-4h6v4"/></svg>', date: tomorrow, shift: 'M',
     type: 'tec', bajas: 2,
     labelDate: `mañana (${tmDayName})`, labelShift: 'Mañana'
   }));
@@ -10414,14 +10420,14 @@ function buildWhatIfPanel() {
   while (nextSat.getDay() !== 6) nextSat.setDate(nextSat.getDate() + 1);
 
   scenarios.push(buildTypeScenario({
-    id: 'whatif_3a', icon: '📅', date: nextSat, shift: 'N',
+    id: 'whatif_3a', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', date: nextSat, shift: 'N',
     type: 'enf', bajas: 1,
     labelDate: `sabado ${nextSat.getDate()}`, labelShift: 'Noche'
   }));
 
   // ═══ SCENARIO 3b: Baja tecnico noche sabado ═══
   scenarios.push(buildTypeScenario({
-    id: 'whatif_3b', icon: '📅', date: nextSat, shift: 'N',
+    id: 'whatif_3b', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', date: nextSat, shift: 'N',
     type: 'tec', bajas: 1,
     labelDate: `sabado ${nextSat.getDate()}`, labelShift: 'Noche'
   }));
@@ -10433,7 +10439,7 @@ function buildWhatIfPanel() {
   const tecScenarios = scenarios.filter(s => s.id.endsWith('b'));
 
   let html = `<div class="whatif-panel">
-    <div class="whatif-title"><span style="font-size:18px;">🔮</span> Que pasaria si...</div>`;
+    <div class="whatif-title"><span style="font-size:18px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span> Que pasaria si...</div>`;
 
   // Enfermería group
   html += `<div class="whatif-group-label" style="display:flex;align-items:center;gap:6px;padding:8px 14px 4px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#cc4444;">
@@ -11469,7 +11475,7 @@ function renderConflicts() {
     html += `<div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px;padding-left:4px;">${dateLabel}</div>`;
 
     conflicts.forEach((c, idx) => {
-      const icon = typeIcons[c.type] || '⚠️';
+      const icon = typeIcons[c.type] || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
       const id = `conflict-${date}-${idx}`;
       const canResolve = c.type === 'coverage' || c.type === 'rest' || c.type === 'restriction';
       const resolveData = canResolve ? btoa(encodeURIComponent(JSON.stringify({year:c.year,month:c.month,day:c.day,type:c.type,shift:c.shift||'',title:c.title,severity:c.severity}))) : '';
@@ -11679,7 +11685,7 @@ function renderConflictProposal(conflictId, data, solution) {
 
   let html = `<div style="padding:14px;background:rgba(39,174,96,0.06);border-radius:12px;border:1px solid rgba(39,174,96,0.2);">`;
   html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-    <span style="font-size:16px;">🧠</span>
+    <span style="font-size:16px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/></svg></span>
     <span style="font-size:13px;font-weight:700;color:#27ae60;">Solucion propuesta</span>
   </div>`;
 
@@ -12065,139 +12071,64 @@ const VALID_SHIFTS = ['M','T','N','D','MR','VAC','LD','FOR','CAA','AE','EX','BAJ
 
 // Match worker from PDF header name (e.g. "CIBORRO GONZALEZ, DIEGO")
 function matchWorkerFromPDFName(pdfName) {
-  if (!pdfName) return null;
-  const upper = pdfName.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  if (!pdfName || workers.length === 0) return null;
 
-  // Helper: check if a word appears as a whole word (not substring of another)
+  // Normalize: uppercase, remove accents, trim
+  const normalize = (str) => str.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const pdfNorm = normalize(pdfName);
+  const pdfWords = pdfNorm.split(/\s+/).filter(w => w.length > 1);
+
+  // Helper: check if a word appears as a whole word
   function hasWord(text, word) {
-    // Word boundary check — must be surrounded by non-letter chars or start/end
     const re = new RegExp('(^|[^A-Z])' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^A-Z]|$)');
     return re.test(text);
   }
 
-  // PRIORITY 1: Full surname match (most reliable — enfermeros have unique surnames)
-  const surnameMap = [
-    // Enfermeros — match by primary surname
-    { surnames: ['AVANZAS'], id: 1 },
-    { surnames: ['GARCIA'], id: 2, disambig: ['SONIA'] },  // "GARCIA" alone → Sonia, but check first name too
-    { surnames: ['VALLE'], id: 3 },
-    { surnames: ['CIBORRO'], id: 4 },
-    { surnames: ['CERRADA'], id: 5 },
-    { surnames: ['ZHIGUNOV', 'ZHIGUNOU'], id: 6 },
-    { surnames: ['AZPIROZ'], id: 7 },
-    { surnames: ['GOYANES'], id: 8 },
-    { surnames: ['CALVO'], id: 9, disambig: ['LAURA'] },
-    { surnames: ['JIMENEZ'], id: 10 },
-    { surnames: ['VELARDE'], id: 11 },
-    { surnames: ['RODRIGUEZ'], id: 12, disambig: ['ALEJANDRA'] },
-    // Técnicos — match by surname if available, or unique first name
-    { surnames: ['CUETO'], id: 13 },
-    { surnames: ['TRINIDAD'], id: 22 },
-    { surnames: ['MONTSERRAT'], id: 23 },
-    { surnames: ['MARIA DEL PILAR', 'MARIA PILAR', 'DEL PILAR', 'PILAR'], id: 24 },
-  ];
+  // Score each existing worker against the PDF name
+  let bestMatch = null;
+  let bestScore = 0;
 
-  // ALL worker first names — checked BEFORE surnames to avoid mismatches
-  const firstNameMap = [
-    // Enfermeros
-    { names: ['DIRECTOR','ICUEVA'], id: 1 },
-    { names: ['SONIA'], id: 2 },
-    { names: ['MARTA'], id: 3 },
-    { names: ['DIEGO'], id: 4 },
-    { names: ['CARMEN'], id: 5 },
-    { names: ['IOURI'], id: 6 },
-    { names: ['SOLEDAD', 'SOLE'], id: 7 },
-    { names: ['REBECA'], id: 8 },
-    { names: ['LAURA'], id: 9 },
-    { names: ['YOLANDA', 'YOLI'], id: 10 },
-    { names: ['IRIS'], id: 11 },
-    { names: ['ALEJANDRA'], id: 12 },
-    // Técnicos
-    { names: ['SALOME'], id: 13 },
-    { names: ['JOSE MARIA', 'JOSE M', 'CHEMA'], id: 14 },
-    { names: ['GRACIELA'], id: 15 },
-    { names: ['GUADALUPE'], id: 16 },
-    { names: ['JENNIFER', 'JENNY'], id: 17 },
-    { names: ['PATRICIA'], id: 18 },
-    { names: ['AITOR'], id: 19 },
-    { names: ['DESIREE'], id: 20 },
-    { names: ['BEATRIZ'], id: 21 },
-    { names: ['TRINIDAD', 'TRINI'], id: 22 },
-    { names: ['MONTSERRAT', 'MONTSE'], id: 23 },
-    { names: ['MARIA DEL PILAR', 'MARIA PILAR', 'PILAR'], id: 24 },
-  ];
-
-  // Step 1: Multi-word matches first (most specific — "MARIA PILAR", "JOSE MARIA", etc.)
-  for (const entry of firstNameMap) {
-    for (const n of entry.names) {
-      if (n.includes(' ') && upper.includes(n)) {
-        return workers.find(w => w.id === entry.id);
-      }
-    }
-  }
-  for (const entry of surnameMap) {
-    for (const s of entry.surnames) {
-      if (s.includes(' ') && upper.includes(s)) {
-        return workers.find(w => w.id === entry.id);
-      }
-    }
-  }
-
-  // Step 2: Técnico first names as whole words — BEFORE surnames!
-  // This prevents "TRINIDAD RODRIGUEZ ..." matching Alejandra instead of Trini
-  for (const entry of firstNameMap) {
-    for (const n of entry.names) {
-      if (!n.includes(' ') && hasWord(upper, n)) {
-        return workers.find(w => w.id === entry.id);
-      }
-    }
-  }
-
-  // Step 3: Unique surnames (those WITHOUT disambig — unambiguous)
-  for (const entry of surnameMap) {
-    if (entry.disambig) continue; // Skip ambiguous surnames for now
-    for (const s of entry.surnames) {
-      if (!s.includes(' ') && hasWord(upper, s)) {
-        return workers.find(w => w.id === entry.id);
-      }
-    }
-  }
-
-  // Step 4: Ambiguous surnames (GARCIA, RODRIGUEZ, CALVO) — require disambig name present
-  for (const entry of surnameMap) {
-    if (!entry.disambig) continue;
-    for (const s of entry.surnames) {
-      if (!s.includes(' ') && hasWord(upper, s)) {
-        // Check if disambig name is also present
-        const hasDisambig = entry.disambig.some(d => hasWord(upper, d));
-        if (hasDisambig) return workers.find(w => w.id === entry.id);
-      }
-    }
-  }
-
-  // Step 5: Ambiguous surnames WITHOUT disambig match — last resort for these
-  for (const entry of surnameMap) {
-    if (!entry.disambig) continue;
-    for (const s of entry.surnames) {
-      if (!s.includes(' ') && hasWord(upper, s)) {
-        console.warn('[Shiftia] Ambiguous surname match:', s, '→', entry.id, 'for PDF:', pdfName);
-        return workers.find(w => w.id === entry.id);
-      }
-    }
-  }
-
-  // Step 6: Loose fallback — only for very long names, match any worker surname
   for (const w of workers) {
-    const parts = w.name.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(' ');
-    for (const part of parts) {
-      if (part.length > 5 && hasWord(upper, part)) {
-        return w;
+    const wNorm = normalize(w.name);
+    const wWords = wNorm.split(/\s+/).filter(p => p.length > 1);
+    let score = 0;
+
+    // Exact full name match → perfect score
+    if (pdfNorm === wNorm || pdfNorm.includes(wNorm) || wNorm.includes(pdfNorm)) {
+      score = 100;
+    } else {
+      // Count how many worker name words appear as whole words in the PDF name
+      for (const part of wWords) {
+        if (part.length <= 2) continue; // Skip tiny words like "DE", "LA"
+        if (hasWord(pdfNorm, part)) {
+          // Longer words score higher (surnames are more unique than first names)
+          score += part.length >= 6 ? 15 : (part.length >= 4 ? 10 : 5);
+        }
       }
+
+      // Also check reverse: PDF words appearing in worker name
+      for (const pw of pdfWords) {
+        if (pw.length <= 2) continue;
+        if (hasWord(wNorm, pw)) {
+          score += pw.length >= 6 ? 10 : 5;
+        }
+      }
+    }
+
+    // Require at least 2 matching words or one long match (>= 15 points)
+    // This prevents "GARCIA" alone from matching wrong "Maria Garcia"
+    if (score > bestScore && score >= 15) {
+      bestScore = score;
+      bestMatch = w;
     }
   }
 
-  console.warn('[Shiftia] No worker match for PDF name:', pdfName);
-  return null;
+  if (bestMatch) {
+    console.log('[Shiftia Director] Worker match:', pdfName, '→', bestMatch.name, '(score:', bestScore, ')');
+  } else {
+    console.log('[Shiftia Director] No existing worker match for:', pdfName, '— will create new');
+  }
+  return bestMatch;
 }
 
 // Also try matching from filename as fallback
@@ -12742,7 +12673,7 @@ function renderImportManagement() {
     importedFiles.forEach((f, idx) => {
       const shifts = countWorkerShifts(f.workerId);
       list.innerHTML += `<div style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--surface);border-radius:12px;box-shadow:var(--shadow);margin-bottom:8px;">
-        <div style="width:40px;height:40px;border-radius:10px;background:rgba(196,149,106,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;">📄</div>
+        <div style="width:40px;height:40px;border-radius:10px;background:rgba(196,149,106,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
         <div style="flex:1;cursor:pointer;" onclick="showImportDetail(${idx})">
           <div style="font-size:13px;font-weight:600;">${escHtml(f.name)}</div>
           <div style="font-size:11px;color:var(--text3);">${escHtml(f.file)} · ${escHtml(f.role)}</div>
@@ -12767,7 +12698,7 @@ function renderImportManagement() {
     orphans.forEach(w => {
       const shifts = countWorkerShifts(w.id);
       orphanSection.innerHTML += `<div style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--surface);border-radius:12px;box-shadow:var(--shadow);margin-bottom:8px;border-left:3px solid var(--warning);">
-        <div style="width:40px;height:40px;border-radius:10px;background:rgba(230,180,80,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;">⚠</div>
+        <div style="width:40px;height:40px;border-radius:10px;background:rgba(230,180,80,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
         <div style="flex:1;">
           <div style="font-size:13px;font-weight:600;">${escHtml(w.name)}</div>
           <div style="font-size:11px;color:var(--text3);">${w.type === 'enf' ? 'Enfermera' : 'Técnico'} · Datos sin registro de importación</div>
@@ -13017,7 +12948,7 @@ async function handleImport(files) {
 
       // Step 9: Check if worker has memory
       if (workerMemory[matchedWorker.id]) {
-        addStep('🧠 Memoria restaurada: reglas y preferencias de ' + matchedWorker.name + ' preservadas', 95);
+        addStep('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/></svg> Memoria restaurada: reglas y preferencias de ' + matchedWorker.name + ' preservadas', 95);
         await new Promise(r => setTimeout(r, 400));
       }
 
@@ -13101,7 +13032,7 @@ async function handleImport(files) {
   // Final
   setTimeout(() => {
     pipeline.innerHTML = `<div style="padding:20px;background:rgba(122,171,138,0.08);border-radius:14px;text-align:center;animation:fadeInScale 0.3s ease;">
-      <div style="font-size:28px;margin-bottom:8px;">🎉</div>
+      <div style="font-size:28px;margin-bottom:8px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
       <div style="font-size:16px;font-weight:500;color:var(--success);margin-bottom:4px;">Importación completada</div>
       <div style="font-size:12px;color:var(--text2);">${fileArray.length} planilla${fileArray.length>1?'s':''} procesada${fileArray.length>1?'s':''} — Turnos volcados al calendario</div>
     </div>`;
@@ -13141,7 +13072,8 @@ function showImportConfigModal(workerName, existingWorker) {
         <!-- Worker name (editable if new) -->
         <div style="margin-bottom:20px;">
           <label style="display:block;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Nombre del trabajador</label>
-          <input type="text" id="importWorkerName" value="${escHtml(workerName)}" ${isNew ? '' : 'readonly'} style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:${isNew ? 'var(--bg)' : 'var(--surface)'};color:var(--text1);font-size:14px;font-weight:600;font-family:var(--font);box-sizing:border-box;${isNew ? '' : 'opacity:0.7;'}">
+          <input type="text" id="importWorkerName" value="${escHtml(isNew ? workerName : existingWorker.name)}" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text1);font-size:14px;font-weight:600;font-family:var(--font);box-sizing:border-box;">
+          ${!isNew ? '<p style="font-size:10px;color:var(--accent);margin-top:4px;">Trabajador existente detectado (ID #' + existingWorker.id + '). Puedes editar el nombre si es incorrecto.</p>' : '<p style="font-size:10px;color:var(--text3);margin-top:4px;">Nombre detectado del PDF: ' + escHtml(workerName) + '</p>'}
         </div>
 
         <!-- Rol -->
@@ -13827,7 +13759,7 @@ function renderCoverageAlerts() {
   } else {
     const dayList = alerts.map(a => `<strong>${a.dayLabel}</strong> (${a.gaps.join('+')})`).join(', ');
     container.innerHTML = `<div class="coverage-alert-banner alert-danger">
-      <span class="alert-icon">⚠️</span>
+      <span class="alert-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
       <div class="alert-body">
         <div class="alert-title">${alerts.length} dia${alerts.length > 1 ? 's' : ''} con cobertura insuficiente (proximos 7 dias)</div>
         <div class="alert-detail">${dayList}</div>
@@ -13998,11 +13930,11 @@ function openWorkerPanel(wId) {
 
   // Restrictions
   let restrictionsHtml = '';
-  if (w.rules && w.rules.noNights) restrictionsHtml += `<div class="wp-restriction"><span class="wp-r-icon">🚫</span><span class="wp-r-text">No realiza noches</span></div>`;
-  if (w.rules && w.rules.noSwap) restrictionsHtml += `<div class="wp-restriction"><span class="wp-r-icon">🔒</span><span class="wp-r-text">Sin cambios/intercambios</span></div>`;
-  if (w.rules && w.rules.noMicro) restrictionsHtml += `<div class="wp-restriction"><span class="wp-r-icon">🔬</span><span class="wp-r-text">No puede ir a microbiologia</span></div>`;
-  if (w.rules && w.rules.conciliacion) restrictionsHtml += `<div class="wp-restriction"><span class="wp-r-icon">👶</span><span class="wp-r-text">Conciliacion familiar</span></div>`;
-  if (w.rules && w.rules.maxNightsPerMonth !== null) restrictionsHtml += `<div class="wp-restriction"><span class="wp-r-icon">🌙</span><span class="wp-r-text">Max ${w.rules.maxNightsPerMonth} noches/mes</span></div>`;
+  if (w.rules && w.rules.noNights) restrictionsHtml += `<div class="wp-restriction"><span class="wp-r-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span><span class="wp-r-text">No realiza noches</span></div>`;
+  if (w.rules && w.rules.noSwap) restrictionsHtml += `<div class="wp-restriction"><span class="wp-r-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span class="wp-r-text">Sin cambios/intercambios</span></div>`;
+  if (w.rules && w.rules.noMicro) restrictionsHtml += `<div class="wp-restriction"><span class="wp-r-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3h6"/><path d="M10 3v7.4a2 2 0 0 1-.6 1.4L4.6 16.6a2 2 0 0 0-.6 1.4V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1a2 2 0 0 0-.6-1.4l-4.8-4.8a2 2 0 0 1-.6-1.4V3"/></svg></span><span class="wp-r-text">No puede ir a microbiologia</span></div>`;
+  if (w.rules && w.rules.conciliacion) restrictionsHtml += `<div class="wp-restriction"><span class="wp-r-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg></span><span class="wp-r-text">Conciliacion familiar</span></div>`;
+  if (w.rules && w.rules.maxNightsPerMonth !== null) restrictionsHtml += `<div class="wp-restriction"><span class="wp-r-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span><span class="wp-r-text">Max ${w.rules.maxNightsPerMonth} noches/mes</span></div>`;
   if (!restrictionsHtml) restrictionsHtml = '<div style="font-size:11px;color:var(--text3);">Sin restricciones especiales</div>';
 
   // History (last 10)
@@ -15992,7 +15924,7 @@ function handleChatQuery(query) {
       }
       result.issues.forEach(issue => {
         const isWarn = issue.startsWith('Ojo');
-        html += `<div style="font-size:11px;padding:3px 0;color:${isWarn?'var(--warning)':'var(--danger)'};">${isWarn?'⚠':'✕'} ${issue}</div>`;
+        html += `<div style="font-size:11px;padding:3px 0;color:${isWarn?'var(--warning)':'var(--danger)'};">${isWarn?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>':'✕'} ${issue}</div>`;
       });
       // Compare workloads
       html += `<div class="chat-section-label" style="margin-top:8px;">Comparativa carga</div>`;
@@ -16668,7 +16600,7 @@ function renderGuardia() {
     <!-- Ausencias hoy -->
     ${absToday.length > 0 ? `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">
-      <div style="font-size:13px;font-weight:700;color:#cc4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">🏥 Ausencias hoy (${absToday.length})</div>
+      <div style="font-size:13px;font-weight:700;color:#cc4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:middle;margin-right:4px;"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M9 21v-4h6v4"/></svg> Ausencias hoy (${absToday.length})</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;">
         ${absToday.map(a => `<span style="padding:6px 12px;border-radius:8px;background:rgba(204,68,68,0.08);font-size:12px;font-weight:500;color:var(--text2);">${escHtml(a.name.split(' ')[0])} <span style="color:#cc4444;font-weight:700;">${escHtml(a.code)}</span></span>`).join('')}
       </div>
@@ -16678,7 +16610,7 @@ function renderGuardia() {
     <!-- Refuerzos disponibles (ranked by priority) -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <div style="font-size:13px;font-weight:700;color:#e67e22;text-transform:uppercase;letter-spacing:1px;">📞 Disponibles para refuerzo (${available.length})</div>
+        <div style="font-size:13px;font-weight:700;color:#e67e22;text-transform:uppercase;letter-spacing:1px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:middle;margin-right:4px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Disponibles para refuerzo (${available.length})</div>
         ${!covOk ? '<div style="font-size:10px;color:#cc4444;font-weight:600;">Se necesita: ' + (needEnf ? 'ENF ' : '') + (needTec ? 'TEC' : '') + '</div>' : ''}
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">
@@ -16727,7 +16659,7 @@ function renderGuardia() {
         const prevNote = guardiaHandoffNotes[prevKey];
         if (prevNote) {
           return '<div style="margin-top:12px;padding:10px;background:rgba(74,157,212,0.06);border:1px solid rgba(74,157,212,0.2);border-radius:8px;">' +
-            '<div style="font-size:10px;color:#4a9dd4;font-weight:700;margin-bottom:4px;">📋 Nota del turno anterior (' + prevShift + '):</div>' +
+            '<div style="font-size:10px;color:#4a9dd4;font-weight:700;margin-bottom:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Nota del turno anterior (' + prevShift + '):</div>' +
             '<div style="font-size:12px;color:var(--text2);">' + escHtml(prevNote) + '</div></div>';
         }
         return '';
@@ -17048,7 +16980,7 @@ function renderGestorAusencias() {
           text-align: center;
           transition: all 0.3s;
         " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 4px 12px rgba(26,54,93,0.1)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
-          <div style="font-size: 36px; margin-bottom: 12px;">🏥</div>
+          <div style="font-size: 36px; margin-bottom: 12px;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M9 21v-4h6v4"/></svg></div>
           <h3 style="font-size: 14px; font-weight: 600; color: var(--primary); margin-bottom: 4px;">Registrar Ausencia</h3>
           <p style="color: var(--text3); font-size: 12px;">Baja, IT, vacaciones, etc.</p>
         </div>
@@ -17076,7 +17008,7 @@ function renderGestorAusencias() {
           text-align: center;
           transition: all 0.3s;
         " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 4px 12px rgba(26,54,93,0.1)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
-          <div style="font-size: 36px; margin-bottom: 12px;">📋</div>
+          <div style="font-size: 36px; margin-bottom: 12px;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
           <h3 style="font-size: 14px; font-weight: 600; color: var(--primary); margin-bottom: 4px;">Historial</h3>
           <p style="color: var(--text3); font-size: 12px;">Ver ausencias pasadas</p>
         </div>
@@ -17112,7 +17044,7 @@ function renderCoberturaIA() {
 
   // Header
   html += `<div style="margin-bottom: 24px;">
-    <h2 style="font-size: 24px; font-weight: 700; color: var(--text); margin-bottom: 8px;">🧠 Asistente de Cobertura IA</h2>
+    <h2 style="font-size: 24px; font-weight: 700; color: var(--text); margin-bottom: 8px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:middle;margin-right:8px;"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/></svg>Asistente de Cobertura IA</h2>
     <p style="font-size: 13px; color: var(--text2); margin: 0;">Detecta vacíos de cobertura y sugiere asignaciones inteligentes</p>
   </div>`;
 
@@ -17162,7 +17094,7 @@ function renderCoberturaIA() {
           </div>`).join('')
         : '<span style="color: var(--text3); font-style: italic;">Sin candidatos</span>';
 
-      const shiftLabel = { M: '🌅 Mañana', T: '☀️ Tarde', N: '🌙 Noche' }[gap.shift] || gap.shift;
+      const shiftLabel = { M: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/><line x1="23" y1="22" x2="1" y2="22"/><polyline points="8 6 12 2 16 6"/></svg> Mañana', T: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Tarde', N: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg> Noche' }[gap.shift] || gap.shift;
       html += `<tr style="border-bottom: 1px solid var(--surface2);">
         <td style="padding: 10px 12px; color: var(--text);">${gap.day}</td>
         <td style="padding: 10px 12px; color: var(--text);">${shiftLabel}</td>
@@ -17183,7 +17115,7 @@ function renderCoberturaIA() {
   }
 
   html += `<div style="margin-top: 24px; padding: 16px; background: var(--surface); border-radius: 12px; border-left: 4px solid #f59e0b;">
-    <div style="font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 8px;">💡 Recomendaciones del sistema</div>
+    <div style="font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 8px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg> Recomendaciones del sistema</div>
     <ul style="margin: 0; padding-left: 20px; color: var(--text2); font-size: 11px; line-height: 1.6;">
       <li>Revisa las brechas ordenadas por urgencia (días próximos primero)</li>
       <li>Las sugerencias preferieren trabajadores de la misma planta</li>
@@ -17292,7 +17224,7 @@ function renderVacacionesGantt() {
 
     <!-- Monthly heatmap -->
     <div style="background:var(--surface);border-radius:14px;padding:16px;margin-bottom:20px;border:1px solid var(--border);">
-      <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;">📊 Distribución mensual de vacaciones</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Distribución mensual de vacaciones</div>
       <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;">
         ${monthlyHeat.map(mh => {
           const intensity = mh.total / maxHeat;
@@ -17309,14 +17241,14 @@ function renderVacacionesGantt() {
         }).join('')}
       </div>
       <div style="display:flex;gap:12px;justify-content:center;margin-top:8px;font-size:9px;color:var(--text3);">
-        <span>🟦 Bajo</span><span>🟧 Medio</span><span>🟥 Alto</span>
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;"></span> Bajo</span><span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f97316;"></span> Medio</span><span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;"></span> Alto</span>
       </div>
     </div>
 
     <!-- Recommendations -->
     ${recommendations.length > 0 ? `
     <div style="background:var(--surface);border-radius:14px;padding:16px;margin-bottom:20px;border:1px solid var(--border);">
-      <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;">💡 Recomendaciones inteligentes</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg> Recomendaciones inteligentes</div>
       ${recommendations.map(r => {
         const color = r.severity === 'high' ? '#cc4444' : r.severity === 'medium' ? '#e67e22' : '#27ae60';
         const dotColor = r.severity === 'high' ? '#cc4444' : r.severity === 'medium' ? '#e67e22' : '#27ae60';
@@ -17384,7 +17316,7 @@ function renderVacacionesGantt() {
                 bar += '</div></td>';
                 return bar;
               }).join('')}
-              <td style="text-align:center;padding:6px 8px;font-weight:700;color:${overQuota ? '#cc4444' : 'var(--text1)'};">${vd.totalDays}d${overQuota ? ' ⚠' : ''}</td>
+              <td style="text-align:center;padding:6px 8px;font-weight:700;color:${overQuota ? '#cc4444' : 'var(--text1)'};">${vd.totalDays}d${overQuota ? ' <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' : ''}</td>
               <td style="text-align:center;padding:6px 8px;font-weight:700;color:${remainColor};">${vd.remaining}d</td>
             </tr>`;
           }).join('')}
@@ -17402,7 +17334,7 @@ function renderVacacionesGantt() {
 
     ${overlapDays.length > 0 ? `
     <div style="margin-top:20px;background:rgba(204,68,68,0.06);border:1px solid rgba(204,68,68,0.15);border-radius:12px;padding:16px;">
-      <div style="font-size:13px;font-weight:700;color:#cc4444;margin-bottom:8px;">⚠ Solapamientos detectados (2+ trabajadores el mismo día)</div>
+      <div style="font-size:13px;font-weight:700;color:#cc4444;margin-bottom:8px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Solapamientos detectados (2+ trabajadores el mismo día)</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;">
         ${overlapDays.filter(o => o.count >= 3).slice(0, 25).map(od => `<span style="padding:3px 8px;border-radius:6px;background:rgba(204,68,68,0.15);font-size:11px;font-weight:600;color:#cc4444;">${od.day + 1} ${monthNames[od.month]} (${od.count})</span>`).join('')}
         ${overlapDays.filter(o => o.count === 2).slice(0, 15).map(od => `<span style="padding:3px 8px;border-radius:6px;background:rgba(230,126,34,0.1);font-size:11px;font-weight:500;color:#e67e22;">${od.day + 1} ${monthNames[od.month]} (${od.count})</span>`).join('')}
@@ -17412,7 +17344,7 @@ function renderVacacionesGantt() {
 
     <!-- Coverage impact by month -->
     <div style="margin-top:16px;background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border);">
-      <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;">🏥 Impacto en cobertura por mes</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M9 21v-4h6v4"/></svg> Impacto en cobertura por mes</div>
       <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;">
         ${monthlyCoverageImpact.map((ci, mi) => {
           const danger = ci.gapShifts > 20 ? '#cc4444' : ci.gapShifts > 10 ? '#e67e22' : ci.gapShifts > 0 ? '#f0ad4e' : '#27ae60';
@@ -17491,7 +17423,7 @@ function openFestivosEditor() {
   let html = `<div style="position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;" id="festivosOverlay" onclick="if(event.target===this)this.remove()">
     <div style="background:var(--bg);border-radius:16px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h3 style="margin:0;font-size:18px;font-weight:800;color:var(--text1);">📅 Festivos ${year}</h3>
+        <h3 style="margin:0;font-size:18px;font-weight:800;color:var(--text1);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:6px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Festivos ${year}</h3>
         <button onclick="document.getElementById('festivosOverlay').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);">×</button>
       </div>
 
@@ -17603,7 +17535,7 @@ function renderComparativa() {
 
   // Build comparison chart as HTML bars
   let compHtml = `<div class="mx-card" style="grid-column:1/-1;">
-    <div class="mx-card-title">📊 Comparativa Mensual ${year}</div>
+    <div class="mx-card-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Comparativa Mensual ${year}</div>
     <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-top:12px;">
       ${monthlyData.map(md => {
         const covColor = md.covPct >= 95 ? '#27ae60' : md.covPct >= 80 ? '#e67e22' : '#cc4444';
@@ -17739,7 +17671,7 @@ function exportWhatsApp() {
 
   const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  const shiftEmoji = { M: '☀️', T: '🌅', N: '🌙', D: '😴', VAC: '🏖️', BAJ: '🏥', FOR: '📚', LAC: '🍼', MTC: '👶', HS: '📋', CAA: '📝' };
+  const shiftEmoji = { M: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>', T: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/><line x1="23" y1="22" x2="1" y2="22"/><polyline points="8 6 12 2 16 6"/></svg>', N: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>', D: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>', VAC: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>', BAJ: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M9 21v-4h6v4"/></svg>', FOR: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>', LAC: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3h6"/><path d="M10 3v7.4a2 2 0 0 1-.6 1.4L4.6 16.6a2 2 0 0 0-.6 1.4V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1a2 2 0 0 0-.6-1.4l-4.8-4.8a2 2 0 0 1-.6-1.4V3"/></svg>', MTC: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>', HS: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>', CAA: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' };
 
   let text = `📋 *TURNOS SEMANA ${monday.getDate()}-${sunday.getDate()} ${monthNames[sunday.getMonth()]} ${sunday.getFullYear()}*\n`;
   text += `_Fundación Hospital de Jove — Dirección de Enfermería_\n\n`;
@@ -18150,7 +18082,7 @@ function onGestorWorkerChange() {
   const analysis = getTeamWorkloadAnalysis(w.type);
   const avgN = analysis ? analysis.avgN : 0;
   const nightDiff = stats.n - avgN;
-  const nightIcon = nightDiff > 1 ? '🔴' : nightDiff < -1 ? '🟢' : '🟡';
+  const nightIcon = nightDiff > 1 ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;"></span>' : nightDiff < -1 ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;"></span>' : '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#eab308;"></span>';
   const typeLabel = w.type === 'enf' ? 'Enfermería' : (w.area === 'micro' ? 'Microbiología' : 'Técnicos');
   const rules = [];
   if (w.rules && w.rules.noNights) rules.push('Sin noches');
@@ -18168,8 +18100,8 @@ function onGestorWorkerChange() {
     <div style="display:flex;gap:12px;flex-wrap:wrap;">
       <span>${nightIcon} <strong>${stats.n}</strong> noches (media: ${avgN.toFixed(1)})</span>
       <span>⏱ <strong>${stats.h}h</strong> totales</span>
-      <span>📅 <strong>${stats.wknd}</strong> fds</span>
-      <span>🔄 <strong>${getExtraCoverageCount(w.id, 3)}</strong> extras (3m)</span>
+      <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:2px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> <strong>${stats.wknd}</strong> fds</span>
+      <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:2px;"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> <strong>${getExtraCoverageCount(w.id, 3)}</strong> extras (3m)</span>
     </div>
     ${rules.length > 0 ? '<div style="margin-top:4px;color:var(--text3);">Reglas: ' + rules.join(' · ') + '</div>' : ''}
   `;
@@ -18178,7 +18110,7 @@ function onGestorWorkerChange() {
   const patterns = detectAbsencePatterns(gestorState.worker);
   if (patterns.length > 0) {
     summaryEl.innerHTML += `<div style="margin-top:6px;padding:6px 10px;background:rgba(212,136,58,0.08);border-radius:6px;font-size:11px;color:var(--for);">
-      🔍 ${patterns.map(p => escHtml(p.message)).join(' · ')}
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> ${patterns.map(p => escHtml(p.message)).join(' · ')}
     </div>`;
   }
 }
@@ -18402,7 +18334,7 @@ function analyzeGestor() {
   // Show loading animation
   resultsDiv.innerHTML = `<div class="gestor-ai-thinking">
     <div class="gestor-ai-header">
-      <div class="ai-brain-icon">🧠</div>
+      <div class="ai-brain-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/></svg></div>
       <div>
         <div class="ai-title">Motor de Razonamiento IA</div>
         <div class="ai-subtitle">Analizando ${daysToProcess.length} dia${daysToProcess.length > 1 ? 's' : ''} para ${escHtml(w.name)}...</div>
@@ -18423,7 +18355,7 @@ function analyzeGestor() {
       let overlapWarning = '';
       if (!vacOverlap.ok) {
         overlapWarning = `<div style="padding:12px 16px;background:rgba(204,68,68,0.08);border-radius:10px;border-left:3px solid var(--danger);margin-bottom:16px;font-size:12px;">
-          <strong style="color:var(--danger);">⚠ Solapamiento de vacaciones detectado</strong><br>
+          <strong style="color:var(--danger);"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Solapamiento de vacaciones detectado</strong><br>
           ${vacOverlap.overlaps.map(o => escHtml(o.message)).join('<br>')}
           <div style="margin-top:4px;color:var(--text3);font-size:11px;">Considera redistribuir las fechas para mantener cobertura mínima.</div>
         </div>`;
@@ -18852,7 +18784,7 @@ function buildAICoverageAnalysis(w, days, action) {
   if (allForbiddenWarnings.length > 0) {
     reasoningSteps.push({
       icon: 'alert',
-      title: `⚠ ${allForbiddenWarnings.length} combinacion${allForbiddenWarnings.length > 1 ? 'es' : ''} prohibida${allForbiddenWarnings.length > 1 ? 's' : ''} detectada${allForbiddenWarnings.length > 1 ? 's' : ''}`,
+      title: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ${allForbiddenWarnings.length} combinacion${allForbiddenWarnings.length > 1 ? 'es' : ''} prohibida${allForbiddenWarnings.length > 1 ? 's' : ''} detectada${allForbiddenWarnings.length > 1 ? 's' : ''}`,
       detail: allForbiddenWarnings.map(f => f.desc).join('. ') + '. Revisar antes de aplicar el plan.'
     });
   }
@@ -19160,11 +19092,11 @@ function buildAICoverageAnalysis(w, days, action) {
     // ── SECTION 3: RISKS & WARNINGS ──
     if (riskSteps.length > 0) {
       html += `<div class="gestor-risks" style="margin-top:16px;">
-        <div class="gestor-risks-title"><span style="font-size:14px;">⚠</span> Riesgos y alertas (${riskSteps.length})</div>`;
+        <div class="gestor-risks-title"><span style="font-size:14px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> Riesgos y alertas (${riskSteps.length})</div>`;
       riskSteps.forEach(step => {
         const cls = step.icon === 'alert' ? 'ri-alert' : 'ri-warn';
         html += `<div class="risk-item">
-          <div class="risk-icon ${cls}">${step.icon === 'alert' ? '!' : '⚠'}</div>
+          <div class="risk-icon ${cls}">${step.icon === 'alert' ? '!' : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'}</div>
           <div><strong>${step.title}</strong><br>${step.detail}</div>
         </div>`;
       });
@@ -19523,7 +19455,7 @@ function generateCoveragePlans(daysNeedingCoverage, candidates, absentWorker, sh
       }
     });
 
-    planD.label = 'Plan de Emergencia ⚠️';
+    planD.label = 'Plan de Emergencia <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
     planD.planLabel = 'Último recurso';
     planD.planColor = '#e67e22';
     planD.strategy = 'emergencia';
@@ -20443,14 +20375,14 @@ function showPlanPreview(planDataStr, btnEl) {
         if (forbidden.length > 0) {
           forbidden.forEach(f => {
             warningHtml += `<div class="preview-warning-box" style="background:rgba(204,68,68,0.06);border-left:3px solid #cc4444;color:#cc4444;">`;
-            warningHtml += `<strong>⚠ Combinacion prohibida:</strong> ${f.desc}`;
+            warningHtml += `<strong><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Combinacion prohibida:</strong> ${f.desc}`;
             warningHtml += `</div>`;
           });
         }
         if (cascade.needsCascade) {
           cascade.cascadeDetails.forEach(c => {
             warningHtml += `<div class="preview-warning-box" style="background:rgba(230,126,34,0.06);border-left:3px solid #e67e22;color:#b5651d;">`;
-            warningHtml += `<strong>🔄 Cascada necesaria:</strong> ${c.gapWorker ? c.gapWorker.name : '?'} deja turno ${c.gapShift} → `;
+            warningHtml += `<strong><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Cascada necesaria:</strong> ${c.gapWorker ? c.gapWorker.name : '?'} deja turno ${c.gapShift} → `;
             warningHtml += `${c.gapWorker && c.gapWorker.type === 'enf' ? 'enfermeria' : 'tecnicos'} queda ${c.have}/${c.needed}`;
             warningHtml += `</div>`;
           });
@@ -20751,7 +20683,7 @@ function buildSwapAnalysis(w, dayDate) {
 
   html += `<div class="gestor-ai-thinking">`;
   html += `<div class="gestor-ai-header">
-    <div class="ai-brain-icon">🔀</div>
+    <div class="ai-brain-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>
     <div>
       <div class="ai-title">Analisis de Cambio de Turno</div>
       <div class="ai-subtitle">${escHtml(w.name)} — ${dayName} ${dayDate.getDate()}/${month+1}</div>
@@ -20792,7 +20724,7 @@ function buildSwapAnalysis(w, dayDate) {
 
   if (swapCandidates.length === 0 && freeCandidates.length === 0) {
     html += `<div class="gestor-no-candidates">
-      <div class="no-icon">😔</div>
+      <div class="no-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>
       <div class="no-text">No hay opciones de cambio disponibles</div>
       <div class="no-detail">Nadie del mismo tipo puede intercambiar turno sin violar las reglas de descanso.</div>
     </div>`;
@@ -21572,7 +21504,7 @@ function renderMetrics() {
     const overtimeMonth = Math.max(0, Math.round(s.hours - MONTHLY_EXPECTED_HOURS));
     const pct = Math.round(overtimeYear / ANNUAL_OVERTIME_LIMIT * 100);
     const statusColor = pct >= 90 ? '#cc4444' : pct >= 60 ? '#e67e22' : '#27ae60';
-    const statusLabel = pct >= 90 ? '⚠ ALERTA' : pct >= 60 ? '⚡ Vigilar' : '✓ OK';
+    const statusLabel = pct >= 90 ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ALERTA' : pct >= 60 ? '⚡ Vigilar' : '✓ OK';
     const typeColor = s.type === 'enf' ? '#2e8b7a' : '#4a9dd4';
 
     html += `<tr>
@@ -22044,7 +21976,7 @@ function toggleSimulationMode() {
   } else {
     btn.style.background = 'transparent';
     btn.style.color = '#3498db';
-    btn.textContent = '🔮 Simular';
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> Simular';
     showToast('Modo simulación desactivado', 'info', 2000);
   }
 }
@@ -22284,7 +22216,7 @@ function renderIntelligentDashboard() {
 
   // 7-day Coverage Heatmap
   html += '<div class="cov-heatmap-wrap">';
-  html += '<div class="dash-section-title"><span class="dst-icon">📊</span> Cobertura próximos 7 días</div>';
+  html += '<div class="dash-section-title"><span class="dst-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Cobertura próximos 7 días</div>';
   html += '<div class="cov-heatmap">';
   // Headers
   html += '<div class="cov-hm-label"></div>';
@@ -22358,7 +22290,7 @@ function renderIntelligentDashboard() {
 
   if (alerts.length > 0) {
     html += '<div class="dash-alerts">';
-    html += `<div class="dash-section-title"><span class="dst-icon">⚠</span> Alertas de cobertura (${alerts.length})</div>`;
+    html += `<div class="dash-section-title"><span class="dst-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> Alertas de cobertura (${alerts.length})</div>`;
     alerts.slice(0, 6).forEach(a => {
       const isCls = a.severity === 'high' ? 'dai-high' : 'dai-med';
       const shColor = shiftColors[a.shift] || 'var(--text3)';
@@ -22433,7 +22365,7 @@ function renderGlobalSearchEmpty() {
     html += '<div class="gs-group"><div class="gs-group-title">Recientes</div>';
     recent.forEach(r => {
       html += `<div class="gs-result" onclick="document.getElementById('globalSearchInput').value='${r}';performGlobalSearch('${r}')">
-        <span class="gs-result-icon">🕐</span>
+        <span class="gs-result-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
         <span class="gs-result-text">${r}</span>
       </div>`;
     });
@@ -22460,7 +22392,7 @@ function performGlobalSearch(query) {
   ).slice(0, 6).map(w => {
     const s = sch[w.id] ? sch[w.id][todayIdx] : '';
     return {
-      type: 'worker', icon: w.type === 'enf' ? '👩‍⚕️' : w.area === 'micro' ? '🔬' : '🧪',
+      type: 'worker', icon: w.type === 'enf' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' : w.area === 'micro' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3h6"/><path d="M10 3v7.4a2 2 0 0 1-.6 1.4L4.6 16.6a2 2 0 0 0-.6 1.4V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1a2 2 0 0 0-.6-1.4l-4.8-4.8a2 2 0 0 1-.6-1.4V3"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3h6"/><path d="M10 3v7.4a2 2 0 0 1-.6 1.4L4.6 16.6a2 2 0 0 0-.6 1.4V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1a2 2 0 0 0-.6-1.4l-4.8-4.8a2 2 0 0 1-.6-1.4V3"/></svg>',
       text: w.name, meta: `${w.type.toUpperCase()} · Hoy: ${s || 'Sin turno'}`,
       action: () => { closeGlobalSearch(); switchView('schedule'); setTimeout(() => { const el = document.getElementById('workerSearch'); if (el) { el.value = w.name; el.dispatchEvent(new Event('input')); } }, 200); }
     };
@@ -22471,7 +22403,7 @@ function performGlobalSearch(query) {
   const shiftResults = shiftCodes.filter(s => s.toLowerCase().includes(q)).slice(0, 3).map(s => {
     const count = workers.filter(w => sch[w.id] && sch[w.id][todayIdx] === s).length;
     return {
-      type: 'shift', icon: '📋',
+      type: 'shift', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
       text: `Turno ${s}`, meta: `${count} trabajador${count !== 1 ? 'es' : ''} hoy`,
       action: () => { closeGlobalSearch(); switchView('schedule'); }
     };
@@ -22483,7 +22415,7 @@ function performGlobalSearch(query) {
     (i.type || '').toLowerCase().includes(q) ||
     (i.notes || '').toLowerCase().includes(q)
   ).slice(0, 4).map(i => ({
-    type: 'incident', icon: '📝',
+    type: 'incident', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
     text: `${i.worker} — ${i.type}`,
     meta: new Date(i.date).toLocaleDateString('es-ES'),
     action: () => { closeGlobalSearch(); switchView('incidents'); }
@@ -22503,7 +22435,7 @@ function performGlobalSearch(query) {
   const viewResults = viewMap.filter(v =>
     v.label.toLowerCase().includes(q) || v.aliases.some(a => a.includes(q))
   ).slice(0, 3).map(v => ({
-    type: 'view', icon: '🔗',
+    type: 'view', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
     text: v.label, meta: 'Ir a sección',
     action: () => { closeGlobalSearch(); switchView(v.name); }
   }));
@@ -22596,7 +22528,7 @@ function initPlantaFilter() {
   const select = document.getElementById('plantaFilter');
   if (!select) return;
 
-  let html = '<option value="all">🏥 Todas las plantas</option>';
+  let html = '<option value="all"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M9 21v-4h6v4"/></svg> Todas las plantas</option>';
   PLANTAS.forEach(p => {
     html += '<option value="' + p.id + '">' + escHtml(p.name) + '</option>';
   });
