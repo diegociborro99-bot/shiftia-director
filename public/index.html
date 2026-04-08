@@ -12225,17 +12225,33 @@ async function parsePDFFile(file) {
     .sort((a, b) => parseInt(b[0]) - parseInt(a[0]))
     .map(([y, texts]) => texts.join(' '));
 
-  for (const line of headerLines.slice(0, 6)) {
+  // Skip keywords that are NOT worker names
+  const skipKeywords = /^(MES|ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE|TOTAL|HORAS|NOCHES|SANITARIO|TECNIC|LABORATORIO|HEMATOLOGIA|ENFERMERIA|HOSPITAL|FUNDACION|JOVE|PLANIFICACION|DUE|TCAE|AUX|COMP|VAC|LD|FOR|DESCANSO|TURNO|\d+)/i;
+
+  for (const line of headerLines.slice(0, 8)) {
+    // Strategy 1: Line with comma (classic format: "GARCIA LOPEZ, SONIA")
     if (line.includes(',') && !line.includes('MES') && !result.workerName) {
       result.workerName = line.replace(/\s*\d{4}\s*$/, '').trim();
     }
+    // Strategy 2: Line with all-caps words that look like a name (no numbers, not a keyword)
+    if (!result.workerName) {
+      const clean = line.replace(/\s*\d{4}\s*$/, '').trim();
+      const words = clean.split(/\s+/);
+      // A name line has 2-5 words, all letters, no keywords, and at least one word > 3 chars
+      if (words.length >= 2 && words.length <= 5 &&
+          words.every(w => /^[A-ZÁÉÍÓÚÑ]+$/i.test(w)) &&
+          !skipKeywords.test(clean) &&
+          words.some(w => w.length > 3)) {
+        result.workerName = clean;
+      }
+    }
     const ym = line.match(/\b(20\d{2})\b/);
     if (ym) result.year = parseInt(ym[1]);
-    if (/SANITARIO|TECNIC|LABORATORIO|HEMATOLOGIA/i.test(line)) {
+    if (/SANITARIO|TECNIC|LABORATORIO|HEMATOLOGIA|DUE|TCAE/i.test(line)) {
       result.headerLine2 = line;
     }
   }
-  console.log('[Shiftia PDF] Worker:', result.workerName, 'Year:', result.year);
+  console.log('[Shiftia PDF] Worker:', result.workerName, 'Year:', result.year, 'Headers:', headerLines.slice(0,4));
 
   // Step 4: Find column X positions from the MES header row
   const mesWord = words.find(w => w.text === 'MES');
@@ -16846,113 +16862,213 @@ function renderMapaCobertura() {
   const sch = genSchedule(year, month);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const dayLetters = ['D','L','M','X','J','V','S'];
 
-  // Filter plants
-  const plantasToShow = selectedPlanta === 'all' ? PLANTAS : PLANTAS.filter(p => p.id === selectedPlanta);
+  const todayDay = (year === now.getFullYear() && month === now.getMonth()) ? now.getDate() : -1;
 
-  // Day-by-day analysis for selected day
-  const todayIdx = (year === now.getFullYear() && month === now.getMonth()) ? now.getDate() - 1 : 0;
-  const hour = now.getHours();
-  let currentShift = 'M';
-  if (hour >= 15 && hour < 22) currentShift = 'T';
-  if (hour >= 22 || hour < 8) currentShift = 'N';
+  // Shift color map
+  const shiftColors = {
+    'M':'#2e8b7a','MR':'#2e8b7a','M7H':'#2e8b7a','M6R':'#2e8b7a','M55':'#2e8b7a',
+    'T':'#4a9dd4','N':'#c9a84c',
+    'D':'#d94444','VAC':'#8b2020','BAJ':'#cc4444',
+    'LD':'#5a8abf','FOR':'#d4883a','CAA':'#7a8a6a',
+    'HS':'#6a6a8a','MTC':'#8a6a7a','LAC':'#6a8a8a','INT':'#8a8a6a'
+  };
+  function shiftBg(code) {
+    if (!code) return 'transparent';
+    const c = shiftColors[code];
+    return c ? c + '18' : 'transparent';
+  }
+  function shiftFg(code) { return shiftColors[code] || 'var(--text3)'; }
 
-  let totalGaps = 0;
-
-  let html = `<div style="max-width:1200px; margin:0 auto;">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:12px;">
+  // Month navigation bar
+  let html = `<div style="margin:0 auto;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
       <div>
-        <h2 style="font-family:var(--font-display); font-size:28px; font-weight:400; color:var(--primary); margin:0;">Mapa de Cobertura</h2>
-        <p style="color:var(--text2); font-size:13px; margin-top:4px;">${selectedPlanta === 'all' ? 'Todas las plantas' : (PLANTAS.find(p=>p.id===selectedPlanta)||{}).name || ''} · ${monthNames[month]} ${year}</p>
+        <h2 style="font-family:var(--font-display); font-size:28px; font-weight:400; color:var(--primary); margin:0;">
+          ${selectedPlanta !== 'all' ? escHtml((PLANTAS.find(p=>p.id===selectedPlanta)||{}).name || '') : 'Mapa de Cobertura'}
+        </h2>
+        <p style="color:var(--text2); font-size:13px; margin-top:4px;">
+          ${selectedPlanta !== 'all' ? (PLANT_SUPERVISORS[selectedPlanta] ? 'Supervisora: ' + PLANT_SUPERVISORS[selectedPlanta].name + ' · ' : '') : ''}${monthNames[month]} ${year}
+        </p>
       </div>
       <div style="display:flex; gap:8px; align-items:center;">
+        ${selectedPlanta !== 'all' ? '<button onclick="selectedPlanta=\'all\';document.getElementById(\'plantaFilterLabel\').textContent=\'Todas las plantas\';document.getElementById(\'plantaFilterBtn\').style.borderColor=\'var(--surface2)\';document.getElementById(\'plantaFilterBtn\').style.background=\'var(--bg)\';renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:white; border-radius:10px; cursor:pointer; font-family:var(--font); font-size:12px; transition:all 0.2s; color:var(--text2);">Vista global</button>' : ''}
         <button onclick="mapaViewMonth--;if(mapaViewMonth<0){mapaViewMonth=11;mapaViewYear--;}renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:white; border-radius:10px; cursor:pointer; font-family:var(--font); font-size:13px; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg> Anterior
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
-        <button onclick="mapaViewMonth=${now.getMonth()};mapaViewYear=${now.getFullYear()};renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:white; border-radius:10px; cursor:pointer; font-family:var(--font); font-size:13px; font-weight:600; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">Hoy</button>
+        <button onclick="mapaViewMonth=${now.getMonth()};mapaViewYear=${now.getFullYear()};renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:white; border-radius:10px; cursor:pointer; font-family:var(--font); font-size:12px; font-weight:600; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">${monthNames[month]}</button>
         <button onclick="mapaViewMonth++;if(mapaViewMonth>11){mapaViewMonth=0;mapaViewYear++;}renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:white; border-radius:10px; cursor:pointer; font-family:var(--font); font-size:13px; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
-          Siguiente <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>
     </div>`;
 
-  // Coverage table — plants × shifts
-  html += `<div style="overflow-x:auto; margin-bottom:24px;">
-    <table style="width:100%; border-collapse:separate; border-spacing:0; border:1px solid var(--border); border-radius:14px; overflow:hidden;">
-      <thead>
-        <tr style="background:var(--primary);">
-          <th style="padding:14px 16px; text-align:left; font-weight:600; color:white; font-size:13px; border-right:1px solid rgba(255,255,255,0.1);">Planta</th>
-          <th style="padding:14px 16px; text-align:left; font-weight:500; color:rgba(255,255,255,0.8); font-size:11px; border-right:1px solid rgba(255,255,255,0.1);">Supervisora</th>
-          <th style="padding:14px 16px; text-align:center; font-weight:600; color:white; font-size:13px; border-right:1px solid rgba(255,255,255,0.1);">Mañana</th>
-          <th style="padding:14px 16px; text-align:center; font-weight:600; color:white; font-size:13px; border-right:1px solid rgba(255,255,255,0.1);">Tarde</th>
-          <th style="padding:14px 16px; text-align:center; font-weight:600; color:white; font-size:13px;">Noche</th>
-        </tr>
-      </thead>
-      <tbody>`;
+  if (selectedPlanta !== 'all') {
+    // ============ PLANILLA VIEW — specific plant ============
+    const planta = PLANTAS.find(p => p.id === selectedPlanta);
+    const plantWorkers = workers.filter(w => w.planta === selectedPlanta);
+    const covData = PLANT_COVERAGE[selectedPlanta] || {};
+    const minM = (covData.M || {}).min || 0;
+    const minT = (covData.T || {}).min || 0;
+    const minN = (covData.N || {}).min || 0;
 
-  plantasToShow.forEach((planta, idx) => {
-    const plantWorkers = workers.filter(w => w.planta === planta.id);
-    const shifts = ['M', 'T', 'N'];
-    const sup = PLANT_SUPERVISORS[planta.id];
-    const rowBg = idx % 2 === 0 ? 'white' : 'var(--surface2)';
+    // Add empty placeholder rows if fewer workers than minimum needed
+    const maxNeeded = Math.max(minM, minT, minN, 3);
+    const totalRows = Math.max(plantWorkers.length, maxNeeded);
 
-    html += `<tr style="background:${rowBg}; border-bottom:1px solid var(--border);">
-      <td style="padding:12px 16px; font-weight:600; color:var(--primary); font-size:14px; border-right:1px solid var(--border); white-space:nowrap;">${escHtml(planta.name)}</td>
-      <td style="padding:12px 16px; font-size:12px; color:var(--text2); border-right:1px solid var(--border); white-space:nowrap;">
-        ${sup ? `<span style="display:flex;align-items:center;gap:5px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${sup.name}</span>` : '—'}
-      </td>`;
+    html += `<div style="overflow-x:auto; border:1px solid var(--border); border-radius:14px; background:white;">
+      <table style="width:100%; border-collapse:collapse; min-width:${daysInMonth * 34 + 160}px; font-size:11px;">
+        <thead>
+          <tr style="background:var(--primary);">
+            <th style="padding:8px 10px; text-align:left; color:white; font-weight:600; font-size:12px; position:sticky; left:0; background:var(--primary); z-index:2; min-width:140px; border-right:2px solid rgba(255,255,255,0.15);">Trabajador</th>`;
 
-    shifts.forEach(shift => {
-      const covData = PLANT_COVERAGE[planta.id] || {};
-      const shiftData = covData[shift] || {};
-      const minRequired = shiftData.min || 0;
-      let assigned = 0;
-      plantWorkers.forEach(w => {
-        const s = sch[w.id] ? (sch[w.id][todayIdx] || '').toString().trim() : '';
-        const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
-        if (eff === shift) assigned++;
-      });
-      const gap = Math.max(0, minRequired - assigned);
-      if (gap > 0) totalGaps += gap;
-      const isMet = assigned >= minRequired;
-      const pct = minRequired > 0 ? Math.min(100, Math.round((assigned / minRequired) * 100)) : (assigned > 0 ? 100 : 0);
-      const color = isMet ? '#22c55e' : (pct >= 60 ? '#eab308' : '#ef4444');
-      const isCurrentShift = shift === currentShift && year === now.getFullYear() && month === now.getMonth();
+    // Day headers
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = new Date(year, month, d).getDay();
+      const isToday = d === todayDay;
+      const isWeekend = dow === 0 || dow === 6;
+      html += `<th style="padding:4px 2px; text-align:center; color:${isWeekend ? 'rgba(255,255,255,0.6)' : 'white'}; font-weight:${isToday ? '800' : '500'}; font-size:10px; min-width:30px; ${isToday ? 'background:rgba(255,255,255,0.15);border-radius:6px 6px 0 0;' : ''}">
+        <div style="font-size:8px;opacity:0.7;letter-spacing:0.5px;">${dayLetters[dow]}</div>
+        <div>${d}</div>
+      </th>`;
+    }
+    html += `</tr></thead><tbody>`;
 
-      html += `<td style="padding:10px 16px; text-align:center; border-right:1px solid var(--border); ${isCurrentShift ? 'background:rgba(26,54,93,0.03);' : ''}">
-        <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
-          <span style="font-weight:700; font-size:16px; color:${color};">${assigned}<span style="font-weight:400;font-size:12px;color:var(--text3);">/${minRequired}</span></span>
-          <div style="width:48px; height:4px; border-radius:3px; background:var(--surface2); overflow:hidden;">
-            <div style="height:100%; width:${pct}%; background:${color}; border-radius:3px; transition:width 0.3s;"></div>
+    // Worker rows
+    for (let ri = 0; ri < totalRows; ri++) {
+      const w = plantWorkers[ri] || null;
+      const isEven = ri % 2 === 0;
+      const rowBg = isEven ? 'white' : '#f8f9fb';
+
+      html += `<tr style="background:${rowBg}; border-bottom:1px solid var(--border);">`;
+
+      // Name cell
+      if (w) {
+        const roleLabel = w.role === 'enf' ? 'ENF' : w.role === 'tec' ? 'TEC' : 'AUX';
+        const roleDot = w.role === 'enf' ? '#2e8b7a' : w.role === 'tec' ? '#4a9dd4' : '#c9a84c';
+        html += `<td style="padding:6px 10px; font-weight:600; color:var(--text1); font-size:11px; position:sticky; left:0; background:${rowBg}; z-index:1; border-right:2px solid var(--border); white-space:nowrap;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:${roleDot};flex-shrink:0;"></span>
+            <span style="max-width:120px;overflow:hidden;text-overflow:ellipsis;">${escHtml(w.name)}</span>
+            <span style="font-size:8px;color:var(--text3);font-weight:500;letter-spacing:0.5px;">${roleLabel}</span>
           </div>
-          ${gap > 0 ? `<span style="font-size:9px; font-weight:600; color:#ef4444; text-transform:uppercase; letter-spacing:0.5px;">-${gap} faltan</span>` : ''}
+        </td>`;
+      } else {
+        // Empty slot — placeholder for importing
+        html += `<td style="padding:6px 10px; position:sticky; left:0; background:${rowBg}; z-index:1; border-right:2px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:6px;color:var(--text3);font-size:11px;font-style:italic;opacity:0.5;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            Vacante #${ri + 1}
+          </div>
+        </td>`;
+      }
+
+      // Day cells
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dow = new Date(year, month, d).getDay();
+        const isToday = d === todayDay;
+        const isWeekend = dow === 0 || dow === 6;
+        let shift = '';
+        if (w && sch[w.id]) {
+          shift = (sch[w.id][d - 1] || '').toString().trim();
+        }
+        const bg = shift ? shiftBg(shift) : (isWeekend ? 'rgba(0,0,0,0.02)' : 'transparent');
+        const fg = shift ? shiftFg(shift) : 'var(--text3)';
+        const tdBorder = isToday ? 'box-shadow:inset 0 0 0 1.5px var(--primary);border-radius:4px;' : '';
+
+        html += `<td style="padding:2px; text-align:center; ${tdBorder}">
+          <div style="background:${bg}; color:${fg}; font-weight:${shift ? '700' : '400'}; font-size:${shift ? '10px' : '9px'}; padding:3px 1px; border-radius:4px; min-height:18px; display:flex; align-items:center; justify-content:center; ${!shift && w ? 'opacity:0.3;' : ''}">
+            ${shift || (w ? '·' : '')}
+          </div>
+        </td>`;
+      }
+
+      html += `</tr>`;
+    }
+
+    html += `</tbody></table></div>`;
+
+    // Coverage summary below the planilla
+    html += `<div style="display:flex; gap:12px; margin-top:16px; flex-wrap:wrap;">
+      <div style="flex:1;min-width:120px;padding:12px 16px;background:white;border:1px solid var(--border);border-radius:10px;text-align:center;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;">Asignados</div>
+        <div style="font-size:24px;font-weight:700;color:var(--primary);margin-top:2px;">${plantWorkers.length}</div>
+      </div>
+      <div style="flex:1;min-width:120px;padding:12px 16px;background:white;border:1px solid var(--border);border-radius:10px;text-align:center;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;">Min. Mañana</div>
+        <div style="font-size:24px;font-weight:700;color:#2e8b7a;margin-top:2px;">${minM}</div>
+      </div>
+      <div style="flex:1;min-width:120px;padding:12px 16px;background:white;border:1px solid var(--border);border-radius:10px;text-align:center;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;">Min. Tarde</div>
+        <div style="font-size:24px;font-weight:700;color:#4a9dd4;margin-top:2px;">${minT}</div>
+      </div>
+      <div style="flex:1;min-width:120px;padding:12px 16px;background:white;border:1px solid var(--border);border-radius:10px;text-align:center;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;">Min. Noche</div>
+        <div style="font-size:24px;font-weight:700;color:#c9a84c;margin-top:2px;">${minN}</div>
+      </div>
+    </div>`;
+
+    // Import CTA if empty slots
+    if (plantWorkers.length < maxNeeded) {
+      html += `<div style="margin-top:16px;padding:16px 20px;background:rgba(201,168,76,0.06);border:1.5px dashed var(--accent);border-radius:12px;display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="switchView('import')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--accent);">Faltan ${maxNeeded - plantWorkers.length} profesionales por asignar</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">Importa planillas para completar la cobertura de esta planta</div>
         </div>
-      </td>`;
+      </div>`;
+    }
+
+  } else {
+    // ============ OVERVIEW — all plants grid ============
+    html += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px;">`;
+
+    PLANTAS.forEach(planta => {
+      const plantWorkers = workers.filter(w => w.planta === planta.id);
+      const sup = PLANT_SUPERVISORS[planta.id];
+      const covData = PLANT_COVERAGE[planta.id] || {};
+      const shifts = ['M','T','N'];
+      const shiftLabels = {M:'Mañana',T:'Tarde',N:'Noche'};
+      const shiftDotColors = {M:'#2e8b7a',T:'#4a9dd4',N:'#c9a84c'};
+
+      let cardHtml = `<div onclick="selectedPlanta='${planta.id}';document.getElementById('plantaFilterLabel').textContent='${escHtml(planta.name)}';document.getElementById('plantaFilterBtn').style.borderColor='var(--primary)';renderMapaCobertura();" style="background:white;border:1.5px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(26,54,93,0.08)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='';this.style.boxShadow=''">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+          <div>
+            <div style="font-size:15px;font-weight:700;color:var(--primary);">${escHtml(planta.name)}</div>
+            ${sup ? '<div style="font-size:10px;color:var(--text3);margin-top:2px;">' + sup.name + '</div>' : ''}
+          </div>
+          <span style="font-size:10px;font-weight:600;color:var(--text3);background:var(--surface2);padding:2px 8px;border-radius:6px;">${plantWorkers.length} prof.</span>
+        </div>
+        <div style="display:flex;gap:8px;">`;
+
+      shifts.forEach(shift => {
+        const shiftData = covData[shift] || {};
+        const minReq = shiftData.min || 0;
+        let assigned = 0;
+        const todayIdx = todayDay > 0 ? todayDay - 1 : 0;
+        plantWorkers.forEach(w => {
+          const s = sch[w.id] ? (sch[w.id][todayIdx] || '').toString().trim() : '';
+          const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+          if (eff === shift) assigned++;
+        });
+        const isMet = assigned >= minReq;
+        const color = minReq === 0 ? '#94a3b8' : (isMet ? '#22c55e' : '#ef4444');
+
+        cardHtml += `<div style="flex:1;text-align:center;padding:8px 4px;background:${color}10;border-radius:8px;">
+          <div style="font-size:9px;color:var(--text3);font-weight:600;letter-spacing:0.5px;margin-bottom:2px;">${shiftLabels[shift]}</div>
+          <div style="font-size:16px;font-weight:800;color:${color};">${assigned}<span style="font-weight:400;font-size:10px;color:var(--text3);">/${minReq}</span></div>
+        </div>`;
+      });
+
+      cardHtml += `</div></div>`;
+      html += cardHtml;
     });
 
-    html += `</tr>`;
-  });
+    html += `</div>`;
+  }
 
-  html += `</tbody></table></div>`;
-
-  // Summary bar
-  const totalWorkers = selectedPlanta === 'all' ? workers.length : workers.filter(w => w.planta === selectedPlanta).length;
-  html += `<div style="display:flex; gap:16px; flex-wrap:wrap;">
-    <div style="flex:1; min-width:200px; padding:16px 20px; background:white; border:1px solid var(--border); border-radius:12px;">
-      <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:4px;">Profesionales</div>
-      <div style="font-size:28px; font-weight:700; color:var(--primary);">${totalWorkers}</div>
-    </div>
-    <div style="flex:1; min-width:200px; padding:16px 20px; background:white; border:1px solid ${totalGaps > 0 ? 'rgba(239,68,68,0.3)' : 'var(--border)'}; border-radius:12px;">
-      <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:4px;">Huecos hoy</div>
-      <div style="font-size:28px; font-weight:700; color:${totalGaps > 0 ? '#ef4444' : '#22c55e'};">${totalGaps}</div>
-    </div>
-    <div style="flex:1; min-width:200px; padding:16px 20px; background:white; border:1px solid var(--border); border-radius:12px;">
-      <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:4px;">Plantas</div>
-      <div style="font-size:28px; font-weight:700; color:var(--primary);">${plantasToShow.length}</div>
-    </div>
-  </div>
-  </div>`;
-
+  html += `</div>`;
   container.innerHTML = html;
 }
 
