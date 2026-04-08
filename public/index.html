@@ -7,8 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#5c7a6f">
 <title>Shiftia Director</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Instrument+Serif&display=swap" rel="stylesheet">
 <style>
 /* Splash Screen */
 .splash-screen {
@@ -37,18 +36,18 @@
   animation: splashDraw 0.5s ease-out 1.2s forwards;
 }
 .splash-title {
-  font-family: 'DM Serif Display', serif; font-size: 28px; font-weight: 400;
+  font-family: var(--font-display); font-size: 28px; font-weight: 400;
   color: #d4af37; margin-top: 20px; letter-spacing: 0.5px;
   opacity: 0; animation: splashTextIn 0.6s ease-out 1s forwards;
 }
 .splash-title span { color: #d4af37; }
 .splash-subtitle {
-  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 400;
+  font-family: var(--font); font-size: 13px; font-weight: 400;
   color: rgba(255,255,255,0.45); margin-top: 8px; letter-spacing: 1px; text-transform: uppercase;
   opacity: 0; animation: splashTextIn 0.6s ease-out 1.3s forwards;
 }
 .splash-version {
-  font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500;
+  font-family: var(--font); font-size: 11px; font-weight: 500;
   color: rgba(78, 205, 196, 0.6); margin-top: 16px; letter-spacing: 2px;
   opacity: 0; animation: splashTextIn 0.5s ease-out 1.6s forwards;
 }
@@ -159,7 +158,7 @@
 }
 .login-logo-wrap svg { filter: drop-shadow(0 4px 12px rgba(26,54,93,0.2)); }
 .login-logo-text {
-  font-family: 'DM Serif Display', serif; font-size: 22px; font-weight: 400; color: var(--text);
+  font-family: var(--font-display); font-size: 22px; font-weight: 400; color: var(--text);
 }
 .login-logo-text span { color: var(--text); }
 .login-hospital {
@@ -175,7 +174,7 @@
 }
 .login-field input {
   width: 100%; padding: 14px 16px; border: 2px solid var(--border);
-  border-radius: 12px; font-size: 15px; font-family: 'DM Sans', sans-serif;
+  border-radius: 12px; font-size: 15px; font-family: var(--font);
   background: var(--surface2); color: var(--text); outline: none;
   transition: border-color 0.2s, box-shadow 0.2s; box-sizing: border-box;
 }
@@ -189,7 +188,7 @@
 .login-btn {
   width: 100%; padding: 14px; border: none; border-radius: 12px;
   background: linear-gradient(135deg, var(--accent), #2980b9);
-  color: #fff; font-size: 15px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+  color: #fff; font-size: 15px; font-weight: 600; font-family: var(--font);
   cursor: pointer; margin-top: 8px; transition: transform 0.15s, box-shadow 0.2s;
   box-shadow: 0 4px 15px rgba(46,139,122,0.3);
 }
@@ -217,15 +216,15 @@
 }
 
 :root {
-  --primary: #1a365d;
+  --primary: #1e293b;
   --primary-light: #2c5282;
   --primary-dark: #0f2440;
-  --accent: #c9a84c;
-  --bg: #f7f8fc;
+  --accent: #d4a843;
+  --bg: #f8fafc;
   --surface: #ffffff;
   --surface2: #edf0f7;
   --surface3: #faf9f7;
-  --border: #e8e5e1;
+  --border: #e2e8f0;
   --text1: #1a202c;
   --text2: #4a5568;
   --text3: #a0aec0;
@@ -244,13 +243,13 @@
   --ae: #a8a832;
   --ex: #9a9a9a;
   --baj: #b04050;
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'DM Serif Display', Georgia, serif;
-  --shadow: 0 1px 2px rgba(0,0,0,0.03);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-hover: 0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.04);
-  --shadow-lg: 0 15px 40px rgba(0,0,0,0.12);
+  --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --shadow: 0 1px 2px rgba(0,0,0,0.02);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+  --shadow-hover: 0 4px 16px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.03);
+  --shadow-lg: 0 20px 50px rgba(0,0,0,0.08);
   --transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -8286,7 +8285,7 @@ table.schedule tbody tr:hover {
         <path class="splash-path-1" d="M30.5 13h3v3h3v3h-3v3h-3v-3h-3v-3h3v-3z" fill="none" stroke="url(#splashG2)" stroke-width="1.2" stroke-linejoin="round" opacity="0.7"/>
       </svg>
     </div>
-    <div class="splash-title" style="font-family:'DM Serif Display',serif; letter-spacing:0.5px;">Dirección de Enfermería</div>
+    <div class="splash-title" style="font-family:var(--font-display); letter-spacing:0.5px;">Dirección de Enfermería</div>
     <div class="splash-subtitle">Fundación Hospital de Jove</div>
     <div class="splash-version">v5.3</div>
   </div>
@@ -8329,7 +8328,7 @@ table.schedule tbody tr:hover {
         <path d="M32 20c-0.8-1.5-0.3-3.5 0-4.5 0.3 1 0.8 3 0 4.5z" fill="#d4af37" opacity="0.9"/>
         <path d="M30.5 13h3v3h3v3h-3v3h-3v-3h-3v-3h3v-3z" fill="none" stroke="url(#loginG2)" stroke-width="1.2" stroke-linejoin="round" opacity="0.7"/>
       </svg>
-      <div class="login-logo-text" style="font-family:'DM Serif Display',serif; font-size:22px; color:var(--text); letter-spacing:0.3px;">Dirección de Enfermería</div>
+      <div class="login-logo-text" style="font-family:var(--font-display); font-size:22px; color:var(--text); letter-spacing:0.3px;">Dirección de Enfermería</div>
     </div>
     <div class="login-hospital">Fundación Hospital de Jove</div>
     <form id="loginForm" onsubmit="return handleLogin(event)">
@@ -13239,6 +13238,15 @@ function purgeWorkerData(workerId) {
   const impIdx = importedFiles.findIndex(f => f.workerId === workerId);
   if (impIdx >= 0) importedFiles.splice(impIdx, 1);
 
+  // Clear supervisor assignment if this worker was a supervisor
+  for (const plantId in PLANT_SUPERVISORS) {
+    if (PLANT_SUPERVISORS[plantId] && PLANT_SUPERVISORS[plantId].name && w.name &&
+        PLANT_SUPERVISORS[plantId].name.toLowerCase().trim() === w.name.toLowerCase().trim()) {
+      delete PLANT_SUPERVISORS[plantId];
+      logAudit('supervisor_removed', 'Supervisora eliminada: ' + w.name + ' (planilla borrada)', plantId, w.id);
+    }
+  }
+
   saveToStorage();
   detectConflicts();
   renderImportManagement();
@@ -13260,6 +13268,10 @@ function purgeAllImportData() {
     w.nights = 0; w.nightsThisYear = 0; w.hours = 0; w.computoBalance = 0;
   });
   importedFiles.length = 0;
+  // Clear all supervisor assignments since all data is being purged
+  for (const plantId in PLANT_SUPERVISORS) {
+    delete PLANT_SUPERVISORS[plantId];
+  }
   saveToStorage();
   renderImportManagement();
   renderDashboard();
@@ -17848,15 +17860,17 @@ function renderMapaCobertura() {
     }
 
   } else {
-    // ============ OVERVIEW — premium plant cards ============
-    // Calculate global coverage stats
-    let totalGaps = 0, totalOk = 0;
-    const plantStats = [];
-    PLANTAS.forEach(planta => {
+    // ============ OVERVIEW — ultra-minimalist visual coverage ============
+    const todayIdx = todayDay > 0 ? todayDay - 1 : 0;
+
+    // Compute coverage per plant
+    const plantData = PLANTAS.map(planta => {
       const pw = workers.filter(w => w.planta === planta.id);
       const covData = PLANT_COVERAGE[planta.id] || {};
-      const todayIdx = todayDay > 0 ? todayDay - 1 : 0;
-      let gaps = 0, ok = 0;
+      const sup = PLANT_SUPERVISORS[planta.id];
+      let totalAssigned = 0, totalNeeded = 0, gaps = 0;
+      const shiftStats = {};
+
       ['M','T','N'].forEach(shift => {
         const minReq = (covData[shift] || {}).min || 0;
         let assigned = 0;
@@ -17865,117 +17879,89 @@ function renderMapaCobertura() {
           const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
           if (eff === shift) assigned++;
         });
-        if (assigned < minReq) { gaps += (minReq - assigned); } else { ok++; }
+        totalAssigned += assigned;
+        totalNeeded += minReq;
+        if (assigned < minReq) gaps += (minReq - assigned);
+        shiftStats[shift] = { assigned, needed: minReq, ok: assigned >= minReq };
       });
-      plantStats.push({ planta, pw, gaps, ok, covData });
-      totalGaps += gaps;
-      totalOk += ok;
+
+      const pct = totalNeeded > 0 ? Math.round((totalAssigned / totalNeeded) * 100) : 100;
+      const status = gaps === 0 ? 'ok' : (gaps <= 1 ? 'warn' : 'critical');
+      return { planta, pw, sup, shiftStats, pct, gaps, status, totalAssigned, totalNeeded };
     });
 
-    // Global summary bar
-    const globalPct = PLANTAS.length * 3 > 0 ? Math.round((totalOk / (PLANTAS.length * 3)) * 100) : 0;
-    const summaryColor = totalGaps === 0 ? '#22c55e' : (totalGaps <= 3 ? '#f59e0b' : '#ef4444');
-    html += `<div style="background:white;border:1.5px solid var(--border);border-radius:16px;padding:20px 24px;margin-bottom:24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
-      <div style="width:56px;height:56px;border-radius:14px;background:${summaryColor}12;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        ${totalGaps === 0
-          ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="' + summaryColor + '" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
-          : '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="' + summaryColor + '" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'}
+    // Global stats
+    const totalWorkers = workers.length;
+    const totalGaps = plantData.reduce((s, p) => s + p.gaps, 0);
+    const okCount = plantData.filter(p => p.status === 'ok').length;
+
+    // Status colors
+    const statusConfig = {
+      ok: { bg: '#f0fdf4', border: '#bbf7d0', color: '#16a34a', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>' },
+      warn: { bg: '#fffbeb', border: '#fde68a', color: '#d97706', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' },
+      critical: { bg: '#fef2f2', border: '#fecaca', color: '#dc2626', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' }
+    };
+
+    // ─── Global summary strip ───
+    html += `<div style="display:flex;gap:24px;margin-bottom:32px;align-items:stretch;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;background:white;border:1px solid var(--border);border-radius:16px;padding:24px;display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Hoy</div>
+        <div style="font-size:42px;font-weight:800;color:var(--primary);line-height:1;letter-spacing:-2px;">${okCount}<span style="font-size:18px;font-weight:400;color:var(--text3);letter-spacing:0;">/${PLANTAS.length}</span></div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;">plantas con cobertura completa</div>
       </div>
-      <div style="flex:1;min-width:200px;">
-        <div style="font-size:15px;font-weight:700;color:var(--text1);">${totalGaps === 0 ? 'Cobertura completa' : totalGaps + ' hueco' + (totalGaps > 1 ? 's' : '') + ' de cobertura hoy'}</div>
-        <div style="font-size:12px;color:var(--text3);margin-top:2px;">${PLANTAS.length} plantas · ${workers.length} profesionales asignados · ${monthNames[month]} ${year}</div>
+      <div style="flex:1;min-width:200px;background:white;border:1px solid var(--border);border-radius:16px;padding:24px;display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Profesionales</div>
+        <div style="font-size:42px;font-weight:800;color:var(--primary);line-height:1;letter-spacing:-2px;">${totalWorkers}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;">asignados en ${PLANTAS.length} plantas</div>
       </div>
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:120px;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;">
-          <div style="width:${globalPct}%;height:100%;background:${summaryColor};border-radius:4px;transition:width 0.6s ease;"></div>
-        </div>
-        <span style="font-size:14px;font-weight:700;color:${summaryColor};">${globalPct}%</span>
+      <div style="flex:1;min-width:200px;background:${totalGaps === 0 ? '#f0fdf4' : '#fef2f2'};border:1px solid ${totalGaps === 0 ? '#bbf7d0' : '#fecaca'};border-radius:16px;padding:24px;display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-size:11px;font-weight:600;color:${totalGaps === 0 ? '#16a34a' : '#dc2626'};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">${totalGaps === 0 ? 'Sin huecos' : 'Atención'}</div>
+        <div style="font-size:42px;font-weight:800;color:${totalGaps === 0 ? '#16a34a' : '#dc2626'};line-height:1;letter-spacing:-2px;">${totalGaps}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;">${totalGaps === 0 ? 'cobertura completa hoy' : 'huecos de cobertura hoy'}</div>
       </div>
     </div>`;
 
-    // Plant cards grid
-    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;">`;
+    // ─── Plant cards — clean grid ───
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));gap:16px;">`;
 
-    plantStats.forEach(({ planta, pw, gaps, covData }, idx) => {
-      const sup = PLANT_SUPERVISORS[planta.id];
-      const shifts = ['M','T','N'];
-      const shiftMeta = {M:{label:'Mañana',icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',color:'#2e8b7a'},T:{label:'Tarde',icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/></svg>',color:'#4a9dd4'},N:{label:'Noche',icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',color:'#c9a84c'}};
+    plantData.forEach((pd, idx) => {
+      const sc = statusConfig[pd.status];
+      const plantName = escHtml(pd.planta.name);
+      const plantShort = escHtml(pd.planta.short);
 
-      const todayIdx = todayDay > 0 ? todayDay - 1 : 0;
-      const statusColor = gaps === 0 ? '#22c55e' : '#ef4444';
-      const statusBg = gaps === 0 ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)';
-      const statusBorder = gaps === 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)';
+      html += `<div onclick="selectedPlanta='${pd.planta.id}';document.getElementById('plantaFilterLabel').textContent='${plantName}';document.getElementById('plantaFilterBtn').style.borderColor='var(--primary)';renderMapaCobertura();" style="background:white;border:1px solid var(--border);border-radius:16px;cursor:pointer;transition:all 0.2s ease;overflow:hidden;" onmouseover="this.style.borderColor='var(--primary)';this.style.transform='translateY(-2px)';this.style.boxShadow='var(--shadow-hover)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='';this.style.boxShadow=''">
 
-      let cardHtml = `<div onclick="selectedPlanta='${planta.id}';document.getElementById('plantaFilterLabel').textContent='${escHtml(planta.name)}';document.getElementById('plantaFilterBtn').style.borderColor='var(--primary)';renderMapaCobertura();" style="background:white;border:1.5px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:all 0.25s ease;position:relative;" onmouseover="this.style.borderColor='var(--primary)';this.style.transform='translateY(-3px)';this.style.boxShadow='0 12px 32px rgba(26,54,93,0.1)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='';this.style.boxShadow=''">`;
-
-      // Status strip at top
-      cardHtml += `<div style="height:3px;background:${statusColor};"></div>`;
-
-      // Card header
-      cardHtml += `<div style="padding:16px 20px 12px;">
-        <div style="display:flex;justify-content:space-between;align-items:start;">
+        <div style="padding:20px 24px 16px;display:flex;align-items:start;justify-content:space-between;">
           <div style="flex:1;">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-family:var(--font-display);font-size:17px;font-weight:400;color:var(--primary);">${escHtml(planta.name)}</span>
-              <span style="font-size:9px;font-weight:700;color:white;background:var(--primary);padding:2px 7px;border-radius:5px;letter-spacing:0.5px;">${planta.short}</span>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+              <span style="font-family:var(--font-display);font-size:20px;color:var(--primary);">${plantName}</span>
+              <span style="font-size:9px;font-weight:700;color:var(--text3);background:var(--surface2);padding:3px 8px;border-radius:6px;letter-spacing:1px;">${plantShort}</span>
             </div>
-            ${sup ? '<div style="display:flex;align-items:center;gap:4px;margin-top:4px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="var(--accent)" stroke="var(--accent)" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span style="font-size:11px;color:var(--accent);font-weight:500;">' + escHtml(sup.name) + '</span></div>' : '<div style="font-size:10px;color:var(--text3);font-style:italic;margin-top:4px;">Sin supervisora</div>'}
+            ${pd.sup ? '<div style="display:flex;align-items:center;gap:4px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="var(--accent)" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span style="font-size:11px;color:var(--accent);font-weight:500;">' + escHtml(pd.sup.name) + '</span></div>' : ''}
           </div>
-          <div style="text-align:right;">
-            <div style="font-size:22px;font-weight:800;color:var(--primary);line-height:1;">${pw.length}</div>
-            <div style="font-size:9px;color:var(--text3);font-weight:500;letter-spacing:0.5px;">PROFESIONALES</div>
+          <div style="width:40px;height:40px;border-radius:12px;background:${sc.bg};border:1px solid ${sc.border};display:flex;align-items:center;justify-content:center;color:${sc.color};flex-shrink:0;">
+            ${sc.icon}
           </div>
         </div>
+
+        <div style="padding:0 24px 20px;">
+          <div style="display:flex;gap:12px;">
+            ${['M','T','N'].map(shift => {
+              const ss = pd.shiftStats[shift];
+              const label = shift === 'M' ? 'Mañana' : shift === 'T' ? 'Tarde' : 'Noche';
+              const dotColor = ss.needed === 0 ? '#94a3b8' : (ss.ok ? '#16a34a' : '#dc2626');
+              const barPct = ss.needed > 0 ? Math.min(100, Math.round((ss.assigned / ss.needed) * 100)) : 100;
+              return '<div style="flex:1;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">' + label + '</span><span style="font-size:12px;font-weight:700;color:' + dotColor + ';">' + ss.assigned + '/' + ss.needed + '</span></div><div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;"><div style="width:' + barPct + '%;height:100%;background:' + dotColor + ';border-radius:2px;transition:width 0.4s ease;"></div></div></div>';
+            }).join('')}
+          </div>
+        </div>
+
+        <div style="padding:12px 24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:${pd.status !== 'ok' ? sc.bg : 'transparent'};">
+          <span style="font-size:11px;font-weight:500;color:${pd.status === 'ok' ? 'var(--text3)' : sc.color};">${pd.pw.length} profesionales${pd.gaps > 0 ? ' · ' + pd.gaps + ' hueco' + (pd.gaps > 1 ? 's' : '') : ''}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+
       </div>`;
-
-      // Shift coverage bars
-      cardHtml += `<div style="padding:0 20px 16px;">
-        <div style="display:flex;flex-direction:column;gap:8px;">`;
-
-      shifts.forEach(shift => {
-        const meta = shiftMeta[shift];
-        const minReq = (covData[shift] || {}).min || 0;
-        let assigned = 0;
-        pw.forEach(w => {
-          const s = sch[w.id] ? (sch[w.id][todayIdx] || '').toString().trim() : '';
-          const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
-          if (eff === shift) assigned++;
-        });
-        const isMet = assigned >= minReq;
-        const barPct = minReq > 0 ? Math.min(100, Math.round((assigned / minReq) * 100)) : 100;
-        const barColor = minReq === 0 ? '#94a3b8' : (isMet ? meta.color : '#ef4444');
-
-        cardHtml += `<div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:20px;color:${meta.color};flex-shrink:0;opacity:0.7;">${meta.icon}</div>
-          <div style="flex:1;">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">
-              <span style="font-size:10px;font-weight:600;color:var(--text2);">${meta.label}</span>
-              <span style="font-size:11px;font-weight:700;color:${barColor};">${assigned}<span style="font-weight:400;color:var(--text3);font-size:10px;">/${minReq}</span></span>
-            </div>
-            <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;">
-              <div style="width:${barPct}%;height:100%;background:${barColor};border-radius:3px;transition:width 0.5s ease;"></div>
-            </div>
-          </div>
-        </div>`;
-      });
-
-      cardHtml += `</div></div>`;
-
-      // Footer with status
-      cardHtml += `<div style="padding:10px 20px;background:${statusBg};border-top:1px solid ${statusBorder};display:flex;align-items:center;justify-content:space-between;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          ${gaps === 0
-            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span style="font-size:11px;font-weight:600;color:#22c55e;">Cobertura OK</span>'
-            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span style="font-size:11px;font-weight:600;color:#ef4444;">' + gaps + ' hueco' + (gaps > 1 ? 's' : '') + '</span>'}
-        </div>
-        <div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;">
-          Ver planilla
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>`;
-
-      cardHtml += `</div>`;
-      html += cardHtml;
     });
 
     html += `</div>`;
@@ -18827,7 +18813,7 @@ function exportSchedulePDF() {
   <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'DM Sans',sans-serif; color:#2c2c2c; padding:40px; background:white; }
+    body { font-family:var(--font); color:#2c2c2c; padding:40px; background:white; }
     .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:32px; padding-bottom:20px; border-bottom:2px solid #e8e5e1; }
     .header h1 { font-size:24px; font-weight:700; color:#5c7a6f; }
     .header h2 { font-size:14px; font-weight:500; color:#7a7a7a; margin-top:4px; }
@@ -22616,7 +22602,7 @@ function exportHeatmapPDF() {
   .page { page-break-inside: avoid; }
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #2c2c2c; background: white; }
+body { font-family: var(--font); color: #2c2c2c; background: white; }
 
 /* Each page fills entire landscape A4 */
 .page {
@@ -23815,9 +23801,20 @@ function connectWebSocket() {
             }
           }
         } else if (msg.type === 'data_saved') {
-          showToast('Datos actualizados desde otra sesion — recarga para ver cambios', 'info', 5000);
+          // Auto-reload data from server
+          loadFromStorage().then(hasData => {
+            if (hasData) {
+              renderCurrentView();
+              showToast('Datos sincronizados automáticamente', 'success', 3000);
+            }
+          }).catch(() => {
+            showToast('Nuevos datos disponibles — recarga la página', 'info', 5000);
+          });
         } else if (msg.type === 'shift_change') {
-          showToast('Turno cambiado desde otra sesion', 'info', 2000);
+          loadFromStorage().then(hasData => {
+            if (hasData) renderCurrentView();
+            showToast('Turno actualizado en tiempo real', 'success', 2000);
+          });
         }
       } catch (e) { /* ignore */ }
     };
