@@ -12598,24 +12598,47 @@ async function handleImport(files) {
       }
       await new Promise(r => setTimeout(r, 400));
 
+      // Determine worker name from PDF or filename
+      const detectedName = parsed.workerName || file.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' ').trim();
+      addStep('Nombre detectado: ' + detectedName, 45);
+      await new Promise(r => setTimeout(r, 300));
+
+      // Try to match existing worker, or prepare to create new one
       if (!matchedWorker) {
-        completeStep('⚠️ No se pudo identificar al trabajador: ' + (parsed.workerName || file.name), 100);
-        await new Promise(r => setTimeout(r, 2000));
-        continue;
+        matchedWorker = null; // Will be created after modal
       }
 
-      addStep('Trabajador identificado: ' + matchedWorker.name + ' (ID #' + matchedWorker.id + ')', 50);
-      await new Promise(r => setTimeout(r, 400));
-
-      // Show import config modal
-      addStep('Esperando configuración de rol y planta...', 55);
-      const importConfig = await showImportConfigModal(matchedWorker.name);
+      // Show import config modal — always, so director assigns role + planta
+      addStep('Esperando configuración de rol y planta...', 50);
+      const importConfig = await showImportConfigModal(detectedName, matchedWorker);
       if (!importConfig) {
-        completeStep('❌ Importación cancelada por el usuario', 100);
+        completeStep('Importación cancelada por el usuario', 100);
         await new Promise(r => setTimeout(r, 1500));
         continue;
       }
       await new Promise(r => setTimeout(r, 300));
+
+      // If no existing worker matched, create a new one
+      if (!matchedWorker) {
+        const newWorker = {
+          id: nextWorkerId++,
+          name: importConfig.workerName || detectedName,
+          role: importConfig.role,
+          type: importConfig.role,
+          hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0,
+          scheduleImported: false,
+          planta: importConfig.flotante ? null : importConfig.planta,
+          flotante: importConfig.flotante,
+          modalidad: importConfig.modalidad, // 'fijo' or 'rotativo'
+          rules: { noNights: false, preferredShift: null, maxNightsPerMonth: null, conciliacion: false, notes: '' }
+        };
+        workers.push(newWorker);
+        matchedWorker = newWorker;
+        addStep('Nuevo trabajador creado: ' + matchedWorker.name + ' (ID #' + matchedWorker.id + ')', 55);
+      } else {
+        addStep('Trabajador existente actualizado: ' + matchedWorker.name + ' (ID #' + matchedWorker.id + ')', 55);
+      }
+      await new Promise(r => setTimeout(r, 400));
 
       // Step 4: Count shifts
       let totalM = 0, totalT = 0, totalN = 0, totalD = 0, totalH = 0;
@@ -12644,11 +12667,14 @@ async function handleImport(files) {
       addStep('Convenio: VAC ' + vacData.used + '/' + vacData.total + ', LD ' + ldData.used + '/' + ldData.total + ', FOR ' + forData.used + '/' + forData.total, 85);
       await new Promise(r => setTimeout(r, 300));
 
-      // Step 7: Update worker with role and plant
-      addStep('Actualizando rol y asignación de planta...', 88);
+      // Step 7: Update worker with role, plant and modalidad
+      addStep('Asignando rol y planta...', 88);
       matchedWorker.type = importConfig.role;
+      matchedWorker.role = importConfig.role;
       matchedWorker.planta = importConfig.flotante ? null : importConfig.planta;
       matchedWorker.flotante = importConfig.flotante;
+      matchedWorker.modalidad = importConfig.modalidad || 'fijo';
+      if (importConfig.workerName) matchedWorker.name = importConfig.workerName;
       await new Promise(r => setTimeout(r, 300));
 
       // Step 8: Integrate
@@ -12759,149 +12785,112 @@ async function handleImport(files) {
 }
 
 // ========== IMPORT CONFIG MODAL ==========
-function showImportConfigModal(workerName, callback) {
+function showImportConfigModal(workerName, existingWorker) {
   return new Promise((resolve) => {
+    const isNew = !existingWorker;
     const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5); z-index: 9999;
-      display: flex; align-items: center; justify-content: center;
-      animation: fadeIn 0.2s ease;
+    overlay.id = 'importConfigOverlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,20,30,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;backdrop-filter:blur(4px);';
+
+    const plantaOptions = PLANTAS.map(p => '<option value="' + p.id + '">' + escHtml(p.name) + '</option>').join('');
+
+    overlay.innerHTML = `
+      <div style="background:var(--bg);border-radius:20px;padding:32px;width:90%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,0.25);animation:slideUp 0.3s ease;">
+        <!-- Header -->
+        <div style="text-align:center;margin-bottom:28px;">
+          <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#1a365d,#2c5aa0);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <h3 style="font-family:var(--font-display);font-size:22px;font-weight:400;color:var(--primary);margin:0 0 4px;">${isNew ? 'Nuevo trabajador' : 'Actualizar datos'}</h3>
+          <p style="font-size:13px;color:var(--text3);margin:0;">Planilla detectada. Completa los datos para importar.</p>
+        </div>
+
+        <!-- Worker name (editable if new) -->
+        <div style="margin-bottom:20px;">
+          <label style="display:block;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Nombre del trabajador</label>
+          <input type="text" id="importWorkerName" value="${escHtml(workerName)}" ${isNew ? '' : 'readonly'} style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:${isNew ? 'var(--bg)' : 'var(--surface)'};color:var(--text1);font-size:14px;font-weight:600;font-family:var(--font);box-sizing:border-box;${isNew ? '' : 'opacity:0.7;'}">
+        </div>
+
+        <!-- Rol -->
+        <div style="margin-bottom:20px;">
+          <label style="display:block;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Rol profesional</label>
+          <select id="importRole" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text1);font-size:13px;font-family:var(--font);cursor:pointer;box-sizing:border-box;appearance:auto;">
+            <option value="">Selecciona rol...</option>
+            <option value="enf" ${existingWorker && existingWorker.type === 'enf' ? 'selected' : ''}>Enfermero/a</option>
+            <option value="tec" ${existingWorker && existingWorker.type === 'tec' ? 'selected' : ''}>Técnico/TCAE</option>
+            <option value="aux" ${existingWorker && existingWorker.type === 'aux' ? 'selected' : ''}>Auxiliar</option>
+          </select>
+        </div>
+
+        <!-- Modalidad: Fijo vs Rotativo -->
+        <div style="margin-bottom:20px;">
+          <label style="display:block;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Modalidad</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" id="importModalidad">
+            <div onclick="document.querySelectorAll('#importModalidad > div').forEach(d=>{d.style.borderColor='var(--border)';d.style.background='var(--bg)';d.querySelector('span').style.color='var(--text3)'});this.style.borderColor='var(--primary)';this.style.background='rgba(26,54,93,0.04)';this.querySelector('span').style.color='var(--primary)';this.dataset.selected='true';document.querySelector('#importModalidad > div:last-child').dataset.selected='false';" data-value="fijo" data-selected="true" style="padding:14px;border:2px solid var(--primary);border-radius:12px;cursor:pointer;text-align:center;background:rgba(26,54,93,0.04);transition:all 0.2s;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary);margin-bottom:4px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <div style="font-size:13px;font-weight:600;color:var(--text1);">Fijo</div>
+              <span style="font-size:10px;color:var(--primary);">Planta asignada</span>
+            </div>
+            <div onclick="document.querySelectorAll('#importModalidad > div').forEach(d=>{d.style.borderColor='var(--border)';d.style.background='var(--bg)';d.querySelector('span').style.color='var(--text3)'});this.style.borderColor='var(--primary)';this.style.background='rgba(26,54,93,0.04)';this.querySelector('span').style.color='var(--primary)';this.dataset.selected='true';document.querySelector('#importModalidad > div:first-child').dataset.selected='false';" data-value="rotativo" data-selected="false" style="padding:14px;border:2px solid var(--border);border-radius:12px;cursor:pointer;text-align:center;background:var(--bg);transition:all 0.2s;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text3);margin-bottom:4px;"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 1 3-3.87"/><circle cx="12" cy="7" r="4"/><path d="M2 17l3 3 3-3"/><path d="M22 7l-3-3-3 3"/></svg>
+              <div style="font-size:13px;font-weight:600;color:var(--text1);">Rotativo</div>
+              <span style="font-size:10px;color:var(--text3);">Flotante entre plantas</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Planta -->
+        <div style="margin-bottom:28px;" id="importPlantaSection">
+          <label style="display:block;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Planta asignada</label>
+          <select id="importPlanta" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text1);font-size:13px;font-family:var(--font);cursor:pointer;box-sizing:border-box;appearance:auto;">
+            <option value="">Selecciona planta...</option>
+            ${plantaOptions}
+          </select>
+        </div>
+
+        <!-- Buttons -->
+        <div style="display:flex;gap:12px;">
+          <button id="importCancelBtn" style="flex:1;padding:12px 16px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text2);font-weight:500;cursor:pointer;font-size:13px;font-family:var(--font);transition:all 0.2s;">Cancelar</button>
+          <button id="importConfirmBtn" style="flex:1.5;padding:12px 16px;border:none;border-radius:10px;background:linear-gradient(135deg,#1a365d,#2c5aa0);color:white;font-weight:600;cursor:pointer;font-size:13px;font-family:var(--font);transition:all 0.2s;box-shadow:0 2px 8px rgba(26,54,93,0.2);">Confirmar e importar</button>
+        </div>
+      </div>
     `;
 
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-      background: var(--surface); border-radius: 16px; padding: 28px;
-      width: 90%; max-width: 440px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-      animation: slideUp 0.3s ease;
-    `;
-
-    const title = document.createElement('div');
-    title.style.cssText = `
-      font-size: 18px; font-weight: 600; color: var(--text);
-      margin-bottom: 8px;
-    `;
-    title.textContent = 'Importando planilla de ' + escHtml(workerName);
-
-    const subtitle = document.createElement('div');
-    subtitle.style.cssText = `
-      font-size: 13px; color: var(--text2); margin-bottom: 24px;
-    `;
-    subtitle.textContent = 'Antes de procesar, completa estos datos:';
-
-    // Role field
-    const roleLabel = document.createElement('label');
-    roleLabel.style.cssText = `
-      display: block; font-size: 12px; font-weight: 600;
-      color: var(--text); margin-bottom: 8px; text-transform: uppercase;
-      letter-spacing: 0.5px;
-    `;
-    roleLabel.textContent = 'Rol del trabajador';
-
-    const roleSelect = document.createElement('select');
-    roleSelect.style.cssText = `
-      width: 100%; padding: 10px 12px; border: 1px solid var(--surface2);
-      border-radius: 8px; background: var(--bg); color: var(--text);
-      font-size: 13px; margin-bottom: 16px; cursor: pointer;
-      font-family: 'DM Sans', sans-serif;
-    `;
-    roleSelect.innerHTML = `
-      <option value="">Selecciona un rol...</option>
-      <option value="enf">Enfermería</option>
-      <option value="tec">Técnico/TCAE</option>
-      <option value="aux">Auxiliar</option>
-    `;
-
-    // Plant field
-    const plantLabel = document.createElement('label');
-    plantLabel.style.cssText = `
-      display: block; font-size: 12px; font-weight: 600;
-      color: var(--text); margin-bottom: 8px; text-transform: uppercase;
-      letter-spacing: 0.5px;
-    `;
-    plantLabel.textContent = 'Asignación de planta';
-
-    const plantSelect = document.createElement('select');
-    plantSelect.style.cssText = `
-      width: 100%; padding: 10px 12px; border: 1px solid var(--surface2);
-      border-radius: 8px; background: var(--bg); color: var(--text);
-      font-size: 13px; margin-bottom: 20px; cursor: pointer;
-      font-family: 'DM Sans', sans-serif;
-    `;
-
-    let plantHtml = '<option value="">Selecciona una planta...</option>';
-    plantHtml += '<option value="flotante">🚀 Flotante</option>';
-    PLANTAS.forEach(p => {
-      plantHtml += '<option value="' + p.id + '">' + escHtml(p.name) + '</option>';
-    });
-    plantSelect.innerHTML = plantHtml;
-
-    // Buttons
-    const btnContainer = document.createElement('div');
-    btnContainer.style.cssText = `
-      display: flex; gap: 12px;
-    `;
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.style.cssText = `
-      flex: 1; padding: 10px 16px; border: 1px solid var(--surface2);
-      border-radius: 8px; background: transparent; color: var(--text);
-      font-weight: 500; cursor: pointer; transition: all 0.2s;
-      font-family: 'DM Sans', sans-serif; font-size: 13px;
-    `;
-    cancelBtn.textContent = 'Cancelar';
-    cancelBtn.onmouseover = function() { this.style.background = 'var(--surface2)'; };
-    cancelBtn.onmouseout = function() { this.style.background = 'transparent'; };
-
-    const confirmBtn = document.createElement('button');
-    confirmBtn.style.cssText = `
-      flex: 1; padding: 10px 16px; border: none;
-      border-radius: 8px; background: linear-gradient(135deg, #1a365d 0%, #2c5aa0 100%);
-      color: white; font-weight: 600; cursor: pointer;
-      transition: all 0.2s; font-family: 'DM Sans', sans-serif; font-size: 13px;
-    `;
-    confirmBtn.textContent = 'Confirmar e importar';
-    confirmBtn.onmouseover = function() { this.style.transform = 'translateY(-1px)'; this.style.boxShadow = '0 4px 12px rgba(26,54,93,0.3)'; };
-    confirmBtn.onmouseout = function() { this.style.transform = 'translateY(0)'; this.style.boxShadow = 'none'; };
-
-    cancelBtn.onclick = function() {
-      overlay.remove();
-      resolve(null);
-    };
-
-    confirmBtn.onclick = function() {
-      const role = roleSelect.value;
-      const planta = plantSelect.value;
-
-      if (!role || !planta) {
-        showToast('Por favor, completa los campos');
-        return;
-      }
-
-      overlay.remove();
-      const result = {
-        role: role,
-        planta: planta,
-        flotante: planta === 'flotante'
-      };
-      if (callback) callback(result);
-      resolve(result);
-    };
-
-    btnContainer.appendChild(cancelBtn);
-    btnContainer.appendChild(confirmBtn);
-
-    modal.appendChild(title);
-    modal.appendChild(subtitle);
-    modal.appendChild(roleLabel);
-    modal.appendChild(roleSelect);
-    modal.appendChild(plantLabel);
-    modal.appendChild(plantSelect);
-    modal.appendChild(btnContainer);
-
-    overlay.appendChild(modal);
     document.body.appendChild(overlay);
+
+    // Wire up cancel
+    document.getElementById('importCancelBtn').onclick = () => { overlay.remove(); resolve(null); };
+
+    // Wire up confirm
+    document.getElementById('importConfirmBtn').onclick = () => {
+      const name = document.getElementById('importWorkerName').value.trim();
+      const role = document.getElementById('importRole').value;
+      const planta = document.getElementById('importPlanta').value;
+      const fijoCard = document.querySelector('#importModalidad > div:first-child');
+      const rotativoCard = document.querySelector('#importModalidad > div:last-child');
+      const modalidad = (rotativoCard && rotativoCard.dataset.selected === 'true') ? 'rotativo' : 'fijo';
+      const isFlotante = modalidad === 'rotativo';
+
+      if (!name) { showToast('Introduce el nombre del trabajador', 'warning'); return; }
+      if (!role) { showToast('Selecciona un rol profesional', 'warning'); return; }
+      if (!isFlotante && !planta) { showToast('Selecciona la planta asignada', 'warning'); return; }
+
+      overlay.remove();
+      resolve({
+        workerName: name,
+        role: role,
+        planta: isFlotante ? null : planta,
+        flotante: isFlotante,
+        modalidad: modalidad
+      });
+    };
+
+    // Hover effects
+    document.getElementById('importConfirmBtn').onmouseover = function() { this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 16px rgba(26,54,93,0.3)'; };
+    document.getElementById('importConfirmBtn').onmouseout = function() { this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(26,54,93,0.2)'; };
+
+    // Close on overlay click
+    overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(null); } };
   });
 }
 
