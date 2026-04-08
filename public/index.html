@@ -9589,169 +9589,42 @@ function switchView(view) {
 
 // Render Dashboard
 function renderDashboard() {
-  // Update dashboard date
   const now = new Date();
   const monthNames = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  const dayNames = ['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
-  const dateStr = `${dayNames[now.getDay()]} ${now.getDate()} de ${monthNames[now.getMonth()]}`;
+  const dayNames = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const dateStr = `${dayNames[now.getDay()]} ${now.getDate()} de ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+
+  // Update dashboard date
   const dashboardDateEl = document.getElementById('dashboardDate');
   if (dashboardDateEl) dashboardDateEl.textContent = dateStr;
 
-  // Update card counts
-  document.getElementById('importedWorkerCount').textContent = workers.length;
+  // Update card counts (safe — check element exists before writing)
+  const importedEl = document.getElementById('importedWorkerCount');
+  if (importedEl) importedEl.textContent = workers.length;
 
-  const unplannedDays = getUnplannedDays(now.getFullYear(), now.getMonth());
-  document.getElementById('unplannedDaysCount').textContent = unplannedDays.length;
-
-  const gaps = getCoverageGaps(now.getFullYear(), now.getMonth());
-  document.getElementById('gapsDetectedCount').textContent = gaps.length;
-
-  // Active absences count (from schedule data)
-  let activeAbsences = 0;
-  workers.forEach(w => {
-    const sch = scheduleData[`${now.getFullYear()}-${now.getMonth()}`] || genSchedule(now.getFullYear(), now.getMonth());
-    for (let i = 0; i < 31; i++) {
-      const shift = sch[w.id] ? sch[w.id][i] : '';
-      if (['BAJ','VAC'].includes(shift)) activeAbsences++;
-    }
-  });
-  document.getElementById('activeAbsencesCount').textContent = activeAbsences;
-
-  // Legacy dashboard code (kept for backward compatibility)
-  document.getElementById('todayText').textContent = getTodayText();
-
-  const importedCount = workers.filter(w => w.scheduleImported).length;
-  document.getElementById('pendingCount').textContent = workers.length - importedCount;
-
-  const now = new Date();
-  const hour = now.getHours();
-  const todayFestivo = isFestivo(now.getFullYear(), now.getMonth(), now.getDate());
-  if (todayFestivo) {
-    document.getElementById('todayText').textContent = getTodayText() + ' — ' + todayFestivo;
+  const unplannedEl = document.getElementById('unplannedDaysCount');
+  if (unplannedEl) {
+    try { unplannedEl.textContent = getUnplannedDays(now.getFullYear(), now.getMonth()).length; } catch(e) { unplannedEl.textContent = '0'; }
   }
-  let currentShift = 'M';
-  if (hour >= 15 && hour < 22) currentShift = 'T';
-  if (hour >= 22 || hour < 8) currentShift = 'N';
 
+  const gapsEl = document.getElementById('gapsDetectedCount');
+  if (gapsEl) {
+    try { gapsEl.textContent = getCoverageGaps(now.getFullYear(), now.getMonth()).length; } catch(e) { gapsEl.textContent = '0'; }
+  }
+
+  // Active absences count
+  let activeAbsences = 0;
   const sch = genSchedule(now.getFullYear(), now.getMonth());
   const todayIdx = now.getDate() - 1;
-
-  let count = 0;
   workers.forEach(w => {
-    const s = sch[w.id] ? sch[w.id][todayIdx] : '';
-    if (s === currentShift) count++;
+    const s = sch[w.id] ? (sch[w.id][todayIdx] || '').toString().trim() : '';
+    if (['BAJ','VAC','FOR','LAC','MTC','HS','CAA','INT'].includes(s)) activeAbsences++;
   });
-  document.getElementById('nowCount').textContent = count;
+  const absEl = document.getElementById('activeAbsencesCount');
+  if (absEl) absEl.textContent = activeAbsences;
 
-  // Alert count and sparkline (next 7 days)
-  const alertCount = predictedConflicts.filter(c => c.severity === 'high').length;
-  document.getElementById('alertCount').textContent = alertCount;
-
-  const nextSevenAlerts = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-    const dayConflicts = predictedConflicts.filter(c => {
-      try {
-        const cDate = new Date(c.date);
-        return cDate.getFullYear() === d.getFullYear() && cDate.getMonth() === d.getMonth() && cDate.getDate() === d.getDate();
-      } catch(e) { return false; }
-    });
-    nextSevenAlerts.push(dayConflicts.length);
-  }
-
-  const sparklineEl = document.getElementById('alertSparkline');
-  if (nextSevenAlerts.some(a => a > 0)) {
-    sparklineEl.innerHTML = generateSparklineSVG(nextSevenAlerts, 50, 16, '#cc4444');
-  } else {
-    sparklineEl.innerHTML = '';
-  }
-
-  const shiftNames = { M: 'MAÑANA 8-15', T: 'TARDE 15-22', N: 'NOCHE 22-8' };
-  const shiftColors = { M: '#2e8b7a', T: '#4a9dd4', N: '#d4c032' };
-  const rosterHtml = {};
-  ['M', 'T', 'N'].forEach(sh => {
-    const wkrs = workers.filter(w => {
-      const s = sch[w.id] ? sch[w.id][todayIdx] : '';
-      return s === sh || (sh === 'M' && ['MR','M7H','M6R','M55'].includes(s));
-    });
-    const enfWkrs = wkrs.filter(w => w.type === 'enf');
-    const tecLabWkrs = wkrs.filter(w => w.type === 'tec' && w.area !== 'micro');
-    const tecMicroWkrs = wkrs.filter(w => w.area === 'micro');
-    let workersHtml = '';
-    if (wkrs.length > 0) {
-      if (enfWkrs.length > 0) {
-        workersHtml += `<div style="margin-bottom:6px;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:3px;">Enfermeria</div>`;
-        workersHtml += enfWkrs.map(w => `<div class="worker-name">${escHtml(w.name)} <span style="font-size:9px;color:#cc4444;font-weight:600;opacity:0.7;">ENF</span></div>`).join('');
-        workersHtml += `</div>`;
-      }
-      if (tecLabWkrs.length > 0) {
-        workersHtml += `<div style="margin-bottom:6px;"><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:3px;">Técnico/TCAE</div>`;
-        workersHtml += tecLabWkrs.map(w => `<div class="worker-name">${escHtml(w.name)} <span style="font-size:9px;color:#cc4444;font-weight:600;opacity:0.7;">TEC</span></div>`).join('');
-        workersHtml += `</div>`;
-      }
-      if (tecMicroWkrs.length > 0) {
-        workersHtml += `<div><div style="font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:3px;">Microbiologia</div>`;
-        workersHtml += tecMicroWkrs.map(w => `<div class="worker-name">${escHtml(w.name)} <span style="font-size:9px;color:#9a6abf;font-weight:600;opacity:0.7;">MICRO</span></div>`).join('');
-        workersHtml += `</div>`;
-      }
-    } else {
-      workersHtml = '<div style="color:var(--text3);font-size:12px;">Sin asignaciones — importa planillas</div>';
-    }
-    rosterHtml[sh] = `<div class="shift-card" style="border-left:4px solid ${shiftColors[sh]};">
-      <div class="shift-time" style="color:${shiftColors[sh]};">${shiftNames[sh]}</div>
-      <div class="shift-workers">${workersHtml}
-      </div>
-    </div>`;
-  });
-  document.getElementById('todayRoster').innerHTML = Object.values(rosterHtml).join('');
-
-  // Week preview
-  const weekHtml = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-    const weekSch = genSchedule(d.getFullYear(), d.getMonth());
-    const idx = d.getDate() - 1;
-    const shifts = ['M', 'T', 'N'].map(sh => workers.filter(w => weekSch[w.id] && weekSch[w.id][idx] === sh).length);
-    const total = shifts[0] + shifts[1] + shifts[2];
-    const domShift = shifts[0] > 0 ? 'M' : (shifts[1] > 0 ? 'T' : 'N');
-    const colors = { M: '#2e8b7a', T: '#4a9dd4', N: '#d4c032' };
-    const wFestivo = isFestivo(d.getFullYear(), d.getMonth(), d.getDate());
-    const isFest = !!wFestivo || d.getDay() === 0;
-    weekHtml.push(`<div class="week-day" onclick="goToDay(${d.getFullYear()},${d.getMonth()},${d.getDate()})" style="cursor:pointer;" ${wFestivo ? `title="${wFestivo}"` : ''}>
-      <div class="week-day-letter" ${isFest ? 'style="color:var(--danger);"' : ''}>${getDayName(d).substr(0,1)}</div>
-      <div class="week-day-num" ${isFest ? 'style="color:var(--danger);font-weight:700;"' : ''}>${d.getDate()}</div>
-      <div class="week-day-dot" style="background: ${isFest ? 'var(--danger)' : (total > 0 ? colors[domShift] : 'var(--text3)')};"></div>
-    </div>`);
-  }
-  document.getElementById('weekPreview').innerHTML = weekHtml.join('');
-
-  // Activity
-  if (incidents.length === 0) {
-    document.getElementById('activityFeed').innerHTML = `<div class="activity-item"><div class="activity-text" style="color:var(--text3);text-align:center;padding:16px;">Sin incidencias registradas. Los cambios de turno aparecerán aquí.</div></div>`;
-  } else {
-    const actHtml = incidents.sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0,5).map(inc => `
-      <div class="activity-item">
-        <div class="activity-date">${new Date(inc.date).toLocaleDateString('es-ES')}</div>
-        <div class="activity-text"><strong>${inc.worker}</strong> · ${inc.type} · ${(inc.notes||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-      </div>
-    `).join('');
-    document.getElementById('activityFeed').innerHTML = actHtml;
-  }
-
-  // Update tab badges
-  updateTabBadges();
-
-  // Render daily briefing panel
-  renderDailyBriefing();
-
-  // Render risk radar
-  renderRiskRadar();
-
-  // Render weekly dashboard
-  renderWeeklyDashboard();
-
-  // Render intelligent dashboard v5.0
-  try { renderIntelligentDashboard(); } catch(e) { console.warn('[Shiftia] renderIntelligentDashboard error:', e); }
+  // Update tab badges safely
+  try { updateTabBadges(); } catch(e) {}
 }
 
 // Schedule Filter
