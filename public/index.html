@@ -8432,6 +8432,9 @@ table.schedule tbody tr:hover {
           </div>
         </div>
 
+        <!-- Alerts Panel -->
+        <div id="alertsPanel"></div>
+
         <!-- 4 Action Cards Grid -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 48px;">
           <!-- Card 1: Importar Planillas -->
@@ -8531,6 +8534,11 @@ table.schedule tbody tr:hover {
             "><span id="unplannedDaysCount">0</span> días sin planificar</div>
           </div>
         </div>
+
+        <!-- Weekly Dashboard Summary -->
+        <div id="weeklyDashboard" style="margin-top:32px;"></div>
+        <div id="plantComparison" style="margin-top:32px;"></div>
+        <div id="auditLogContainer" style="margin-top:32px;"></div>
       </div>
     </div>
 
@@ -9048,7 +9056,21 @@ const coverageHistory = [];
 
 // Audit Log — tracks all actions in the system
 const auditLog = [];
-// Structure: { timestamp: ISO, action: string, user: string, details: string }
+// Structure: { timestamp: ISO, action: string, user: string, details: string, plantId, workerId }
+
+// Log an audit entry
+function logAudit(action, details, plantId, workerId) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    action: action,
+    details: details || '',
+    user: 'Director',
+    plantId: plantId || null,
+    workerId: workerId || null
+  };
+  auditLog.push(entry);
+  if (auditLog.length > 1000) auditLog.shift();
+}
 
 // Onboarding flag
 let shiftiaOnboarded = false;
@@ -9760,8 +9782,600 @@ function renderDashboard() {
   const absEl = document.getElementById('activeAbsencesCount');
   if (absEl) absEl.textContent = activeAbsences;
 
+  // Render alerts panel
+  try { renderAlertsPanel(); } catch(e) { console.error('Alert panel error:', e); }
+
+  // Render weekly dashboard
+  try { renderWeeklyDashboard(); } catch(e) { console.error('Weekly dashboard error:', e); }
+
+  // Render plant comparison
+  try { renderPlantComparison(); } catch(e) { console.error('Plant comparison error:', e); }
+
+  // Render audit log
+  try {
+    const auditContainer = document.getElementById('auditLogContainer');
+    if (auditContainer) renderAuditLog(auditContainer, 50);
+  } catch(e) { console.error('Audit log error:', e); }
+
   // Update tab badges safely
   try { updateTabBadges(); } catch(e) {}
+}
+
+// ========= ALERTS PANEL =========
+function renderAlertsPanel() {
+  const alertsPanelEl = document.getElementById('alertsPanel');
+  if (!alertsPanelEl) return;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const todayIdx = now.getDate() - 1;
+  const sch = genSchedule(year, month);
+
+  const alerts = [];
+
+  // Alert 1: Plants below minimum coverage TODAY
+  PLANTAS.forEach(planta => {
+    ['M', 'T', 'N'].forEach(shift => {
+      const plantWorkers = workers.filter(w => w.planta === planta.id);
+      let onShift = 0;
+      plantWorkers.forEach(w => {
+        const s = sch[w.id] ? (sch[w.id][todayIdx] || '').toString().trim() : '';
+        const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+        if (eff === shift) onShift++;
+      });
+      const needed = (PLANT_COVERAGE[planta.id] || {})[shift]?.min || 0;
+      if (needed > 0 && onShift < needed) {
+        alerts.push({
+          severity: 'critical',
+          title: `${planta.name} - Turno ${shift === 'M' ? 'Mañana' : shift === 'T' ? 'Tarde' : 'Noche'}`,
+          description: `${onShift}/${needed} enfermeras en turno`,
+          plantId: planta.id
+        });
+      }
+    });
+  });
+
+  // Alert 2: Workers with excess nights this month
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0);
+  const daysInMonth = monthEnd.getDate();
+
+  workers.forEach(w => {
+    let nightCount = 0;
+    for (let day = 0; day < daysInMonth; day++) {
+      const s = sch[w.id] ? (sch[w.id][day] || '').toString().trim() : '';
+      if (s === 'N') nightCount++;
+    }
+    if (nightCount > 7) {
+      alerts.push({
+        severity: 'warning',
+        title: `${w.name} - Exceso de noches`,
+        description: `${nightCount} turnos de noche este mes (máx. 7)`,
+        workerId: w.id
+      });
+    }
+  });
+
+  // Alert 3: Uncovered absences TODAY
+  workers.forEach(w => {
+    const s = sch[w.id] ? (sch[w.id][todayIdx] || '').toString().trim() : '';
+    if (['BAJ','VAC','FOR'].includes(s)) {
+      // Check if gap is covered by replacement
+      const hasCover = false; // In real system, check coverageHistory
+      if (!hasCover) {
+        alerts.push({
+          severity: 'critical',
+          title: `${w.name} - Ausencia sin cubrir`,
+          description: `${s === 'BAJ' ? 'Baja' : s === 'VAC' ? 'Vacaciones' : 'Formación'} hoy`,
+          workerId: w.id
+        });
+      }
+    }
+  });
+
+  // Alert 4: Plants with zero workers assigned
+  PLANTAS.forEach(planta => {
+    const plantWorkers = workers.filter(w => w.planta === planta.id);
+    if (plantWorkers.length === 0) {
+      alerts.push({
+        severity: 'info',
+        title: `${planta.name} - Sin trabajadores`,
+        description: 'No hay trabajadores importados',
+        plantId: planta.id
+      });
+    }
+  });
+
+  // Build HTML
+  let html = '';
+  if (alerts.length > 0) {
+    html = `<div style="margin-bottom:32px;padding:20px;background:#f8f9fa;border-radius:12px;border-left:4px solid var(--primary);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="font-size:16px;font-weight:600;color:var(--primary);margin:0;">Alertas en Tiempo Real</h3>
+        <span style="font-size:12px;background:var(--accent);color:#fff;padding:4px 10px;border-radius:20px;font-weight:600;">${alerts.length}</span>
+      </div>
+      <div style="display:grid;gap:12px;">`;
+
+    alerts.forEach(alert => {
+      const iconColor = alert.severity === 'critical' ? '#ef4444' : alert.severity === 'warning' ? '#f59e0b' : '#3b82f6';
+      const bgColor = alert.severity === 'critical' ? 'rgba(239,68,68,0.08)' : alert.severity === 'warning' ? 'rgba(245,158,11,0.08)' : 'rgba(59,130,246,0.08)';
+
+      let svg = '';
+      if (alert.severity === 'critical') {
+        svg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+      } else if (alert.severity === 'warning') {
+        svg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05l-8.47-14.14a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+      } else {
+        svg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
+      }
+
+      html += `<div style="display:flex;gap:12px;padding:12px;background:${bgColor};border-radius:8px;border-left:3px solid ${iconColor};">
+        <div style="flex-shrink:0;margin-top:2px;">${svg}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;color:var(--primary);">${escHtml(alert.title)}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;">${escHtml(alert.description)}</div>
+        </div>
+        <button style="flex-shrink:0;padding:6px 10px;background:${iconColor};color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">Resolver</button>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  }
+
+  alertsPanelEl.innerHTML = html;
+}
+
+// ========= WEEKLY DASHBOARD =========
+function renderWeeklyDashboard() {
+  const weeklyDashEl = document.getElementById('weeklyDashboard');
+  if (!weeklyDashEl) return;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const sch = genSchedule(year, month);
+  const todayIdx = now.getDate() - 1;
+
+  // Get next 7 days
+  const sevenDays = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(year, month, now.getDate() + i);
+    sevenDays.push(d);
+  }
+
+  // Calculate coverage for each plant/day
+  let totalCovered = 0, totalGaps = 0;
+  let criticalPlant = null, maxGaps = 0;
+
+  const coverageMatrix = {};
+  PLANTAS.forEach(planta => {
+    coverageMatrix[planta.id] = [];
+    sevenDays.forEach((date, idx) => {
+      const dayIdx = date.getDate() - 1;
+      const plantWorkers = workers.filter(w => w.planta === planta.id);
+
+      // Check all shifts for this day
+      let dayStatus = 'covered'; // green
+      ['M', 'T', 'N'].forEach(shift => {
+        let onShift = 0;
+        plantWorkers.forEach(w => {
+          const y = date.getFullYear(), m = date.getMonth();
+          const sch2 = genSchedule(y, m);
+          const s = sch2[w.id] ? (sch2[w.id][dayIdx] || '').toString().trim() : '';
+          const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+          if (eff === shift) onShift++;
+        });
+        const needed = (PLANT_COVERAGE[planta.id] || {})[shift]?.min || 0;
+        if (needed > 0 && onShift < needed) {
+          dayStatus = dayStatus === 'covered' ? 'partial' : 'gap';
+          totalGaps++;
+          if (dayStatus === 'gap' && !criticalPlant) {
+            criticalPlant = planta.name;
+          }
+        } else if (needed > 0) {
+          totalCovered++;
+        }
+      });
+
+      coverageMatrix[planta.id].push(dayStatus);
+    });
+  });
+
+  // Find busiest day (most plants covered)
+  let busyDay = null, maxCov = -1;
+  sevenDays.forEach((date, idx) => {
+    let count = 0;
+    PLANTAS.forEach(planta => {
+      if (coverageMatrix[planta.id][idx] === 'covered') count++;
+    });
+    if (count > maxCov) { maxCov = count; busyDay = date; }
+  });
+
+  // Build HTML
+  let html = `<div style="padding:24px;background:#fff;border:1px solid var(--border);border-radius:12px;">
+    <h3 style="font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--primary);margin:0 0 20px 0;">Resumen Semanal</h3>
+
+    <!-- Coverage Matrix -->
+    <div style="margin-bottom:24px;overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);">
+            <th style="text-align:left;padding:10px;font-weight:600;color:var(--text);width:100px;">Planta</th>`;
+
+    sevenDays.forEach((date, idx) => {
+      const dayName = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][date.getDay()];
+      html += `<th style="text-align:center;padding:10px;font-weight:600;color:var(--text);">${dayName} ${date.getDate()}</th>`;
+    });
+
+    html += `</tr></thead><tbody>`;
+
+    PLANTAS.forEach(planta => {
+      html += `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:10px;color:var(--text2);font-weight:500;">${planta.short}</td>`;
+
+      coverageMatrix[planta.id].forEach((status, idx) => {
+        let dotColor = status === 'covered' ? '#22c55e' : status === 'partial' ? '#f59e0b' : '#ef4444';
+        html += `<td style="text-align:center;padding:10px;cursor:pointer;" onclick="selectPlanta('${planta.id}'); switchView('mapa-cobertura');" onmouseover="this.style.background='rgba(201,168,76,0.05)'" onmouseout="this.style.background='transparent'">
+          <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${dotColor};box-shadow:0 0 0 2px ${dotColor}20;"></span>
+        </td>`;
+      });
+
+      html += `</tr>`;
+    });
+
+    html += `</tbody></table>
+    </div>
+
+    <!-- Stats Row -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
+      <div style="padding:16px;background:#f8f9fa;border-radius:8px;border-left:3px solid #22c55e;">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Turnos Cubiertos</div>
+        <div style="font-size:24px;font-weight:700;color:#22c55e;">${totalCovered}</div>
+      </div>
+      <div style="padding:16px;background:#f8f9fa;border-radius:8px;border-left:3px solid #ef4444;">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Huecos</div>
+        <div style="font-size:24px;font-weight:700;color:#ef4444;">${totalGaps}</div>
+      </div>
+      <div style="padding:16px;background:#f8f9fa;border-radius:8px;border-left:3px solid var(--primary);">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Planta Crítica</div>
+        <div style="font-size:13px;font-weight:600;color:var(--primary);">${criticalPlant || 'Todas OK'}</div>
+      </div>
+      <div style="padding:16px;background:#f8f9fa;border-radius:8px;border-left:3px solid var(--accent);">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Día + Ocupado</div>
+        <div style="font-size:13px;font-weight:600;color:var(--accent);">${busyDay ? busyDay.getDate() + ' ' + ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][busyDay.getMonth()] : '-'}</div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div style="display:flex;gap:16px;font-size:11px;flex-wrap:wrap;">
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;"></span>
+        <span style="color:var(--text2);">Cubierta</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;"></span>
+        <span style="color:var(--text2);">Parcial</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;"></span>
+        <span style="color:var(--text2);">Sin cubrir</span>
+      </div>
+    </div>
+  </div>`;
+
+  weeklyDashEl.innerHTML = html;
+}
+
+// ========= AUDIT LOG VIEWER =========
+function renderAuditLog(container, maxEntries) {
+  if (!container) return;
+  const limit = maxEntries || 50;
+  const entries = auditLog.slice(-limit).reverse();
+
+  if (entries.length === 0) {
+    container.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text3);">No hay registros de auditoria disponibles.</div>`;
+    return;
+  }
+
+  const actionColors = {
+    'shift_change': '#2e8b7a',
+    'file_import': '#4a9dd4',
+    'excel_export': '#c9a84c',
+    'worker_added': '#22c55e',
+    'worker_removed': '#ef4444',
+    'default': '#6b7280'
+  };
+
+  const actionLabels = {
+    'shift_change': 'Cambio de turno',
+    'file_import': 'Importacion de archivo',
+    'excel_export': 'Exportacion a Excel',
+    'worker_added': 'Trabajador anadido',
+    'worker_removed': 'Trabajador eliminado',
+    'default': 'Accion'
+  };
+
+  let html = `<div style="padding:16px; background:white; border:1px solid var(--border); border-radius:12px;">
+    <div style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+      <h4 style="margin:0; font-size:13px; font-weight:600; color:var(--text1); text-transform:uppercase; letter-spacing:0.5px;">Registro de cambios (ultimas ${Math.min(limit, entries.length)})</h4>
+      <button onclick="toggleAuditFilters()" style="padding:4px 12px; border:1px solid var(--border); background:var(--bg); border-radius:6px; cursor:pointer; font-size:10px; color:var(--text2); transition:all 0.2s;">Filtros</button>
+    </div>
+
+    <div id="auditFiltersPanel" style="display:none; margin-bottom:12px; padding:12px; background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+        <div>
+          <label style="display:block; font-size:9px; font-weight:600; color:var(--text3); text-transform:uppercase; margin-bottom:4px;">Tipo de accion</label>
+          <select id="auditActionFilter" style="width:100%; padding:6px; font-size:10px; border:1px solid var(--border); border-radius:4px; background:white;">
+            <option value="">Todas</option>
+            <option value="shift_change">Cambios de turno</option>
+            <option value="file_import">Importaciones</option>
+            <option value="excel_export">Exportaciones</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; font-size:9px; font-weight:600; color:var(--text3); text-transform:uppercase; margin-bottom:4px;">Rango de fechas</label>
+          <select id="auditDateFilter" style="width:100%; padding:6px; font-size:10px; border:1px solid var(--border); border-radius:4px; background:white;">
+            <option value="">Ultima semana</option>
+            <option value="today">Hoy</option>
+            <option value="week">Ultima semana</option>
+            <option value="month">Ultimo mes</option>
+            <option value="all">Todos</option>
+          </select>
+        </div>
+      </div>
+      <button onclick="filterAuditLog()" style="padding:6px 12px; width:100%; border:none; background:var(--primary); color:white; border-radius:4px; cursor:pointer; font-size:10px; font-weight:600;">Aplicar filtros</button>
+    </div>
+
+    <div style="max-height:400px; overflow-y:auto; position:relative;">
+      <div style="position:absolute; left:15px; top:0; bottom:0; width:2px; background:var(--border);"></div>
+
+      <div style="padding-left:40px;">`;
+
+  entries.forEach(entry => {
+    const date = new Date(entry.timestamp);
+    const time = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = date.toLocaleDateString('es-ES');
+    const action = entry.action || 'default';
+    const color = actionColors[action] || actionColors.default;
+    const label = actionLabels[action] || actionLabels.default;
+    const worker = entry.workerId ? workers.find(w => w.id === entry.workerId) : null;
+    const plant = entry.plantId ? PLANTAS.find(p => p.id === entry.plantId) : null;
+
+    html += `<div style="margin-bottom:16px; position:relative;">
+      <div style="position:absolute; left:-34px; width:18px; height:18px; background:white; border:3px solid ${color}; border-radius:50%; top:2px; z-index:1;"></div>
+      <div style="padding:10px 12px; background:${color}15; border-left:3px solid ${color}; border-radius:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
+          <span style="font-size:11px; font-weight:600; color:${color}; text-transform:uppercase; letter-spacing:0.5px;">${label}</span>
+          <span style="font-size:9px; color:var(--text3);">${dateStr} ${time}</span>
+        </div>
+        <div style="font-size:10px; color:var(--text2); margin-bottom:4px;">${escHtml(entry.details)}</div>
+        <div style="display:flex; gap:8px; font-size:9px; color:var(--text3);">
+          ${worker ? `<span style="background:var(--bg); padding:2px 8px; border-radius:4px;">👤 ${escHtml(worker.name)}</span>` : ''}
+          ${plant ? `<span style="background:var(--bg); padding:2px 8px; border-radius:4px;">📍 ${escHtml(plant.name)}</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  });
+
+  html += `</div></div>`;
+
+  if (entries.length >= limit) {
+    html += `<div style="text-align:center; margin-top:12px;">
+      <button onclick="renderAuditLogExpanded()" style="padding:6px 14px; border:1px solid var(--border); background:var(--bg); border-radius:6px; cursor:pointer; font-size:10px; color:var(--text2); transition:all 0.2s;">Ver mas registros</button>
+    </div>`;
+  }
+
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function toggleAuditFilters() {
+  const panel = document.getElementById('auditFiltersPanel');
+  if (panel) {
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+function filterAuditLog() {
+  const actionFilter = document.getElementById('auditActionFilter')?.value || '';
+  const dateFilter = document.getElementById('auditDateFilter')?.value || 'week';
+
+  let filtered = auditLog.slice();
+  if (actionFilter) {
+    filtered = filtered.filter(e => e.action === actionFilter);
+  }
+  if (dateFilter && dateFilter !== 'all') {
+    const now = new Date();
+    const filterDate = new Date();
+    if (dateFilter === 'today') filterDate.setDate(now.getDate());
+    else if (dateFilter === 'week') filterDate.setDate(now.getDate() - 7);
+    else if (dateFilter === 'month') filterDate.setMonth(now.getMonth() - 1);
+    filtered = filtered.filter(e => new Date(e.timestamp) >= filterDate);
+  }
+
+  const container = document.getElementById('auditLogContainer');
+  if (container) {
+    container.innerHTML = `<div style="padding:20px; text-align:center;">
+      <div style="font-size:24px; margin-bottom:8px;">📊</div>
+      <div style="font-size:14px; font-weight:600; color:var(--primary); margin-bottom:4px;">${filtered.length} registros encontrados</div>
+      ${filtered.length === 0 ? '<div style="font-size:12px; color:var(--text3);">No hay registros que coincidan con los filtros seleccionados.</div>' : ''}
+    </div>`;
+  }
+}
+
+function renderAuditLogExpanded() {
+  const container = document.getElementById('auditLogContainer');
+  if (container) {
+    renderAuditLog(container, 200);
+  }
+}
+
+// ========= PLANT COMPARISON DASHBOARD =========
+function renderPlantComparison() {
+  const compEl = document.getElementById('plantComparison');
+  if (!compEl) return;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const sch = genSchedule(year, month);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // Calculate metrics for each plant
+  const plantMetrics = PLANTAS.map(plant => {
+    const plantWorkers = workers.filter(w => w.planta === plant.id);
+    const covData = PLANT_COVERAGE[plant.id] || {};
+    const minM = (covData.M || {}).min || 0;
+    const minT = (covData.T || {}).min || 0;
+    const minN = (covData.N || {}).min || 0;
+
+    // Count total coverage for this month
+    let totalCoveredShifts = 0;
+    let totalNeededShifts = 0;
+    let totalNightShifts = 0;
+    let nightWorkerCount = 0;
+
+    for (let d = 0; d < daysInMonth; d++) {
+      let m = 0, t = 0, n = 0;
+      plantWorkers.forEach(w => {
+        const shift = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+        if (['M','MR','M7H','M6R','M55'].includes(shift)) m++;
+        else if (shift === 'T') t++;
+        else if (shift === 'N') n++;
+      });
+      totalCoveredShifts += (m >= minM ? minM : m) + (t >= minT ? minT : t) + (n >= minN ? minN : n);
+      totalNeededShifts += minM + minT + minN;
+      totalNightShifts += n;
+      if (n > 0) nightWorkerCount = n;
+    }
+
+    const healthScore = totalNeededShifts > 0 ? Math.round((totalCoveredShifts / totalNeededShifts) * 100) : 100;
+    const avgNightsPerWorker = plantWorkers.length > 0 ? (totalNightShifts / plantWorkers.length).toFixed(1) : 0;
+    const isOverstaffed = plantWorkers.length > (minM + minT + minN);
+
+    return {
+      plant,
+      totalWorkers: plantWorkers.length,
+      minStaff: minM + minT + minN,
+      healthScore,
+      avgNightsPerWorker,
+      totalCoveredShifts,
+      totalNeededShifts,
+      isOverstaffed,
+      gapDays: Math.max(0, totalNeededShifts - totalCoveredShifts)
+    };
+  });
+
+  // Sort by health score
+  const sorted = [...plantMetrics].sort((a, b) => b.healthScore - a.healthScore);
+
+  let html = `<div style="margin-top:20px; padding:20px; background:white; border-radius:14px; border:1px solid var(--border);">
+    <h3 style="font-family:var(--font-display); font-size:20px; font-weight:400; color:var(--primary); margin:0 0 16px;">Comparativa de Plantas</h3>
+
+    <!-- Horizontal Bar Charts -->
+    <div style="margin-bottom:24px;">
+      <div style="font-size:12px; font-weight:600; color:var(--text3); text-transform:uppercase; margin-bottom:12px;">Cargas de trabajo</div>
+      <div style="display:flex; flex-direction:column; gap:16px;">`;
+
+    plantMetrics.forEach(m => {
+      const maxWorkers = Math.max(...plantMetrics.map(p => p.totalWorkers)) || 10;
+      const maxGaps = Math.max(...plantMetrics.map(p => p.gapDays)) || 10;
+      const maxNights = Math.max(...plantMetrics.map(p => parseFloat(p.avgNightsPerWorker))) || 10;
+
+      const workersPct = (m.totalWorkers / maxWorkers) * 100;
+      const gapsPct = (m.gapDays / maxGaps) * 100;
+      const nightsPct = (parseFloat(m.avgNightsPerWorker) / maxNights) * 100;
+
+      html += `<div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+          <span style="font-size:11px; font-weight:600; color:var(--text1);">${m.plant.name}</span>
+          <span style="font-size:10px; color:var(--text3);">${m.healthScore}% cobertura</span>
+        </div>
+        <div style="display:flex; gap:8px; height:24px;">
+          <div style="flex:1; max-width:60px; background:var(--primary); border-radius:4px; position:relative; overflow:hidden;">
+            <div style="width:${workersPct}%; height:100%; background:#1a365d; border-radius:4px;"></div>
+            <span style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:9px; font-weight:600; color:white; white-space:nowrap;">${m.totalWorkers}</span>
+          </div>
+          <div style="flex:1; max-width:60px; background:#fee2e2; border-radius:4px; position:relative; overflow:hidden;">
+            <div style="width:${gapsPct}%; height:100%; background:#dc2626; border-radius:4px;"></div>
+            <span style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:9px; font-weight:600; color:${gapsPct > 50 ? 'white' : 'var(--text3)'}; white-space:nowrap;">${m.gapDays}</span>
+          </div>
+          <div style="flex:1; max-width:60px; background:#fef3c7; border-radius:4px; position:relative; overflow:hidden;">
+            <div style="width:${nightsPct}%; height:100%; background:#c9a84c; border-radius:4px;"></div>
+            <span style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:9px; font-weight:600; color:${nightsPct > 50 ? 'white' : 'var(--text3)'}; white-space:nowrap;">${m.avgNightsPerWorker}N</span>
+          </div>
+        </div>
+      </div>`;
+    });
+
+    html += `</div>
+      <div style="display:flex; gap:12px; margin-top:12px; font-size:10px;">
+        <div style="display:flex; align-items:center; gap:4px;">
+          <div style="width:12px; height:12px; background:#1a365d; border-radius:2px;"></div>
+          <span>Trabajadores asignados</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <div style="width:12px; height:12px; background:#dc2626; border-radius:2px;"></div>
+          <span>Brechas de cobertura</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <div style="width:12px; height:12px; background:#c9a84c; border-radius:2px;"></div>
+          <span>Promedio noches/persona</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ranking Table -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px; font-weight:600; color:var(--text3); text-transform:uppercase; margin-bottom:12px;">Ranking de salud de planta</div>
+      <div style="border:1px solid var(--border); border-radius:10px; overflow:hidden;">
+        <table style="width:100%; font-size:11px; border-collapse:collapse;">
+          <thead>
+            <tr style="background:var(--surface2); border-bottom:1px solid var(--border);">
+              <th style="padding:10px; text-align:left; font-weight:600; color:var(--text1);">Planta</th>
+              <th style="padding:10px; text-align:center; font-weight:600; color:var(--text1);">Score</th>
+              <th style="padding:10px; text-align:center; font-weight:600; color:var(--text1);">Profesionales</th>
+              <th style="padding:10px; text-align:center; font-weight:600; color:var(--text1);">Brechas</th>
+              <th style="padding:10px; text-align:center; font-weight:600; color:var(--text1);">Estado</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+    sorted.forEach((m, idx) => {
+      const statusColor = m.healthScore >= 90 ? '#22c55e' : m.healthScore >= 70 ? '#eab308' : '#ef4444';
+      const statusLabel = m.healthScore >= 90 ? 'Optimo' : m.healthScore >= 70 ? 'Advertencia' : 'Critico';
+      const rowBg = idx % 2 === 0 ? 'white' : 'var(--surface2)';
+
+      html += `<tr style="background:${rowBg}; border-bottom:1px solid var(--border);">
+        <td style="padding:10px; color:var(--text1); font-weight:500;">${m.plant.name}</td>
+        <td style="padding:10px; text-align:center; color:${statusColor}; font-weight:700; font-size:12px;">${m.healthScore}%</td>
+        <td style="padding:10px; text-align:center; color:var(--text2);">${m.totalWorkers}/${m.minStaff}</td>
+        <td style="padding:10px; text-align:center; color:var(--text2);">${m.gapDays}</td>
+        <td style="padding:10px; text-align:center;">
+          <span style="display:inline-block; padding:4px 8px; background:${statusColor}20; color:${statusColor}; border-radius:4px; font-weight:600; font-size:10px;">${statusLabel}</span>
+        </td>
+      </tr>`;
+    });
+
+    html += `</tbody></table></div></div>
+
+    <!-- Balance Indicator -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div style="padding:12px; background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.2); border-radius:8px;">
+        <div style="font-size:10px; font-weight:600; color:#22c55e; text-transform:uppercase; margin-bottom:4px;">Plantas optimas</div>
+        <div style="font-size:18px; font-weight:700; color:#22c55e;">${plantMetrics.filter(p => p.healthScore >= 90).length}</div>
+        <div style="font-size:9px; color:var(--text3); margin-top:2px;">Con cobertura suficiente</div>
+      </div>
+      <div style="padding:12px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:8px;">
+        <div style="font-size:10px; font-weight:600; color:#ef4444; text-transform:uppercase; margin-bottom:4px;">Plantas criticas</div>
+        <div style="font-size:18px; font-weight:700; color:#ef4444;">${plantMetrics.filter(p => p.healthScore < 70).length}</div>
+        <div style="font-size:9px; color:var(--text3); margin-top:2px;">Requieren atencion</div>
+      </div>
+    </div>
+  </div>`;
+
+  compEl.innerHTML = html;
 }
 
 // ========= PLANT MAP INTERACTIVE =========
@@ -12999,6 +13613,9 @@ async function handleImport(files) {
       } else {
         importedFiles.push(importRecord);
       }
+
+      // Log import in audit trail
+      logAudit('file_import', `Imported schedule from ${file.name}: ${totalM}M ${totalT}T ${totalN}N (${totalH}h)`, matchedWorker.planta, matchedWorker.id);
 
       await new Promise(r => setTimeout(r, 600));
 
@@ -16850,6 +17467,154 @@ function getVacationAnalysis(year) {
 let mapaViewMonth = null;
 let mapaViewYear = null;
 
+// Global shift edit state
+let shiftEditState = { workerId: null, dayIndex: null, popoverId: null };
+
+// Helper: Open shift editor popover
+function openShiftEditor(workerId, dayIndex, year, month) {
+  const popoverId = 'shift-editor-' + workerId + '-' + dayIndex;
+  const sch = genSchedule(year, month);
+  const currentShift = sch[workerId] ? (sch[workerId][dayIndex] || '').toString().trim() : '';
+
+  // Close any open popovers
+  document.querySelectorAll('[id^="shift-editor-"]').forEach(el => el.remove());
+
+  const shiftOptions = [
+    { code: 'M', name: 'Mañana', color: '#2e8b7a' },
+    { code: 'MR', name: 'Mañana 7h', color: '#2e8b7a' },
+    { code: 'T', name: 'Tarde', color: '#4a9dd4' },
+    { code: 'N', name: 'Noche', color: '#c9a84c' },
+    { code: 'D', name: 'Descanso', color: '#d94444' },
+    { code: 'VAC', name: 'Vacaciones', color: '#8b2020' },
+    { code: 'LD', name: 'Lic. Diaria', color: '#5a8abf' },
+    { code: 'FOR', name: 'Formación', color: '#d4883a' },
+    { code: 'CAA', name: 'Cap. Académica', color: '#7a8a6a' },
+    { code: 'HS', name: 'H. Sindicales', color: '#6a6a8a' },
+    { code: 'INT', name: 'Incapacidad', color: '#8a8a6a' }
+  ];
+
+  const popoverHtml = `<div id="${popoverId}" style="position:absolute; background:white; border:1px solid var(--border); border-radius:8px; padding:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:10000; min-width:160px;">
+    <div style="font-size:10px; color:var(--text3); font-weight:600; margin-bottom:6px; text-transform:uppercase;">Cambiar turno</div>
+    <div style="display:flex; flex-direction:column; gap:4px;">
+      ${shiftOptions.map(opt => `<div onclick="applyShiftChange(${workerId}, ${dayIndex}, '${opt.code}', ${year}, ${month}); document.getElementById('${popoverId}').remove();" style="padding:6px 8px; background:${opt.color}; color:white; border-radius:4px; cursor:pointer; font-size:11px; font-weight:500; transition:all 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">${opt.code} - ${opt.name}</div>`).join('')}
+    </div>
+  </div>`;
+
+  // Insert into DOM
+  const cellElem = document.querySelector(`[data-shift-cell="${workerId}-${dayIndex}"]`);
+  if (cellElem) {
+    const rect = cellElem.getBoundingClientRect();
+    const div = document.createElement('div');
+    div.innerHTML = popoverHtml;
+    document.body.appendChild(div.firstChild);
+    const popover = document.getElementById(popoverId);
+    popover.style.left = rect.left + 'px';
+    popover.style.top = (rect.bottom + 4) + 'px';
+  }
+}
+
+// Helper: Apply shift change
+function applyShiftChange(workerId, dayIndex, newShift, year, month) {
+  const key = year + '-' + month;
+  if (!scheduleData[key]) scheduleData[key] = {};
+  if (!scheduleData[key][workerId]) scheduleData[key][workerId] = [];
+  const worker = workers.find(w => w.id === workerId);
+  const oldShift = scheduleData[key][workerId][dayIndex] || 'N/A';
+  scheduleData[key][workerId][dayIndex] = newShift;
+  logAudit('shift_change', `Changed shift from ${oldShift} to ${newShift} on day ${dayIndex + 1}`, worker?.planta, workerId);
+  saveToStorage();
+  renderMapaCobertura();
+}
+
+// Export planilla to CSV (Excel-compatible)
+function exportPlanillaExcel(plantaId, year, month) {
+  const planta = PLANTAS.find(p => p.id === plantaId);
+  const plantWorkers = workers.filter(w => w.planta === plantaId);
+  const sch = genSchedule(year, month);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthName = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][month];
+
+  let csv = 'Planilla de Cobertura\n';
+  csv += `${planta ? planta.name : 'Todas las plantas'} - ${monthName} ${year}\n\n`;
+
+  // Header row
+  csv += 'Trabajador,Rol';
+  for (let d = 1; d <= daysInMonth; d++) {
+    csv += `,Día ${d}`;
+  }
+  csv += ',Total M,Total T,Total N,Total D,Total h\n';
+
+  // Worker rows
+  plantWorkers.forEach(w => {
+    const roleLabel = w.role === 'enf' ? 'Enfermero' : w.role === 'tec' ? 'Técnico' : 'Auxiliar';
+    const counts = countWorkerShifts(w.id, year, month);
+    csv += `"${w.name}","${roleLabel}"`;
+
+    for (let d = 0; d < daysInMonth; d++) {
+      const shift = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+      csv += `,${shift}`;
+    }
+    csv += `,${counts.m},${counts.t},${counts.n},${counts.d},${counts.h}\n`;
+  });
+
+  // Coverage totals row
+  const covData = PLANT_COVERAGE[plantaId] || {};
+  const minM = (covData.M || {}).min || 0;
+  const minT = (covData.T || {}).min || 0;
+  const minN = (covData.N || {}).min || 0;
+
+  csv += `COBERTURA (Min: M=${minM} T=${minT} N=${minN})`;
+  for (let d = 0; d < daysInMonth; d++) {
+    const counts = countDayShifts(d, plantaId, year, month);
+    csv += `,${counts.m}/${minM}|${counts.t}/${minT}|${counts.n}/${minN}`;
+  }
+  csv += ',,,,,\n';
+
+  // Trigger download
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `Planilla_${(planta ? planta.name : 'Plantas').replace(/\\s+/g, '_')}_${monthName}_${year}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  logAudit('excel_export', `Exported planilla for ${planta ? planta.name : 'all plants'} - ${monthName} ${year}`, plantaId, null);
+  showToast('Planilla exportada a Excel');
+}
+
+// Helper: Count shifts for a worker
+function countWorkerShifts(workerId, year, month) {
+  const sch = genSchedule(year, month);
+  const shifts = sch[workerId] || [];
+  let m = 0, t = 0, n = 0, d = 0, h = 0;
+  shifts.forEach(s => {
+    s = (s || '').toString().trim();
+    if (['M','MR','M7H','M6R','M55'].includes(s)) m++;
+    if (s === 'T') t++;
+    if (s === 'N') n++;
+    if (s === 'D') d++;
+    h += RULES.SHIFT_HOURS[s] || 0;
+  });
+  return { m, t, n, d, h };
+}
+
+// Helper: Count shifts by type for a day across all workers
+function countDayShifts(dayIndex, selectedPlanta, year, month) {
+  const sch = genSchedule(year, month);
+  const plantWorkers = workers.filter(w => w.planta === selectedPlanta);
+  let m = 0, t = 0, n = 0;
+  plantWorkers.forEach(w => {
+    const shift = (sch[w.id] ? (sch[w.id][dayIndex] || '').toString().trim() : '');
+    if (['M','MR','M7H','M6R','M55'].includes(shift)) m++;
+    if (shift === 'T') t++;
+    if (shift === 'N') n++;
+  });
+  return { m, t, n };
+}
+
 function renderMapaCobertura() {
   const container = document.getElementById('mapaContent');
   if (!container) return;
@@ -16901,6 +17666,7 @@ function renderMapaCobertura() {
         <button onclick="mapaViewMonth++;if(mapaViewMonth>11){mapaViewMonth=0;mapaViewYear++;}renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:white; border-radius:10px; cursor:pointer; font-family:var(--font); font-size:13px; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
+        ${selectedPlanta !== 'all' ? '<button onclick="exportPlanillaExcel(\'' + selectedPlanta + '\', ' + year + ', ' + month + ');" style="padding:8px 14px; border:1.5px solid var(--accent); background:rgba(201,168,76,0.1); border-radius:10px; cursor:pointer; font-family:var(--font); font-size:12px; color:var(--accent); font-weight:600; transition:all 0.2s;" onmouseover="this.style.backgroundColor=\'rgba(201,168,76,0.2)\'" onmouseout="this.style.backgroundColor=\'rgba(201,168,76,0.1)\'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline; margin-right:4px; vertical-align:middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Excel</button>' : ''}
       </div>
     </div>`;
 
@@ -16917,22 +17683,45 @@ function renderMapaCobertura() {
     const maxNeeded = Math.max(minM, minT, minN, 3);
     const totalRows = Math.max(plantWorkers.length, maxNeeded);
 
+    // Shift legend
+    const shiftLegendDefs = [
+      { code: 'M', name: 'Mañana', color: '#2e8b7a' },
+      { code: 'T', name: 'Tarde', color: '#4a9dd4' },
+      { code: 'N', name: 'Noche', color: '#c9a84c' },
+      { code: 'D', name: 'Descanso', color: '#d94444' },
+      { code: 'VAC', name: 'Vacaciones', color: '#8b2020' }
+    ];
+
+    html += `<div style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap; padding:10px; background:white; border:1px solid var(--border); border-radius:10px;">
+      <div style="font-size:10px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-right:6px; align-self:center;">Leyenda:</div>`;
+    shiftLegendDefs.forEach(def => {
+      html += `<div style="display:flex; align-items:center; gap:4px; font-size:10px;">
+        <span style="width:8px; height:8px; border-radius:50%; background:${def.color};"></span>
+        <span style="color:var(--text2);">${def.code}</span>
+        <span style="color:var(--text3);">${def.name}</span>
+      </div>`;
+    });
+    html += `</div>`;
+
+    // Table
     html += `<div style="overflow-x:auto; border:1px solid var(--border); border-radius:14px; background:white;">
-      <table style="width:100%; border-collapse:collapse; min-width:${daysInMonth * 34 + 160}px; font-size:11px;">
+      <table style="width:100%; border-collapse:collapse; min-width:${daysInMonth * 40 + 280}px; font-size:11px;">
         <thead>
           <tr style="background:var(--primary);">
-            <th style="padding:8px 10px; text-align:left; color:white; font-weight:600; font-size:12px; position:sticky; left:0; background:var(--primary); z-index:2; min-width:140px; border-right:2px solid rgba(255,255,255,0.15);">Trabajador</th>`;
+            <th style="padding:10px 12px; text-align:left; color:white; font-weight:600; font-size:12px; position:sticky; left:0; background:var(--primary); z-index:2; min-width:160px; border-right:2px solid rgba(255,255,255,0.15);">Trabajador</th>`;
 
     // Day headers
     for (let d = 1; d <= daysInMonth; d++) {
       const dow = new Date(year, month, d).getDay();
       const isToday = d === todayDay;
       const isWeekend = dow === 0 || dow === 6;
-      html += `<th style="padding:4px 2px; text-align:center; color:${isWeekend ? 'rgba(255,255,255,0.6)' : 'white'}; font-weight:${isToday ? '800' : '500'}; font-size:10px; min-width:30px; ${isToday ? 'background:rgba(255,255,255,0.15);border-radius:6px 6px 0 0;' : ''}">
-        <div style="font-size:8px;opacity:0.7;letter-spacing:0.5px;">${dayLetters[dow]}</div>
-        <div>${d}</div>
+      html += `<th style="padding:8px 4px; text-align:center; color:${isWeekend ? 'rgba(255,255,255,0.6)' : 'white'}; font-weight:${isToday ? '800' : '600'}; font-size:11px; min-width:42px; ${isToday ? 'background:rgba(255,255,255,0.15); border-radius:0;' : ''}">
+        <div style="font-size:8px; opacity:0.8; letter-spacing:0.5px; margin-bottom:2px;">${dayLetters[dow]}</div>
+        <div style="font-size:12px; font-weight:700;">${d}</div>
       </th>`;
     }
+
+    html += `<th style="padding:10px 12px; text-align:center; color:white; font-weight:600; font-size:11px; position:sticky; right:0; background:var(--primary); z-index:2; min-width:80px; border-left:2px solid rgba(255,255,255,0.15);">Resumen</th>`;
     html += `</tr></thead><tbody>`;
 
     // Worker rows
@@ -16943,79 +17732,153 @@ function renderMapaCobertura() {
 
       html += `<tr style="background:${rowBg}; border-bottom:1px solid var(--border);">`;
 
-      // Name cell
+      // Name cell with avatar
       if (w) {
         const roleLabel = w.role === 'enf' ? 'ENF' : w.role === 'tec' ? 'TEC' : 'AUX';
-        const roleDot = w.role === 'enf' ? '#2e8b7a' : w.role === 'tec' ? '#4a9dd4' : '#c9a84c';
-        html += `<td style="padding:6px 10px; font-weight:600; color:var(--text1); font-size:11px; position:sticky; left:0; background:${rowBg}; z-index:1; border-right:2px solid var(--border); white-space:nowrap;">
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span style="width:6px;height:6px;border-radius:50%;background:${roleDot};flex-shrink:0;"></span>
-            <span style="max-width:120px;overflow:hidden;text-overflow:ellipsis;">${escHtml(w.name)}</span>
-            <span style="font-size:8px;color:var(--text3);font-weight:500;letter-spacing:0.5px;">${roleLabel}</span>
+        const roleColor = w.role === 'enf' ? '#2e8b7a' : w.role === 'tec' ? '#4a9dd4' : '#c9a84c';
+        const firstLetter = (w.name || '?').charAt(0).toUpperCase();
+        const flotBadge = w.flotante ? '<span style="font-size:7px; font-weight:700; color:white; background:#8b7a2e; padding:1px 4px; border-radius:3px; margin-left:4px;">F</span>' : '';
+
+        html += `<td style="padding:8px 10px; font-weight:600; color:var(--text1); font-size:11px; position:sticky; left:0; background:${rowBg}; z-index:1; border-right:2px solid var(--border); white-space:nowrap;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:28px; height:28px; border-radius:50%; background:${roleColor}; display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:12px; flex-shrink:0;">${firstLetter}</div>
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; align-items:center; gap:4px; white-space:nowrap; overflow:hidden;">
+                <span style="overflow:hidden; text-overflow:ellipsis;">${escHtml(w.name)}</span>
+                ${flotBadge}
+              </div>
+              <span style="font-size:9px; color:white; background:${roleColor}; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px;">${roleLabel}</span>
+            </div>
           </div>
         </td>`;
       } else {
-        // Empty slot — placeholder for importing
-        html += `<td style="padding:6px 10px; position:sticky; left:0; background:${rowBg}; z-index:1; border-right:2px solid var(--border);">
-          <div style="display:flex;align-items:center;gap:6px;color:var(--text3);font-size:11px;font-style:italic;opacity:0.5;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-            Vacante #${ri + 1}
+        // Empty slot — placeholder
+        html += `<td style="padding:8px 10px; position:sticky; left:0; background:${rowBg}; z-index:1; border-right:2px solid var(--border);">
+          <div style="display:flex; align-items:center; gap:6px; color:var(--text3); font-size:11px; font-style:italic; opacity:0.5;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            <span>Vacante #${ri + 1}</span>
           </div>
         </td>`;
       }
 
-      // Day cells
+      // Day cells — bigger, with solid colors and hover
       for (let d = 1; d <= daysInMonth; d++) {
         const dow = new Date(year, month, d).getDay();
         const isToday = d === todayDay;
         const isWeekend = dow === 0 || dow === 6;
+        const dayIndex = d - 1;
         let shift = '';
         if (w && sch[w.id]) {
-          shift = (sch[w.id][d - 1] || '').toString().trim();
+          shift = (sch[w.id][dayIndex] || '').toString().trim();
         }
-        const bg = shift ? shiftBg(shift) : (isWeekend ? 'rgba(0,0,0,0.02)' : 'transparent');
-        const fg = shift ? shiftFg(shift) : 'var(--text3)';
-        const tdBorder = isToday ? 'box-shadow:inset 0 0 0 1.5px var(--primary);border-radius:4px;' : '';
 
-        html += `<td style="padding:2px; text-align:center; ${tdBorder}">
-          <div style="background:${bg}; color:${fg}; font-weight:${shift ? '700' : '400'}; font-size:${shift ? '10px' : '9px'}; padding:3px 1px; border-radius:4px; min-height:18px; display:flex; align-items:center; justify-content:center; ${!shift && w ? 'opacity:0.3;' : ''}">
-            ${shift || (w ? '·' : '')}
+        let cellBg = 'transparent';
+        let cellFg = 'var(--text3)';
+        let cellFontWeight = '400';
+        let cellFontSize = '10px';
+        let cellPadding = '6px 2px';
+        let cellMinHeight = '36px';
+        let cellCursor = 'default';
+        let cellHoverBg = '';
+
+        if (shift) {
+          const shiftColor = shiftColors[shift] || '#999';
+          cellBg = shiftColor;
+          cellFg = 'white';
+          cellFontWeight = '700';
+          cellFontSize = '11px';
+          cellCursor = w ? 'pointer' : 'default';
+          cellHoverBg = w ? 'filter: brightness(0.85);' : '';
+        } else if (isWeekend) {
+          cellBg = 'rgba(0,0,0,0.02)';
+        }
+
+        const borderStyle = isToday ? 'border: 2px solid var(--primary);' : '';
+        const onclickAttr = w ? `onclick="openShiftEditor(${w.id}, ${dayIndex}, ${year}, ${month})"` : '';
+        const hoverAttr = w && shift ? `onmouseover="this.style.filter='brightness(0.85)'; this.style.cursor='pointer';" onmouseout="this.style.filter='';this.style.cursor='pointer';"` : '';
+
+        html += `<td style="padding:4px 2px; text-align:center; ${borderStyle}" data-shift-cell="${w ? w.id : 'empty'}-${dayIndex}">
+          <div ${onclickAttr} style="background:${cellBg}; color:${cellFg}; font-weight:${cellFontWeight}; font-size:${cellFontSize}; padding:${cellPadding}; border-radius:6px; min-height:${cellMinHeight}; display:flex; align-items:center; justify-content:center; ${cellCursor ? 'cursor:' + cellCursor + ';' : ''} transition:all 0.2s; user-select:none;" ${hoverAttr} title="${shift ? shiftLegendDefs.find(s => s.code === shift)?.name || shift : ''}">
+            <span>${shift || (w ? '' : '')}</span>
           </div>
         </td>`;
+      }
+
+      // Summary column on right
+      if (w) {
+        const counts = countWorkerShifts(w.id, year, month);
+        html += `<td style="padding:6px 10px; text-align:center; position:sticky; right:0; background:${rowBg}; z-index:1; border-left:2px solid var(--border); font-size:9px;">
+          <div style="display:flex; flex-direction:column; gap:3px; align-items:center;">
+            <div style="background:#2e8b7a; color:white; padding:2px 5px; border-radius:4px; font-weight:600; font-size:9px; min-width:28px;">${counts.m}M</div>
+            <div style="background:#4a9dd4; color:white; padding:2px 5px; border-radius:4px; font-weight:600; font-size:9px; min-width:28px;">${counts.t}T</div>
+            <div style="background:#c9a84c; color:white; padding:2px 5px; border-radius:4px; font-weight:600; font-size:9px; min-width:28px;">${counts.n}N</div>
+            <div style="background:#d94444; color:white; padding:2px 5px; border-radius:4px; font-weight:600; font-size:9px; min-width:28px;">${counts.d}D</div>
+            <div style="background:#666; color:white; padding:2px 5px; border-radius:4px; font-weight:600; font-size:9px; min-width:28px;">${counts.h}h</div>
+          </div>
+        </td>`;
+      } else {
+        html += `<td style="padding:6px 10px; text-align:center; position:sticky; right:0; background:${rowBg}; z-index:1; border-left:2px solid var(--border);"></td>`;
       }
 
       html += `</tr>`;
     }
 
+    // Coverage totals row at bottom
+    html += `<tr style="background:var(--surface2); border-top:2px solid var(--border); font-weight:600;">
+      <td style="padding:10px 12px; text-align:left; position:sticky; left:0; background:var(--surface2); z-index:1; border-right:2px solid var(--border); font-size:11px; color:var(--text1);">COBERTURA</td>`;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayIndex = d - 1;
+      const counts = countDayShifts(dayIndex, selectedPlanta, year, month);
+      const mMet = counts.m >= minM;
+      const tMet = counts.t >= minT;
+      const nMet = counts.n >= minN;
+
+      const mColor = minM === 0 ? '#999' : (mMet ? '#2e8b7a' : '#d94444');
+      const tColor = minT === 0 ? '#999' : (tMet ? '#4a9dd4' : '#d94444');
+      const nColor = minN === 0 ? '#999' : (nMet ? '#c9a84c' : '#d94444');
+
+      html += `<td style="padding:4px 2px; text-align:center;">
+        <div style="display:flex; flex-direction:column; gap:2px; font-size:9px; font-weight:600; line-height:1;">
+          <div style="color:${mColor};">${counts.m}/${minM}</div>
+          <div style="color:${tColor};">${counts.t}/${minT}</div>
+          <div style="color:${nColor};">${counts.n}/${minN}</div>
+        </div>
+      </td>`;
+    }
+
+    html += `<td style="padding:10px 12px; position:sticky; right:0; background:var(--surface2); z-index:1; border-left:2px solid var(--border);"></td>`;
+    html += `</tr>`;
+
     html += `</tbody></table></div>`;
 
-    // Coverage summary below the planilla
+    // Coverage summary cards
     html += `<div style="display:flex; gap:12px; margin-top:16px; flex-wrap:wrap;">
-      <div style="flex:1;min-width:120px;padding:12px 16px;background:white;border:1px solid var(--border);border-radius:10px;text-align:center;">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;">Asignados</div>
-        <div style="font-size:24px;font-weight:700;color:var(--primary);margin-top:2px;">${plantWorkers.length}</div>
+      <div style="flex:1; min-width:120px; padding:12px 16px; background:white; border:1px solid var(--border); border-radius:10px; text-align:center;">
+        <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600;">Asignados</div>
+        <div style="font-size:24px; font-weight:700; color:var(--primary); margin-top:2px;">${plantWorkers.length}</div>
       </div>
-      <div style="flex:1;min-width:120px;padding:12px 16px;background:white;border:1px solid var(--border);border-radius:10px;text-align:center;">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;">Min. Mañana</div>
-        <div style="font-size:24px;font-weight:700;color:#2e8b7a;margin-top:2px;">${minM}</div>
+      <div style="flex:1; min-width:120px; padding:12px 16px; background:white; border:1px solid var(--border); border-radius:10px; text-align:center;">
+        <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600;">Min. Mañana</div>
+        <div style="font-size:24px; font-weight:700; color:#2e8b7a; margin-top:2px;">${minM}</div>
       </div>
-      <div style="flex:1;min-width:120px;padding:12px 16px;background:white;border:1px solid var(--border);border-radius:10px;text-align:center;">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;">Min. Tarde</div>
-        <div style="font-size:24px;font-weight:700;color:#4a9dd4;margin-top:2px;">${minT}</div>
+      <div style="flex:1; min-width:120px; padding:12px 16px; background:white; border:1px solid var(--border); border-radius:10px; text-align:center;">
+        <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600;">Min. Tarde</div>
+        <div style="font-size:24px; font-weight:700; color:#4a9dd4; margin-top:2px;">${minT}</div>
       </div>
-      <div style="flex:1;min-width:120px;padding:12px 16px;background:white;border:1px solid var(--border);border-radius:10px;text-align:center;">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;">Min. Noche</div>
-        <div style="font-size:24px;font-weight:700;color:#c9a84c;margin-top:2px;">${minN}</div>
+      <div style="flex:1; min-width:120px; padding:12px 16px; background:white; border:1px solid var(--border); border-radius:10px; text-align:center;">
+        <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600;">Min. Noche</div>
+        <div style="font-size:24px; font-weight:700; color:#c9a84c; margin-top:2px;">${minN}</div>
       </div>
     </div>`;
 
     // Import CTA if empty slots
     if (plantWorkers.length < maxNeeded) {
-      html += `<div style="margin-top:16px;padding:16px 20px;background:rgba(201,168,76,0.06);border:1.5px dashed var(--accent);border-radius:12px;display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="switchView('import')">
+      html += `<div style="margin-top:16px; padding:16px 20px; background:rgba(201,168,76,0.06); border:1.5px dashed var(--accent); border-radius:12px; display:flex; align-items:center; gap:12px; cursor:pointer;" onclick="switchView('import')">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
         <div>
-          <div style="font-size:13px;font-weight:600;color:var(--accent);">Faltan ${maxNeeded - plantWorkers.length} profesionales por asignar</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px;">Importa planillas para completar la cobertura de esta planta</div>
+          <div style="font-size:13px; font-weight:600; color:var(--accent);">Faltan ${maxNeeded - plantWorkers.length} profesionales por asignar</div>
+          <div style="font-size:11px; color:var(--text3); margin-top:2px;">Importa planillas para completar la cobertura de esta planta</div>
         </div>
       </div>`;
     }
