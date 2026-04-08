@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#5c7a6f">
 <title>Shiftia Director</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* Splash Screen */
@@ -177,10 +178,14 @@
   --ae: #a8a832;
   --ex: #9a9a9a;
   --baj: #b04050;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'DM Serif Display', Georgia, serif;
   --shadow: 0 1px 2px rgba(0,0,0,0.03);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
   --shadow-hover: 0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.05);
-  --shadow-md: 0 8px 25px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.04);
   --shadow-lg: 0 15px 40px rgba(0,0,0,0.12);
+  --transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-theme="dark"] {
@@ -235,7 +240,7 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font);
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -8273,17 +8278,17 @@ table.schedule tbody tr:hover {
       <select id="plantaFilter" onchange="selectedPlanta=this.value;renderCurrentView();" style="
         padding: 8px 12px; border: 1px solid var(--surface2); border-radius: 8px;
         background: var(--bg); color: var(--text); font-size: 13px;
-        font-family: 'DM Sans', sans-serif; cursor: pointer; min-width: 160px;
+        font-family: var(--font); cursor: pointer; min-width: 160px;
         transition: all 0.2s;
       " onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--surface2)'">
-        <option value="all">🏥 Todas las plantas</option>
+        <option value="all">Todas las plantas</option>
       </select>
     </div>
     <nav class="nav-tabs" role="tablist" aria-label="Navegación principal">
-      <button class="nav-tab active" data-view="import" role="tab" aria-selected="true"><span class="tab-icon" aria-hidden="true">📥</span> Importar</button>
-      <button class="nav-tab" data-view="mapa-cobertura" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true">🗺️</span> Mapa de Cobertura</button>
-      <button class="nav-tab" data-view="gestor-ausencias" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true">🏥</span> Gestor de Ausencias</button>
-      <button class="nav-tab" data-view="gestor-cobertura" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true">🧠</span> Gestor de Cobertura</button>
+      <button class="nav-tab active" data-view="import" role="tab" aria-selected="true"><span class="tab-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg></span> Importar</button>
+      <button class="nav-tab" data-view="mapa-cobertura" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span> Mapa de Cobertura</button>
+      <button class="nav-tab" data-view="gestor-ausencias" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 11v6"/><path d="M9 14h6"/></svg></span> Gestor de Ausencias</button>
+      <button class="nav-tab" data-view="gestor-cobertura" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/><circle cx="9" cy="15" r="1"/><circle cx="15" cy="15" r="1"/></svg></span> Gestor de Cobertura</button>
     </nav>
     <!-- Mobile More Menu -->
     <div class="mobile-more-menu" id="mobileMoreMenu" style="display:none;">
@@ -8307,7 +8312,7 @@ table.schedule tbody tr:hover {
     <div class="view-panel active" id="dashboardPanel">
       <div style="max-width: 1200px; margin: 0 auto;">
         <div style="margin-bottom: 48px;">
-          <h1 style="font-size: 42px; font-weight: 300; color: var(--accent); margin-bottom: 8px; letter-spacing: -0.5px;">Shiftia Director</h1>
+          <h1 style="font-family: var(--font-display); font-size: 48px; font-weight: 400; color: var(--primary); margin-bottom: 8px; letter-spacing: -0.5px;">Shiftia Director</h1>
           <p style="color: var(--text2); font-size: 13px;" id="dashboardDate"></p>
         </div>
 
@@ -8317,14 +8322,15 @@ table.schedule tbody tr:hover {
           <div onclick="switchView('import')" style="
             cursor: pointer;
             background: white;
-            border: 2px solid var(--border);
+            border: 1px solid var(--border);
             border-radius: 16px;
             padding: 32px 24px;
-            transition: all 0.3s ease;
+            transition: var(--transition);
             text-align: center;
             position: relative;
-          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 8px 24px rgba(26,54,93,0.1)';this.style.transform='scale(1.02)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none';this.style.transform='scale(1)'">
-            <div style="font-size: 48px; margin-bottom: 16px;">📥</div>
+            box-shadow: var(--shadow-sm);
+          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='-sm';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='var(--shadow-sm)';this.style.transform='translateY(0)'">
+            <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">IMPORTAR PLANILLAS</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Sube PDFs de planificación. Indica planta y rol de cada trabajador.</p>
             <div style="
@@ -8341,13 +8347,14 @@ table.schedule tbody tr:hover {
           <div onclick="switchView('mapa-cobertura')" style="
             cursor: pointer;
             background: white;
-            border: 2px solid var(--border);
+            border: 1px solid var(--border);
             border-radius: 16px;
             padding: 32px 24px;
-            transition: all 0.3s ease;
+            transition: var(--transition);
             text-align: center;
-          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 8px 24px rgba(26,54,93,0.1)';this.style.transform='scale(1.02)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none';this.style.transform='scale(1)'">
-            <div style="font-size: 48px; margin-bottom: 16px;">🗺️</div>
+            box-shadow: var(--shadow-sm);
+          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='var(--shadow-sm)';this.style.transform='translateY(0)'">
+            <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">MAPA DE COBERTURA</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Visión global de cobertura por planta y turno</p>
             <div style="
@@ -8364,13 +8371,14 @@ table.schedule tbody tr:hover {
           <div onclick="switchView('gestor-ausencias')" style="
             cursor: pointer;
             background: white;
-            border: 2px solid var(--border);
+            border: 1px solid var(--border);
             border-radius: 16px;
             padding: 32px 24px;
-            transition: all 0.3s ease;
+            transition: var(--transition);
             text-align: center;
-          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 8px 24px rgba(26,54,93,0.1)';this.style.transform='scale(1.02)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none';this.style.transform='scale(1)'">
-            <div style="font-size: 48px; margin-bottom: 16px;">🏥</div>
+            box-shadow: var(--shadow-sm);
+          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='var(--shadow-sm)';this.style.transform='translateY(0)'">
+            <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 11v6"/><path d="M9 14h6"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">GESTOR DE AUSENCIAS</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Gestiona bajas, vacaciones y ausencias con IA</p>
             <div style="
@@ -8387,13 +8395,14 @@ table.schedule tbody tr:hover {
           <div onclick="switchView('gestor-cobertura')" style="
             cursor: pointer;
             background: white;
-            border: 2px solid var(--border);
+            border: 1px solid var(--border);
             border-radius: 16px;
             padding: 32px 24px;
-            transition: all 0.3s ease;
+            transition: var(--transition);
             text-align: center;
-          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 8px 24px rgba(26,54,93,0.1)';this.style.transform='scale(1.02)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none';this.style.transform='scale(1)'">
-            <div style="font-size: 48px; margin-bottom: 16px;">🧠</div>
+            box-shadow: var(--shadow-sm);
+          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='var(--shadow-sm)';this.style.transform='translateY(0)'">
+            <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/><circle cx="9" cy="15" r="1"/><circle cx="15" cy="15" r="1"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">GESTOR DE COBERTURA</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Asigna días sin planificar para cubrir huecos</p>
             <div style="
@@ -8591,14 +8600,14 @@ table.schedule tbody tr:hover {
           <div style="margin-top:32px;padding:24px;background:var(--surface);border-radius:14px;box-shadow:var(--shadow);">
             <div style="font-size:14px;font-weight:500;margin-bottom:14px;">Qué extrae la IA de cada planilla</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;color:var(--text2);line-height:1.6;">
-              <div>✓ Nombre y categoría (DUE/Técnico)</div>
-              <div>✓ Calendario completo de turnos</div>
-              <div>✓ N.º de noches y cómputo generado</div>
-              <div>✓ Vacaciones usadas/disponibles</div>
-              <div>✓ Libre disposición, formación</div>
-              <div>✓ Antigüedad y saldo de jornada</div>
-              <div>✓ Horas totales por tipo de turno</div>
-              <div>✓ Reducción de jornada si aplica</div>
+              <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:6px;color:var(--success);vertical-align:text-bottom;"><polyline points="20 6 9 17 4 12"></polyline></svg>Nombre y categoría (DUE/Técnico)</div>
+              <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:6px;color:var(--success);vertical-align:text-bottom;"><polyline points="20 6 9 17 4 12"></polyline></svg>Calendario completo de turnos</div>
+              <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:6px;color:var(--success);vertical-align:text-bottom;"><polyline points="20 6 9 17 4 12"></polyline></svg>N.º de noches y cómputo generado</div>
+              <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:6px;color:var(--success);vertical-align:text-bottom;"><polyline points="20 6 9 17 4 12"></polyline></svg>Vacaciones usadas/disponibles</div>
+              <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:6px;color:var(--success);vertical-align:text-bottom;"><polyline points="20 6 9 17 4 12"></polyline></svg>Libre disposición, formación</div>
+              <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:6px;color:var(--success);vertical-align:text-bottom;"><polyline points="20 6 9 17 4 12"></polyline></svg>Antigüedad y saldo de jornada</div>
+              <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:6px;color:var(--success);vertical-align:text-bottom;"><polyline points="20 6 9 17 4 12"></polyline></svg>Horas totales por tipo de turno</div>
+              <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:6px;color:var(--success);vertical-align:text-bottom;"><polyline points="20 6 9 17 4 12"></polyline></svg>Reducción de jornada si aplica</div>
             </div>
           </div>
         </div>
@@ -8701,17 +8710,17 @@ table.schedule tbody tr:hover {
           <div class="gestor-step-label"><span class="step-num">2</span> Tipo de incidencia</div>
           <div class="gestor-actions-grid" id="gestorActions">
             <div class="gestor-action-card" onclick="selectGestorAction('baja', this)">
-              <div class="action-icon">🏥</div>
+              <div class="action-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary);"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 11v6"/><path d="M9 14h6"/></svg></div>
               <div class="action-label">Baja / IT</div>
               <div class="action-desc">Enfermedad o incapacidad</div>
             </div>
             <div class="gestor-action-card" onclick="selectGestorAction('vacaciones', this)">
-              <div class="action-icon">🌴</div>
+              <div class="action-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary);"><path d="M19 21H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l1-1h4l1 1h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2z"/><circle cx="12" cy="13" r="3"/></svg></div>
               <div class="action-label">Vacaciones</div>
               <div class="action-desc">Dias de vacaciones</div>
             </div>
             <div class="gestor-action-card" onclick="selectGestorAction('liberar', this)">
-              <div class="action-icon">🔄</div>
+              <div class="action-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary);"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-4.25M20.49 15a9 9 0 0 1-14.85 4.25"/></svg></div>
               <div class="action-label">Liberar dia</div>
               <div class="action-desc">Necesita el dia libre</div>
             </div>
@@ -9693,7 +9702,7 @@ function renderDailyBriefing() {
 
   let html = `<div class="briefing-header">
     <div>
-      <div class="briefing-greeting">${greeting}, Sara</div>
+      <div class="briefing-greeting">${greeting}, Iván</div>
       <div class="briefing-date">${dateStr}</div>
     </div>
     <button class="briefing-dismiss" onclick="document.getElementById('dailyBriefing').style.display='none'" title="Cerrar resumen">✕</button>
@@ -9703,7 +9712,7 @@ function renderDailyBriefing() {
 
   // Card 1: Who's working now
   html += `<div class="briefing-card ok">
-    <div class="briefing-card-icon">👥</div>
+    <div class="briefing-card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
     <div class="briefing-card-value">${onShift.length}</div>
     <div class="briefing-card-label">Turno ${shiftNames[currentShift]}</div>
     <div class="briefing-card-detail">${onShift.slice(0,3).map(w=>w.name.split(' ')[0]).join(', ')}${onShift.length>3 ? ' +' + (onShift.length-3) + ' mas' : ''}</div>
@@ -9716,7 +9725,7 @@ function renderDailyBriefing() {
   if (!tOk) gaps.push('T');
   if (!nOk) gaps.push('N');
   html += `<div class="briefing-card ${covClass}">
-    <div class="briefing-card-icon">${allOk ? '✅' : '⚠️'}</div>
+    <div class="briefing-card-icon">${allOk ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'}</div>
     <div class="briefing-card-value">${allOk ? 'OK' : gaps.join('+') + ' gap'}</div>
     <div class="briefing-card-label">Cobertura hoy</div>
     <div class="briefing-card-detail">M:${mE+mT}/${cov.M.enf+cov.M.tec} T:${tE+tT}/${cov.T.enf+cov.T.tec} N:${nE+nT}/${cov.N.enf+cov.N.tec}</div>
@@ -9725,14 +9734,14 @@ function renderDailyBriefing() {
   // Card 3: Alerts
   if (highAlerts > 0) {
     html += `<div class="briefing-card alert">
-      <div class="briefing-card-icon">🔴</div>
+      <div class="briefing-card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg></div>
       <div class="briefing-card-value">${highAlerts}</div>
       <div class="briefing-card-label">Alertas graves</div>
       <div class="briefing-card-detail"><a href="#" onclick="switchView('conflicts');return false;" style="color:var(--danger);font-weight:600;text-decoration:none;">Ver alertas →</a></div>
     </div>`;
   } else {
     html += `<div class="briefing-card ok">
-      <div class="briefing-card-icon">🟢</div>
+      <div class="briefing-card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg></div>
       <div class="briefing-card-value">0</div>
       <div class="briefing-card-label">Alertas graves</div>
       <div class="briefing-card-detail">Sin problemas detectados</div>
@@ -9742,7 +9751,7 @@ function renderDailyBriefing() {
   // Card 4: On leave
   if (onLeave.length > 0) {
     html += `<div class="briefing-card warn">
-      <div class="briefing-card-icon">🏥</div>
+      <div class="briefing-card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 11v6"/><path d="M9 14h6"/></svg></div>
       <div class="briefing-card-value">${onLeave.length}</div>
       <div class="briefing-card-label">De baja/ausentes</div>
       <div class="briefing-card-detail">${onLeave.slice(0,2).map(w=>w.name.split(' ')[0]).join(', ')}${onLeave.length>2 ? ' +' + (onLeave.length-2) : ''}</div>
@@ -9753,7 +9762,7 @@ function renderDailyBriefing() {
   const pending = workers.filter(w => !w.scheduleImported).length;
   if (pending > 0) {
     html += `<div class="briefing-card warn">
-      <div class="briefing-card-icon">📋</div>
+      <div class="briefing-card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6m1-7h-6m3-3v6"/></svg></div>
       <div class="briefing-card-value">${pending}</div>
       <div class="briefing-card-label">Sin planilla</div>
       <div class="briefing-card-detail"><a href="#" onclick="switchView('import');return false;" style="color:var(--for, #d4883a);font-weight:600;text-decoration:none;">Importar →</a></div>
@@ -10901,7 +10910,7 @@ function renderWorkers() {
     else if (w.scheduleImported) statusBadge = '<span style="font-size:9px;padding:2px 6px;background:rgba(122,171,138,0.12);color:var(--success);border-radius:4px;margin-left:4px;">OK</span>';
 
     // Memory indicator
-    const memoryIndicator = workerMemory[w.id] ? '<span title="Memoria activa — reglas y preferencias preservadas" style="font-size:12px;margin-left:4px;cursor:help;">🧠</span>' : '';
+    const memoryIndicator = workerMemory[w.id] ? '<span title="Memoria activa — reglas y preferencias preservadas" style="margin-left:4px;cursor:help;display:inline-flex;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/><circle cx="9" cy="15" r="1"/><circle cx="15" cy="15" r="1"/></svg></span>' : '';
 
     // Night equity indicator
     const nightColor = nightDiff > 8 ? 'var(--danger)' : nightDiff > 3 ? 'var(--afternoon)' : nightDiff < -5 ? 'var(--accent)' : 'var(--text2)';
@@ -10996,7 +11005,7 @@ function renderIncidents() {
   if (incidents.length === 0) {
     document.getElementById('historyTimeline').innerHTML = `
       <div style="text-align:center;padding:48px 20px;">
-        <div style="font-size:48px;margin-bottom:16px;opacity:0.3;">📝</div>
+        <div style="margin-bottom:16px;opacity:0.3;display:flex;justify-content:center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6m1-7h-6m3-3v6"/></svg></div>
         <div style="font-size:16px;font-weight:500;color:var(--text2);margin-bottom:8px;">Sin incidencias</div>
         <div style="font-size:13px;color:var(--text3);line-height:1.6;">Los cambios de turno, ausencias y sustituciones aparecerán aquí automáticamente.</div>
       </div>`;
@@ -11075,7 +11084,7 @@ function renderConflicts() {
   if (predictedConflicts.length === 0) {
     container.innerHTML = `
       <div style="text-align:center;padding:48px 20px;">
-        <div style="font-size:48px;margin-bottom:16px;opacity:0.3;">✅</div>
+        <div style="margin-bottom:16px;opacity:0.3;display:flex;justify-content:center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
         <div style="font-size:16px;font-weight:500;color:var(--text2);margin-bottom:8px;">Sin conflictos en los próximos 3 meses</div>
         <div style="font-size:13px;color:var(--text3);line-height:1.6;">Todo bien. Cuando se detecten problemas de cobertura o descanso, aparecerán aquí.</div>
       </div>`;
@@ -11085,7 +11094,7 @@ function renderConflicts() {
   const highCount = predictedConflicts.filter(c => c.severity === 'high').length;
   const medCount = predictedConflicts.filter(c => c.severity === 'medium').length;
   const lowCount = predictedConflicts.filter(c => c.severity === 'low').length;
-  const typeIcons = { coverage: '👥', rest: '🛌', restriction: '⛔', hiring: '📋' };
+  const typeIcons = { coverage: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>', rest: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>', restriction: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>', hiring: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6m1-7h-6m3-3v6"/></svg>' };
   const sevColors = { high: 'var(--danger)', medium: 'var(--afternoon)', low: '#e67e22' };
 
   let html = `
@@ -11435,7 +11444,7 @@ function applyConflictSolution(conflictId, solutionData) {
   const proposalDiv = document.getElementById(conflictId + '-proposal');
   if (proposalDiv) {
     proposalDiv.innerHTML = `<div style="padding:14px;background:rgba(39,174,96,0.08);border-radius:10px;border:2px solid #27ae60;text-align:center;">
-      <div style="font-size:24px;margin-bottom:6px;">✅</div>
+      <div style="margin-bottom:6px;display:flex;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:#27ae60;"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
       <div style="font-size:13px;font-weight:700;color:#27ae60;">Conflicto resuelto</div>
       <div style="font-size:11px;color:var(--text2);margin-top:4px;">${solution.description || 'Cambios aplicados correctamente'}</div>
     </div>`;
@@ -11586,7 +11595,7 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
     if (!menu || !grid) return;
 
     grid.innerHTML = '';
-    const icons = { heatmap: '🗓️', incidents: '☰', conflicts: '△', metrics: '📊', cobertura: '🧠', guardia: '🚨', import: '↑' };
+    const icons = { heatmap: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="15" x2="15" y2="15"/></svg>', incidents: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>', conflicts: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>', metrics: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>', cobertura: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/><circle cx="9" cy="15" r="1"/><circle cx="15" cy="15" r="1"/></svg>', guardia: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>', import: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>' };
     const labels = { heatmap: 'Mapa', incidents: 'Historial', conflicts: 'Conflictos', metrics: 'Métricas', cobertura: 'Cobertura IA', guardia: 'Guardia', import: 'Importar' };
 
     hiddenTabs.forEach(tab => {
@@ -11594,7 +11603,7 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
       const isActive = tab.classList.contains('active');
       const btn = document.createElement('button');
       btn.className = 'mobile-more-item' + (isActive ? ' active' : '');
-      btn.innerHTML = `<span class="more-icon">${icons[view] || '◎'}</span>${labels[view] || view}`;
+      btn.innerHTML = `<span class="more-icon">${icons[view] || '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>'}</span>${labels[view] || view}`;
       btn.addEventListener('click', () => {
         closeMobileMore();
         switchView(view);
@@ -12548,15 +12557,15 @@ async function handleImport(files) {
 
     function addStep(text, progress) {
       const prev = stepsEl.querySelector('.step-spinner');
-      if (prev) prev.outerHTML = '<span style="color:var(--success);font-size:13px;">✓</span>';
+      if (prev) prev.outerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success);display:inline;vertical-align:middle;"><polyline points="20 6 9 17 4 12"></polyline></svg>';
       stepsEl.innerHTML += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:12px;color:var(--text2);animation:fadeIn 0.3s ease;"><span class="step-spinner" style="display:inline-block;width:13px;height:13px;border:2px solid var(--text3);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></span> ' + text + '</div>';
       barEl.style.width = progress + '%';
     }
 
     function completeStep(text, progress) {
       const prev = stepsEl.querySelector('.step-spinner');
-      if (prev) prev.outerHTML = '<span style="color:var(--success);font-size:13px;">✓</span>';
-      stepsEl.innerHTML += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:12px;color:var(--text2);animation:fadeIn 0.3s ease;"><span style="color:var(--success);font-size:13px;">✓</span> ' + text + '</div>';
+      if (prev) prev.outerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success);display:inline;vertical-align:middle;"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+      stepsEl.innerHTML += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:12px;color:var(--text2);animation:fadeIn 0.3s ease;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success);display:inline;vertical-align:middle;"><polyline points="20 6 9 17 4 12"></polyline></svg> ' + text + '</div>';
       barEl.style.width = progress + '%';
     }
 
@@ -13172,7 +13181,7 @@ function validateShiftChange(newShift) {
   if (alerts.length > 0) {
     alertEl.className = `se-alert ${alerts[0].type}`;
     alertEl.style.display = 'block';
-    alertEl.innerHTML = alerts.map(a => `<div style="margin-bottom:4px;">${a.type === 'danger' ? '⛔' : a.type === 'warning' ? '⚠️' : '✓'} ${a.msg}</div>`).join('');
+    alertEl.innerHTML = alerts.map(a => `<div style="margin-bottom:4px;display:flex;align-items:center;gap:6px;">${a.type === 'danger' ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>' : a.type === 'warning' ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'} ${a.msg}</div>`).join('');
   } else {
     alertEl.style.display = 'none';
   }
@@ -13487,7 +13496,7 @@ function renderCoverageAlerts() {
 
   if (alerts.length === 0) {
     container.innerHTML = `<div class="coverage-alert-banner alert-ok">
-      <span class="alert-icon">✅</span>
+      <span class="alert-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
       <div class="alert-body">
         <div class="alert-title">Cobertura completa los proximos 7 dias</div>
         <div class="alert-detail">No hay huecos de cobertura previstos hasta el ${new Date(now.getTime() + 7*86400000).getDate()}/${new Date(now.getTime() + 7*86400000).getMonth()+1}</div>
@@ -14099,7 +14108,7 @@ function renderWeeklyDashboard() {
     html += `<div style="margin-top:12px;padding:12px;background:var(--surface2);border-radius:8px;border-left:3px solid #e67e22;">`;
     html += `<div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">Alertas principales</div>`;
     topAlerts.forEach(a => {
-      const icon = a.severity === 'high' ? '⚠️' : '⚡';
+      const icon = a.severity === 'high' ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
       html += `<div style="font-size:10px;color:var(--text2);margin-bottom:4px;padding:4px 0;border-bottom:1px solid rgba(0,0,0,0.05);">`;
       html += `${icon} ${a.message || a.dayLabel}`;
       html += `</div>`;
@@ -16252,8 +16261,8 @@ function renderGuardia() {
       </div>
 
       <!-- Coverage status -->
-      <div style="margin-top:8px;display:inline-block;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;background:${covOk ? 'rgba(39,174,96,0.12)' : 'rgba(204,68,68,0.12)'};color:${covOk ? '#27ae60' : '#cc4444'};">
-        ${covOk ? '✓ Cobertura completa' : '⚠ Cobertura insuficiente — ENF ' + enfNow + '/' + covReq.enf + ' · TEC ' + tecNow + '/' + covReq.tec}
+      <div style="margin-top:8px;display:inline-block;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;background:${covOk ? 'rgba(39,174,96,0.12)' : 'rgba(204,68,68,0.12)'};color:${covOk ? '#27ae60' : '#cc4444'};display:flex;align-items:center;gap:6px;">
+        ${covOk ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Cobertura completa' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Cobertura insuficiente — ENF ' + enfNow + '/' + covReq.enf + ' · TEC ' + tecNow + '/' + covReq.tec}
       </div>
     </div>
 
@@ -16261,33 +16270,33 @@ function renderGuardia() {
     ${(highFatigue.length > 0 || riskyCount > 0) ? `
     <div style="background:rgba(204,68,68,0.06);border:1px solid rgba(204,68,68,0.2);border-radius:12px;padding:12px 16px;margin-bottom:16px;">
       ${highFatigue.length > 0 ? `
-      <div style="font-size:12px;color:#cc4444;font-weight:600;margin-bottom:${riskyCount > 0 ? '6px' : '0'};">
-        ⚠ Fatiga alta: ${highFatigue.map(w => escHtml(w.name.split(' ')[0]) + ' (' + w.fatigue.streak + ' dias seguidos, ' + w.fatigue.weekHours + 'h/sem)').join(' · ')}
+      <div style="font-size:12px;color:#cc4444;font-weight:600;margin-bottom:${riskyCount > 0 ? '6px' : '0'};display:flex;align-items:center;gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Fatiga alta: ${highFatigue.map(w => escHtml(w.name.split(' ')[0]) + ' (' + w.fatigue.streak + ' dias seguidos, ' + w.fatigue.weekHours + 'h/sem)').join(' · ')}
       </div>` : ''}
       ${riskyCount > 0 ? `
-      <div style="font-size:12px;color:#e67e22;font-weight:600;">
-        ⚡ ${riskyCount} de los proximos 3 turnos con cobertura insuficiente
+      <div style="font-size:12px;color:#e67e22;font-weight:600;display:flex;align-items:center;gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>${riskyCount} de los proximos 3 turnos con cobertura insuficiente
       </div>` : ''}
     </div>` : ''}
 
     <!-- Turno actual con fatigue badges -->
     <div style="background:var(--surface);border:1.5px solid ${shiftColors[currentShift]}33;border-radius:16px;padding:20px;margin-bottom:16px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <div style="font-size:13px;font-weight:700;color:${shiftColors[currentShift]};text-transform:uppercase;letter-spacing:1px;">🟢 Trabajando ahora (${onNow.length})</div>
+        <div style="font-size:13px;font-weight:700;color:${shiftColors[currentShift]};text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#27ae60;"></span>Trabajando ahora (${onNow.length})</div>
         <div style="font-size:11px;color:var(--text3);">ENF ${enfNow}/${covReq.enf} · TEC ${tecNow}/${covReq.tec}</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">
         ${fatigueData.map(w => {
           const fatColor = w.fatigue.level === 'high' ? '#cc4444' : w.fatigue.level === 'medium' ? '#e67e22' : '#27ae60';
-          const fatIcon = w.fatigue.level === 'high' ? '🔴' : w.fatigue.level === 'medium' ? '🟡' : '🟢';
+          const fatDot = w.fatigue.level === 'high' ? '#cc4444' : w.fatigue.level === 'medium' ? '#e67e22' : '#27ae60';
           return `
           <div style="background:var(--bg);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;border:1px solid ${w.fatigue.level === 'high' ? 'rgba(204,68,68,0.3)' : 'var(--border)'};">
             <div style="width:36px;height:36px;border-radius:50%;background:${shiftColors[currentShift]}18;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:${shiftColors[currentShift]};">${escHtml(w.name.charAt(0))}</div>
             <div style="flex:1;min-width:0;">
               <div style="font-size:13px;font-weight:600;color:var(--text1);">${escHtml(w.name)}</div>
               <div style="font-size:10px;color:var(--text3);text-transform:uppercase;">${w.type === 'enf' ? 'Enfermería' : 'Técnico'}${w.area === 'micro' ? ' · Micro' : ''}</div>
-              <div style="font-size:9px;color:${fatColor};font-weight:600;margin-top:2px;">
-                ${fatIcon} ${w.fatigue.streak}d seguidos · ${w.fatigue.weekHours}h/sem${w.fatigue.nightStreak > 0 ? ' · ' + w.fatigue.nightStreak + 'N' : ''}
+              <div style="font-size:9px;color:${fatColor};font-weight:600;margin-top:2px;display:flex;align-items:center;gap:6px;">
+                <span style="width:8px;height:8px;border-radius:50%;background:${fatDot};"></span>${w.fatigue.streak}d seguidos · ${w.fatigue.weekHours}h/sem${w.fatigue.nightStreak > 0 ? ' · ' + w.fatigue.nightStreak + 'N' : ''}
               </div>
             </div>
           </div>`;
@@ -16298,7 +16307,7 @@ function renderGuardia() {
 
     <!-- Previsión próximos 3 turnos -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">
-      <div style="font-size:13px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">📊 Previsión próximos turnos</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Previsión próximos turnos</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
         ${riskShifts.map(rs => {
           const sColor = rs.shift === 'M' ? '#2e8b7a' : rs.shift === 'T' ? '#4a9dd4' : '#7c6bb1';
@@ -16306,8 +16315,8 @@ function renderGuardia() {
           <div style="background:var(--bg);border-radius:10px;padding:12px;border:1px solid ${rs.ok ? 'var(--border)' : 'rgba(204,68,68,0.3)'};">
             <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px;">${escHtml(rs.dayLabel)}</div>
             <div style="font-size:14px;font-weight:700;color:${sColor};margin-bottom:4px;">${escHtml(rs.shiftLabel)}</div>
-            <div style="font-size:11px;color:${rs.ok ? '#27ae60' : '#cc4444'};font-weight:600;">
-              ${rs.ok ? '✓' : '⚠'} ENF ${rs.enfCount}/${rs.covReq.enf} · TEC ${rs.tecCount}/${rs.covReq.tec}
+            <div style="font-size:11px;color:${rs.ok ? '#27ae60' : '#cc4444'};font-weight:600;display:flex;align-items:center;gap:6px;">
+              ${rs.ok ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'} ENF ${rs.enfCount}/${rs.covReq.enf} · TEC ${rs.tecCount}/${rs.covReq.tec}
             </div>
             <div style="font-size:10px;color:var(--text3);margin-top:2px;">${rs.onShift.length} personas</div>
           </div>`;
@@ -16375,7 +16384,7 @@ function renderGuardia() {
 
     <!-- Notas de traspaso -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">
-      <div style="font-size:13px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">📝 Notas de Traspaso</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6m1-7h-6m3-3v6"/></svg>Notas de Traspaso</div>
       <textarea id="guardiaHandoffNote" placeholder="Escribe notas para el siguiente turno (ej: paciente en observación, pendiente resultado lab, incidencia en equipo...)" style="width:100%;min-height:80px;border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px;font-family:inherit;background:var(--bg);color:var(--text1);resize:vertical;box-sizing:border-box;">${escHtml(existingNote)}</textarea>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
         <div style="font-size:10px;color:var(--text3);">Turno: ${currentShift} — ${now.toLocaleDateString('es-ES')}</div>
@@ -16695,7 +16704,7 @@ function renderGestorAusencias() {
           text-align: center;
           transition: all 0.3s;
         " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 4px 12px rgba(26,54,93,0.1)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
-          <div style="font-size: 36px; margin-bottom: 12px;">🔄</div>
+          <div style="margin-bottom:12px;display:flex;justify-content:center;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary);"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-4.25M20.49 15a9 9 0 0 1-14.85 4.25"/></svg></div>
           <h3 style="font-size: 14px; font-weight: 600; color: var(--primary); margin-bottom: 4px;">Cambio de Turno</h3>
           <p style="color: var(--text3); font-size: 12px;">Reassignar turnos</p>
         </div>
@@ -16952,12 +16961,12 @@ function renderVacacionesGantt() {
       <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;">💡 Recomendaciones inteligentes</div>
       ${recommendations.map(r => {
         const color = r.severity === 'high' ? '#cc4444' : r.severity === 'medium' ? '#e67e22' : '#27ae60';
-        const icon = r.severity === 'high' ? '🔴' : r.severity === 'medium' ? '🟡' : '🟢';
-        return '<div style="font-size:12px;padding:8px 12px;margin-bottom:6px;background:var(--bg);border-left:3px solid ' + color + ';border-radius:0 8px 8px 0;">' + icon + ' ' + escHtml(r.text) + '</div>';
+        const dotColor = r.severity === 'high' ? '#cc4444' : r.severity === 'medium' ? '#e67e22' : '#27ae60';
+        return '<div style="font-size:12px;padding:8px 12px;margin-bottom:6px;background:var(--bg);border-left:3px solid ' + color + ';border-radius:0 8px 8px 0;display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:' + dotColor + ';flex-shrink:0;"></span>' + escHtml(r.text) + '</div>';
       }).join('')}
       ${bestWindows.length > 0 ? `
       <div style="margin-top:10px;padding:10px;background:rgba(39,174,96,0.06);border-radius:8px;">
-        <div style="font-size:11px;font-weight:700;color:#27ae60;margin-bottom:4px;">✅ Mejores semanas para planificar vacaciones:</div>
+        <div style="font-size:11px;font-weight:700;color:#27ae60;margin-bottom:4px;display:flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Mejores semanas para planificar vacaciones:</div>
         <div style="font-size:11px;color:var(--text2);">
           ${bestWindows.slice(0, 3).map(bw => {
             const endDay = Math.min(bw.startDay + 6, new Date(year, bw.month + 1, 0).getDate() - 1);
@@ -20518,7 +20527,7 @@ function applyGestorSolution(absentId, replacementId, year, month, dayIdx, origi
   const successDiv = document.createElement('div');
   successDiv.className = 'gestor-success';
   successDiv.innerHTML = `
-    <div class="success-icon">✅</div>
+    <div class="success-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:#27ae60;"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
     <div class="success-text">Cambio aplicado correctamente</div>
     <div class="success-detail">${absent.name} → ${newShiftForAbsent} · ${replacement.name} → ${originalShift} · Dia ${dayIdx + 1}</div>
   `;
@@ -20560,7 +20569,7 @@ function applyGestorSwap(w1Id, w2Id, year, month, dayIdx, shift1, shift2, btn) {
   const successDiv = document.createElement('div');
   successDiv.className = 'gestor-success';
   successDiv.innerHTML = `
-    <div class="success-icon">🔀</div>
+    <div class="success-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:#27ae60;"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
     <div class="success-text">Intercambio realizado</div>
     <div class="success-detail">${w1.name}: ${shift1} → ${shift2} · ${w2.name}: ${shift2} → ${shift1}</div>
   `;
@@ -20601,7 +20610,7 @@ function applyGestorCover(coverId, year, month, dayIdx, shift, btn) {
   const successDiv = document.createElement('div');
   successDiv.className = 'gestor-success';
   successDiv.innerHTML = `
-    <div class="success-icon">✅</div>
+    <div class="success-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:#27ae60;"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
     <div class="success-text">Turno asignado</div>
     <div class="success-detail">${cover.name} → ${shift} · Dia ${dayIdx + 1}</div>
   `;
@@ -20668,8 +20677,8 @@ function showAuthError(formId, message) {
 
 // Offline credentials fallback (hashed — never store plaintext passwords in client code)
 const OFFLINE_USERS = {
-  'icueva': { hash: '80949a4aedb5b911bbc842bc14a27fbe3f4e133614a096bb5a8ff13da299b949', user: { id: 1, email: 'director@shiftia.es', name: 'Director — Enfermería', company: 'Fundación Hospital de Jove', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } },
-  'director@shiftia.es': { hash: '80949a4aedb5b911bbc842bc14a27fbe3f4e133614a096bb5a8ff13da299b949', user: { id: 1, email: 'director@shiftia.es', name: 'Director — Enfermería', company: 'Fundación Hospital de Jove', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } }
+  'icueva': { hash: '80949a4aedb5b911bbc842bc14a27fbe3f4e133614a096bb5a8ff13da299b949', user: { id: 1, email: 'director@shiftia.es', name: 'Iván Cueva — Director de Enfermería', company: 'Fundación Hospital de Jove', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } },
+  'director@shiftia.es': { hash: '80949a4aedb5b911bbc842bc14a27fbe3f4e133614a096bb5a8ff13da299b949', user: { id: 1, email: 'director@shiftia.es', name: 'Iván Cueva — Director de Enfermería', company: 'Fundación Hospital de Jove', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } }
 };
 
 async function hashPassword(password) {
@@ -21996,7 +22005,7 @@ function renderIntelligentDashboard() {
       const isCls = a.severity === 'high' ? 'dai-high' : 'dai-med';
       const shColor = shiftColors[a.shift] || 'var(--text3)';
       html += `<div class="dash-alert-item">
-        <div class="dash-alert-icon ${isCls}">${a.severity === 'high' ? '🔴' : '🟡'}</div>
+        <div class="dash-alert-icon ${isCls}" style="display:flex;align-items:center;justify-content:center;"><span style="width:12px;height:12px;border-radius:50%;background:${a.severity === 'high' ? '#cc4444' : '#e67e22'};"></span></div>
         <div class="dash-alert-text">${a.detail}</div>
         <button class="dash-alert-action" onclick="goToDay(${a.date.getFullYear()},${a.date.getMonth()},${a.date.getDate()})">Ver</button>
       </div>`;
@@ -22004,7 +22013,7 @@ function renderIntelligentDashboard() {
     html += '</div>';
   } else {
     html += `<div class="dash-alerts" style="text-align:center;padding:20px;">
-      <div style="font-size:24px;margin-bottom:8px;">✅</div>
+      <div style="margin-bottom:8px;display:flex;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:#27ae60;"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
       <div style="font-size:13px;font-weight:600;color:var(--text2);">Sin alertas de cobertura</div>
       <div style="font-size:11px;color:var(--text3);">Los próximos 7 días tienen cobertura completa</div>
     </div>`;
