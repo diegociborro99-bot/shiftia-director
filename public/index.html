@@ -8431,6 +8431,8 @@ table.schedule tbody tr:hover {
           </div>
         </div>
 
+        <div id="emptyStateBanner" style="display:none;"></div>
+
         <!-- 4 Action Cards Grid -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 48px;">
           <!-- Card 1: Importar Planillas -->
@@ -8533,6 +8535,7 @@ table.schedule tbody tr:hover {
 
         <!-- Weekly Dashboard Summary -->
         <div id="weeklyDashboard" style="margin-top:32px;"></div>
+        <div id="smartInsights" style="margin-top:32px;"></div>
         <div id="plantComparison" style="margin-top:32px;"></div>
         <div id="auditLogContainer" style="margin-top:32px;"></div>
       </div>
@@ -9132,7 +9135,7 @@ function getCoverageGaps(year, month) {
     const shifts = ['M', 'T', 'N'];
     shifts.forEach(shift => {
       PLANTAS.forEach(planta => {
-        const plantWorkers = workers.filter(w => w.planta === planta.id && w.type === 'enf');
+        const plantWorkers = workers.filter(w => w.planta === planta.id);
         let staffed = 0;
         plantWorkers.forEach(w => {
           const s = sch[w.id] ? sch[w.id][dayIdx] : '';
@@ -9749,6 +9752,29 @@ function renderDashboard() {
   const dayNames = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const dateStr = `${dayNames[now.getDay()]} ${now.getDate()} de ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
 
+  // Show empty state if no workers
+  const emptyBanner = document.getElementById('emptyStateBanner');
+  if (emptyBanner) {
+    if (workers.length === 0 || importedFiles.length === 0) {
+      emptyBanner.style.display = 'block';
+      emptyBanner.innerHTML = `
+        <div style="background:linear-gradient(135deg, rgba(30,41,59,0.03), rgba(212,168,67,0.06));border:1.5px dashed var(--accent);border-radius:20px;padding:40px;text-align:center;margin-bottom:32px;">
+          <div style="width:64px;height:64px;border-radius:16px;background:rgba(212,168,67,0.1);display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          </div>
+          <h3 style="font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--primary);margin:0 0 8px;">Empieza importando planillas</h3>
+          <p style="font-size:13px;color:var(--text2);max-width:400px;margin:0 auto 20px;line-height:1.6;">Sube los PDFs de planillas de turnos para cada planta. El sistema extraerá automáticamente los trabajadores, turnos y horarios.</p>
+          <button onclick="switchView('import')" style="padding:12px 28px;background:linear-gradient(135deg,var(--primary),#2c5282);color:white;border:none;border-radius:12px;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 12px rgba(30,41,59,0.15);" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 8px 20px rgba(30,41,59,0.2)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 12px rgba(30,41,59,0.15)'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:middle;margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Importar planillas
+          </button>
+          <div style="margin-top:12px;font-size:11px;color:var(--text3);">Formatos soportados: PDF de planillas hospitalarias</div>
+        </div>`;
+    } else {
+      emptyBanner.style.display = 'none';
+    }
+  }
+
   // Update dashboard date
   const dashboardDateEl = document.getElementById('dashboardDate');
   if (dashboardDateEl) dashboardDateEl.textContent = dateStr;
@@ -9783,6 +9809,9 @@ function renderDashboard() {
 
   // Render weekly dashboard
   try { renderWeeklyDashboard(); } catch(e) { console.error('Weekly dashboard error:', e); }
+
+  // Render smart insights
+  try { renderSmartInsights(); } catch(e) { console.warn('[Shiftia] Smart insights error:', e); }
 
   // Render plant comparison
   try { renderPlantComparison(); } catch(e) { console.error('Plant comparison error:', e); }
@@ -13220,6 +13249,7 @@ function cleanOrphanedImports() {
 function purgeWorkerData(workerId) {
   const w = workers.find(x => x.id === workerId);
   if (!w) return;
+  if (!confirm('¿Eliminar todos los datos de ' + (w.name || 'este trabajador') + '? Esta acción no se puede deshacer.')) return;
 
   // Clear schedule data
   for (const key in scheduleData) {
@@ -13362,6 +13392,7 @@ function renderImportManagement() {
 function renderImportedList() { renderImportManagement(); }
 
 function deleteImport(idx) {
+  if (!confirm('¿Eliminar esta planilla importada? Los datos del trabajador se borrarán.')) return;
   const f = importedFiles[idx];
   if (!f) return;
   purgeWorkerData(f.workerId);
@@ -17582,6 +17613,244 @@ function countDayShifts(dayIndex, selectedPlanta, year, month) {
     if (shift === 'N') n++;
   });
   return { m, t, n };
+}
+
+// ========== SMART INSIGHTS ENGINE ==========
+function renderSmartInsights() {
+  const el = document.getElementById('smartInsights');
+  if (!el) return;
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const today = now.getDate();
+  const insights = [];
+
+  // ─── 1. Coverage Forecast (next 14 days) ───
+  const coverageAlerts = [];
+  for (let offset = 0; offset < 14; offset++) {
+    const d = new Date(year, month, today + offset);
+    const dy = d.getFullYear(), dm = d.getMonth(), dd = d.getDate();
+    const dayIdx = dd - 1;
+    const sch = genSchedule(dy, dm);
+    const dayName = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d.getDay()];
+
+    PLANTAS.forEach(planta => {
+      const covData = PLANT_COVERAGE[planta.id] || {};
+      const pw = workers.filter(w => w.planta === planta.id);
+      ['M','T','N'].forEach(shift => {
+        const minReq = (covData[shift] || {}).min || 0;
+        if (minReq === 0) return;
+        let assigned = 0;
+        pw.forEach(w => {
+          const s = sch[w.id] ? (sch[w.id][dayIdx] || '').toString().trim() : '';
+          const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+          if (eff === shift) assigned++;
+        });
+        if (assigned < minReq) {
+          coverageAlerts.push({ date: d, dayName, dd, planta: planta.name, plantaId: planta.id, shift, assigned, needed: minReq, gap: minReq - assigned, offset });
+        }
+      });
+    });
+  }
+
+  if (coverageAlerts.length > 0) {
+    const grouped = {};
+    coverageAlerts.forEach(a => {
+      const key = a.dd + '/' + (a.date.getMonth()+1);
+      if (!grouped[key]) grouped[key] = { date: key, dayName: a.dayName, alerts: [], offset: a.offset };
+      grouped[key].alerts.push(a);
+    });
+    const days = Object.values(grouped).sort((a,b) => a.offset - b.offset).slice(0, 5);
+
+    let forecastHtml = '';
+    days.forEach(day => {
+      const isToday = day.offset === 0;
+      const isTomorrow = day.offset === 1;
+      const label = isToday ? 'Hoy' : (isTomorrow ? 'Mañana' : day.dayName + ' ' + day.date);
+      const urgency = isToday ? '#dc2626' : (day.offset <= 2 ? '#d97706' : '#6b7280');
+      forecastHtml += '<div style="display:flex;align-items:start;gap:12px;padding:12px 16px;background:' + urgency + '08;border-radius:10px;border-left:3px solid ' + urgency + ';">';
+      forecastHtml += '<div style="font-size:12px;font-weight:700;color:' + urgency + ';min-width:60px;padding-top:1px;">' + label + '</div>';
+      forecastHtml += '<div style="flex:1;display:flex;flex-wrap:wrap;gap:6px;">';
+      day.alerts.forEach(a => {
+        const shiftLabel = a.shift === 'M' ? 'Mañana' : a.shift === 'T' ? 'Tarde' : 'Noche';
+        const shiftColor = a.shift === 'M' ? '#2e8b7a' : a.shift === 'T' ? '#4a9dd4' : '#c9a84c';
+        forecastHtml += '<span style="font-size:11px;padding:4px 10px;border-radius:6px;background:' + shiftColor + '15;color:' + shiftColor + ';font-weight:600;">' + escHtml(a.planta) + ' · ' + shiftLabel + ' (' + a.assigned + '/' + a.needed + ')</span>';
+      });
+      forecastHtml += '</div></div>';
+    });
+
+    insights.push({
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      title: 'Huecos de cobertura previstos',
+      subtitle: coverageAlerts.length + ' huecos en los próximos 14 días',
+      color: '#dc2626',
+      content: forecastHtml
+    });
+  }
+
+  // ─── 2. Labor Law Violations (this month) ───
+  const violations = [];
+  const sch = genSchedule(year, month);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  workers.forEach(w => {
+    if (!sch[w.id]) return;
+    let consecNights = 0;
+    let totalNights = 0;
+
+    for (let d = 0; d < daysInMonth; d++) {
+      const s = (sch[w.id][d] || '').toString().trim();
+      if (s === 'N') {
+        consecNights++;
+        totalNights++;
+        if (consecNights > 3) {
+          violations.push({ worker: w.name, type: 'consecutive_nights', detail: consecNights + ' noches consecutivas (máx. 3)', day: d + 1, severity: 'high' });
+        }
+      } else {
+        consecNights = 0;
+      }
+
+      if (d > 0) {
+        const prev = (sch[w.id][d-1] || '').toString().trim();
+        if (prev === 'N' && ['M','MR','M7H','M6R','M55'].includes(s)) {
+          violations.push({ worker: w.name, type: 'no_rest_after_night', detail: 'Mañana después de Noche (día ' + (d+1) + ')', day: d + 1, severity: 'critical' });
+        }
+      }
+    }
+
+    if (totalNights > 7) {
+      violations.push({ worker: w.name, type: 'excess_nights', detail: totalNights + ' noches este mes (recomendado máx. 7)', day: 0, severity: 'medium' });
+    }
+  });
+
+  if (violations.length > 0) {
+    const critical = violations.filter(v => v.severity === 'critical').length;
+    const high = violations.filter(v => v.severity === 'high').length;
+
+    let violHtml = '<div style="display:flex;flex-direction:column;gap:6px;">';
+    const shown = violations.slice(0, 6);
+    shown.forEach(v => {
+      const sevColor = v.severity === 'critical' ? '#dc2626' : v.severity === 'high' ? '#d97706' : '#6b7280';
+      const sevLabel = v.severity === 'critical' ? 'CRÍTICO' : v.severity === 'high' ? 'ALTO' : 'MEDIO';
+      violHtml += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:' + sevColor + '06;border-radius:8px;">';
+      violHtml += '<span style="font-size:9px;font-weight:700;color:' + sevColor + ';background:' + sevColor + '12;padding:2px 6px;border-radius:4px;letter-spacing:0.5px;">' + sevLabel + '</span>';
+      violHtml += '<span style="font-size:12px;color:var(--text1);font-weight:500;">' + escHtml(v.worker) + '</span>';
+      violHtml += '<span style="font-size:11px;color:var(--text3);flex:1;">' + escHtml(v.detail) + '</span>';
+      violHtml += '</div>';
+    });
+    if (violations.length > 6) {
+      violHtml += '<div style="font-size:11px;color:var(--text3);text-align:center;padding:4px;">+' + (violations.length - 6) + ' más</div>';
+    }
+    violHtml += '</div>';
+
+    insights.push({
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+      title: 'Cumplimiento normativo',
+      subtitle: violations.length + ' incidencia' + (violations.length > 1 ? 's' : '') + (critical > 0 ? ' (' + critical + ' crítica' + (critical > 1 ? 's' : '') + ')' : ''),
+      color: critical > 0 ? '#dc2626' : '#d97706',
+      content: violHtml
+    });
+  }
+
+  // ─── 3. Workload Equity (night distribution) ───
+  const nightCounts = [];
+  workers.forEach(w => {
+    if (!sch[w.id]) return;
+    let nights = 0;
+    for (let d = 0; d < daysInMonth; d++) {
+      if ((sch[w.id][d] || '').toString().trim() === 'N') nights++;
+    }
+    if (nights > 0) nightCounts.push({ name: w.name, nights, planta: w.planta });
+  });
+
+  if (nightCounts.length > 0) {
+    nightCounts.sort((a, b) => b.nights - a.nights);
+    const avg = nightCounts.reduce((s, w) => s + w.nights, 0) / nightCounts.length;
+    const max = nightCounts[0];
+    const min = nightCounts[nightCounts.length - 1];
+    const spread = max.nights - min.nights;
+    const isUnfair = spread > 3;
+
+    let equityHtml = '<div style="display:flex;flex-direction:column;gap:8px;">';
+    const topN = nightCounts.slice(0, 5);
+    const maxNights = topN[0].nights;
+    topN.forEach(w => {
+      const pct = maxNights > 0 ? Math.round((w.nights / maxNights) * 100) : 0;
+      const barColor = w.nights > avg + 2 ? '#dc2626' : (w.nights > avg ? '#d97706' : '#16a34a');
+      equityHtml += '<div style="display:flex;align-items:center;gap:10px;">';
+      equityHtml += '<span style="font-size:11px;color:var(--text2);min-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(w.name) + '</span>';
+      equityHtml += '<div style="flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;"><div style="width:' + pct + '%;height:100%;background:' + barColor + ';border-radius:3px;"></div></div>';
+      equityHtml += '<span style="font-size:12px;font-weight:700;color:' + barColor + ';min-width:24px;text-align:right;">' + w.nights + '</span>';
+      equityHtml += '</div>';
+    });
+    equityHtml += '</div>';
+    if (nightCounts.length > 5) {
+      equityHtml += '<div style="font-size:10px;color:var(--text3);margin-top:4px;">Media: ' + avg.toFixed(1) + ' noches · Diferencia máx-mín: ' + spread + '</div>';
+    }
+
+    insights.push({
+      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="' + (isUnfair ? '#d97706' : '#16a34a') + '" stroke-width="2" stroke-linecap="round"><path d="M12 3v18"/><path d="M8 7l-4 4 4 4"/><path d="M16 7l4 4-4 4"/></svg>',
+      title: 'Equidad de noches',
+      subtitle: isUnfair ? 'Distribución desigual (diferencia: ' + spread + ')' : 'Distribución equilibrada',
+      color: isUnfair ? '#d97706' : '#16a34a',
+      content: equityHtml
+    });
+  }
+
+  // ─── 4. Absence Patterns ───
+  if (typeof detectAbsencePatterns === 'function') {
+    const patternsFound = [];
+    workers.forEach(w => {
+      try {
+        const p = detectAbsencePatterns(w.id);
+        if (p && p.length > 0) {
+          p.forEach(pat => patternsFound.push({ worker: w.name, ...pat }));
+        }
+      } catch(e) {}
+    });
+
+    if (patternsFound.length > 0) {
+      let patHtml = '<div style="display:flex;flex-direction:column;gap:6px;">';
+      patternsFound.slice(0, 4).forEach(p => {
+        patHtml += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border-radius:8px;">';
+        patHtml += '<span style="font-size:12px;font-weight:600;color:var(--text1);">' + escHtml(p.worker) + '</span>';
+        patHtml += '<span style="font-size:11px;color:var(--text3);">' + escHtml(p.description || p.pattern || 'Patrón detectado') + '</span>';
+        patHtml += '</div>';
+      });
+      patHtml += '</div>';
+
+      insights.push({
+        icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+        title: 'Patrones detectados',
+        subtitle: patternsFound.length + ' patrón' + (patternsFound.length > 1 ? 'es' : '') + ' de ausencia',
+        color: '#8b5cf6',
+        content: patHtml
+      });
+    }
+  }
+
+  // ─── Render all insights ───
+  if (insights.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px;">No hay alertas activas. Todo en orden.</div>';
+    return;
+  }
+
+  let html = '<div style="margin-bottom:8px;"><h3 style="font-family:var(--font-display);font-size:22px;font-weight:400;color:var(--primary);margin:0;">Inteligencia</h3><p style="font-size:12px;color:var(--text3);margin-top:2px;">Análisis automático de los próximos 14 días</p></div>';
+  html += '<div style="display:flex;flex-direction:column;gap:16px;">';
+
+  insights.forEach(insight => {
+    html += '<div style="background:white;border:1px solid var(--border);border-radius:14px;overflow:hidden;">';
+    html += '<div style="padding:16px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);">';
+    html += '<div style="width:36px;height:36px;border-radius:10px;background:' + insight.color + '08;display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + insight.icon + '</div>';
+    html += '<div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text1);">' + insight.title + '</div>';
+    html += '<div style="font-size:11px;color:var(--text3);margin-top:1px;">' + insight.subtitle + '</div></div>';
+    html += '</div>';
+    html += '<div style="padding:14px 20px;">' + insight.content + '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  el.innerHTML = html;
 }
 
 function renderMapaCobertura() {
