@@ -8394,6 +8394,13 @@ table.schedule tbody tr:hover {
       </div>
     </div>
     <div class="topbar-right">
+      <div style="position:relative;display:inline-flex;">
+        <button id="notifBellBtn" onclick="toggleNotifPanel()" style="background:none;border:none;cursor:pointer;padding:8px;border-radius:10px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;position:relative;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='none'">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;background:#dc2626;color:white;font-size:9px;font-weight:800;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg);"></span>
+        </button>
+        <div id="notifPanel" style="display:none;position:absolute;top:100%;right:0;width:360px;max-height:400px;overflow-y:auto;background:white;border:1px solid var(--border);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.12);z-index:9999;margin-top:4px;"></div>
+      </div>
       <span id="wsSyncBadge" style="display:none;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;background:rgba(46,139,122,0.1);color:var(--morning);font-size:10px;font-weight:600;letter-spacing:0.3px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--morning);animation:savePulse 1.5s ease infinite;"></span><span id="wsSyncText"></span></span>
       <span class="user-display" id="userDisplay" style="font-size:12px;color:var(--text3);margin-right:8px;"></span>
       <button class="theme-btn" id="themeToggle" aria-label="Cambiar tema claro/oscuro"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
@@ -8428,6 +8435,7 @@ table.schedule tbody tr:hover {
             <h1 style="font-family: var(--font-display); font-size: 42px; font-weight: 400; color: var(--primary); margin-bottom: 4px; letter-spacing: -0.5px;">Dirección de Enfermería</h1>
             <p style="color: var(--text3); font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 500;">Fundación Hospital de Jove</p>
             <p style="color: var(--text2); font-size: 13px; margin-top: 4px;" id="dashboardDate"></p>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px;" id="lastSyncLabel"></div>
           </div>
         </div>
 
@@ -8630,6 +8638,7 @@ table.schedule tbody tr:hover {
           </table>
         </div>
       </div>
+      <div id="workerMonthlySummary"></div>
     </div>
 
     <!-- Workers / Equipo -->
@@ -9270,6 +9279,8 @@ const rollbackHistory = [];
 
 const scheduleData = {};
 
+let lastSyncTime = null;
+
 // Festivos: España nacional + Asturias + Gijón (2025)
 const FESTIVOS = {
   '2025-1-1':   'Año Nuevo',
@@ -9745,6 +9756,117 @@ function switchView(view) {
   if (view === 'guardia') renderGuardia();
 }
 
+// ========== NOTIFICATION BELL ==========
+function toggleNotifPanel() {
+  const panel = document.getElementById('notifPanel');
+  if (!panel) return;
+  if (panel.style.display === 'none') {
+    updateNotifPanel();
+    panel.style.display = 'block';
+    // Close on outside click
+    setTimeout(() => {
+      document.addEventListener('click', function closeNotif(e) {
+        if (!e.target.closest('#notifBellBtn') && !e.target.closest('#notifPanel')) {
+          panel.style.display = 'none';
+          document.removeEventListener('click', closeNotif);
+        }
+      });
+    }, 10);
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+function updateNotifPanel() {
+  const panel = document.getElementById('notifPanel');
+  const badge = document.getElementById('notifBadge');
+  if (!panel || !badge) return;
+
+  const now = new Date();
+  const year = now.getFullYear(), month = now.getMonth(), today = now.getDate();
+  const sch = genSchedule(year, month);
+  const alerts = [];
+
+  // Coverage gaps today + tomorrow
+  for (let offset = 0; offset < 3; offset++) {
+    const d = new Date(year, month, today + offset);
+    const dy = d.getFullYear(), dm = d.getMonth(), dd = d.getDate();
+    const dayIdx = dd - 1;
+    const dayLabel = offset === 0 ? 'Hoy' : offset === 1 ? 'Mañana' : 'Pasado';
+    const daySch = genSchedule(dy, dm);
+
+    PLANTAS.forEach(planta => {
+      const covData = PLANT_COVERAGE[planta.id] || {};
+      const pw = workers.filter(w => w.planta === planta.id);
+      ['M','T','N'].forEach(shift => {
+        const minReq = (covData[shift] || {}).min || 0;
+        if (minReq === 0) return;
+        let count = 0;
+        pw.forEach(w => {
+          const s = daySch[w.id] ? (daySch[w.id][dayIdx] || '').toString().trim() : '';
+          const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+          if (eff === shift) count++;
+        });
+        if (count < minReq) {
+          const shiftLabel = shift === 'M' ? 'Mañana' : shift === 'T' ? 'Tarde' : 'Noche';
+          const urgency = offset === 0 ? '#dc2626' : offset === 1 ? '#d97706' : '#6b7280';
+          alerts.push({ label: dayLabel, planta: planta.name, shift: shiftLabel, count, needed: minReq, color: urgency, offset });
+        }
+      });
+    });
+  }
+
+  // Labor violations today
+  const todayIdx = today - 1;
+  workers.forEach(w => {
+    if (!sch[w.id]) return;
+    if (todayIdx > 0) {
+      const prev = (sch[w.id][todayIdx - 1] || '').toString().trim();
+      const curr = (sch[w.id][todayIdx] || '').toString().trim();
+      if (prev === 'N' && ['M','MR','M7H','M6R','M55'].includes(curr)) {
+        alerts.push({ label: 'Hoy', planta: escHtml(w.name), shift: 'Mañana tras Noche', count: 0, needed: 0, color: '#dc2626', offset: 0, isViolation: true });
+      }
+    }
+  });
+
+  // Update badge
+  if (alerts.length > 0) {
+    badge.style.display = 'flex';
+    badge.textContent = alerts.length > 9 ? '9+' : alerts.length;
+  } else {
+    badge.style.display = 'none';
+  }
+
+  // Build panel HTML
+  let html = '<div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">';
+  html += '<div style="font-size:14px;font-weight:700;color:var(--text1);">Notificaciones</div>';
+  html += '<span style="font-size:11px;color:var(--text3);">' + alerts.length + ' activa' + (alerts.length !== 1 ? 's' : '') + '</span>';
+  html += '</div>';
+
+  if (alerts.length === 0) {
+    html += '<div style="padding:32px;text-align:center;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="1.5" stroke-linecap="round" style="margin-bottom:8px;opacity:0.4;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><div style="font-size:13px;color:var(--text3);">Todo en orden</div></div>';
+  } else {
+    html += '<div style="padding:8px;">';
+    alerts.forEach(a => {
+      html += '<div style="padding:10px 12px;border-radius:10px;margin-bottom:4px;display:flex;align-items:center;gap:10px;background:' + a.color + '06;">';
+      if (a.isViolation) {
+        html += '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="' + a.color + '" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+        html += '<div style="flex:1;"><div style="font-size:12px;font-weight:600;color:var(--text1);">' + a.planta + '</div>';
+        html += '<div style="font-size:10px;color:' + a.color + ';">' + a.shift + '</div></div>';
+      } else {
+        html += '<div style="width:6px;height:6px;border-radius:50%;background:' + a.color + ';flex-shrink:0;"></div>';
+        html += '<div style="flex:1;"><div style="font-size:12px;font-weight:600;color:var(--text1);">' + escHtml(a.planta) + ' · ' + a.shift + '</div>';
+        html += '<div style="font-size:10px;color:var(--text3);">' + a.count + '/' + a.needed + ' — ' + a.label + '</div></div>';
+      }
+      html += '<span style="font-size:9px;font-weight:700;color:' + a.color + ';background:' + a.color + '12;padding:2px 6px;border-radius:4px;">' + a.label + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  panel.innerHTML = html;
+}
+
 // Render Dashboard
 function renderDashboard() {
   const now = new Date();
@@ -9778,6 +9900,13 @@ function renderDashboard() {
   // Update dashboard date
   const dashboardDateEl = document.getElementById('dashboardDate');
   if (dashboardDateEl) dashboardDateEl.textContent = dateStr;
+
+  // Update last sync label
+  const syncLabel = document.getElementById('lastSyncLabel');
+  if (syncLabel && lastSyncTime) {
+    const mins = Math.round((Date.now() - lastSyncTime.getTime()) / 60000);
+    syncLabel.textContent = mins < 1 ? 'Sincronizado ahora' : 'Sincronizado hace ' + mins + ' min';
+  }
 
   // Update card counts (safe — check element exists before writing)
   const importedEl = document.getElementById('importedWorkerCount');
@@ -9824,6 +9953,9 @@ function renderDashboard() {
 
   // Update tab badges safely
   try { updateTabBadges(); } catch(e) {}
+
+  // Update notifications
+  try { updateNotifPanel(); } catch(e) {}
 }
 
 // ========= ALERTS PANEL =========
@@ -11558,10 +11690,11 @@ function renderSchedule() {
     table.classList.add('compact');
   }
 
-  // Render coverage heatmap and update badges
+  // Render coverage heatmap, badges, and monthly summary
   renderCoverageHeatmap();
   renderCoverageAlerts();
   updateTabBadges();
+  renderWorkerMonthlySummary();
 
   // Auto-scroll to center today column
   if (todayDay > 0) {
@@ -15031,7 +15164,10 @@ async function loadFromStorage() {
     }
 
     const hasData = Object.keys(scheduleData).length > 0;
-    if (hasData) console.log('[Shiftia] Datos restaurados:', Object.keys(scheduleData).length, 'meses,', importedFiles.length, 'planillas');
+    if (hasData) {
+      lastSyncTime = new Date();
+      console.log('[Shiftia] Datos restaurados:', Object.keys(scheduleData).length, 'meses,', importedFiles.length, 'planillas');
+    }
     return hasData;
   } catch (e) { console.warn('[Shiftia] Load error:', e); return false; }
 }
@@ -17714,6 +17850,188 @@ function countDayShifts(dayIndex, selectedPlanta, year, month) {
   return { m, t, n };
 }
 
+// ========== PER-WORKER MONTHLY SUMMARY TABLE ==========
+function renderWorkerMonthlySummary() {
+  const container = document.getElementById('workerMonthlySummary');
+  if (!container) return;
+  const m = appState.currentMonth;
+  const year = m.getFullYear(), month = m.getMonth();
+  const sch = genSchedule(year, month);
+  const days = new Date(year, month + 1, 0).getDate();
+  const monthLabel = getMonthName(m) + ' ' + year;
+
+  if (workers.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const summaries = workers.map(w => {
+    let mC = 0, tC = 0, nC = 0, dC = 0, absC = 0, horas = 0;
+    const absTypes = {};
+    for (let d = 0; d < days; d++) {
+      const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+      if (['M','MR','M7H','M6R','M55'].includes(s)) { mC++; horas += (s === 'M7H' ? 7 : s === 'M6R' || s === 'M55' ? 6 : 7); }
+      else if (s === 'T') { tC++; horas += 7; }
+      else if (s === 'N') { nC++; horas += 10; }
+      else if (s === 'D' || s === '' || !s) { dC++; }
+      else { absC++; absTypes[s] = (absTypes[s] || 0) + 1; }
+    }
+    const totalShifts = mC + tC + nC;
+    const nightPct = totalShifts > 0 ? Math.round((nC / totalShifts) * 100) : 0;
+    return { ...w, mC, tC, nC, dC, absC, horas, nightPct, totalShifts, absTypes };
+  });
+
+  // Sort: nurses first, then technicians, alphabetical within
+  summaries.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'enf' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  let html = `<div style="margin-top:24px;padding:20px;background:var(--surface);border-radius:16px;border:1px solid var(--border);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h3 style="font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--primary);margin:0;">Resumen mensual por trabajador</h3>
+      <span style="font-size:11px;color:var(--text3);">${monthLabel}</span>
+    </div>
+    <div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border);">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead><tr style="background:var(--surface2);">
+      <th style="text-align:left;padding:10px 12px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);">Trabajador</th>
+      <th style="text-align:center;padding:10px 6px;font-weight:600;color:var(--morning);border-bottom:1px solid var(--border);">M</th>
+      <th style="text-align:center;padding:10px 6px;font-weight:600;color:var(--evening);border-bottom:1px solid var(--border);">T</th>
+      <th style="text-align:center;padding:10px 6px;font-weight:600;color:var(--night);border-bottom:1px solid var(--border);">N</th>
+      <th style="text-align:center;padding:10px 6px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);">D</th>
+      <th style="text-align:center;padding:10px 6px;font-weight:600;color:var(--danger);border-bottom:1px solid var(--border);">Aus</th>
+      <th style="text-align:center;padding:10px 6px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);">Horas</th>
+      <th style="text-align:center;padding:10px 6px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);">%Noche</th>
+    </tr></thead><tbody>`;
+
+  let lastType = null;
+  summaries.forEach(w => {
+    if (w.type !== lastType) {
+      lastType = w.type;
+      const label = w.type === 'enf' ? 'ENFERMERÍA' : 'TÉCNICOS';
+      const color = w.type === 'enf' ? '#2e8b7a' : '#4a9dd4';
+      html += `<tr><td colspan="8" style="padding:8px 12px;font-size:10px;font-weight:700;color:${color};letter-spacing:1px;background:${color}08;border-bottom:1px solid var(--border);border-left:3px solid ${color};">${label}</td></tr>`;
+    }
+    const nightBar = `<div style="display:flex;align-items:center;gap:4px;">
+      <div style="width:40px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;"><div style="width:${w.nightPct}%;height:100%;background:${w.nightPct > 40 ? 'var(--danger)' : w.nightPct > 25 ? 'var(--night)' : 'var(--success)'};border-radius:3px;"></div></div>
+      <span style="font-size:10px;color:var(--text3);">${w.nightPct}%</span></div>`;
+    const absDetail = Object.entries(w.absTypes).map(([k,v]) => k + ':' + v).join(' ');
+    html += `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:8px 12px;font-weight:500;white-space:nowrap;">${escHtml(w.name)}</td>
+      <td style="text-align:center;padding:8px 6px;color:var(--morning);font-weight:600;">${w.mC}</td>
+      <td style="text-align:center;padding:8px 6px;color:var(--evening);font-weight:600;">${w.tC}</td>
+      <td style="text-align:center;padding:8px 6px;color:var(--night);font-weight:600;">${w.nC}</td>
+      <td style="text-align:center;padding:8px 6px;color:var(--text3);">${w.dC}</td>
+      <td style="text-align:center;padding:8px 6px;color:var(--danger);" title="${absDetail}">${w.absC || '–'}</td>
+      <td style="text-align:center;padding:8px 6px;font-weight:600;">${w.horas}h</td>
+      <td style="text-align:center;padding:8px 6px;">${nightBar}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table></div></div>';
+  container.innerHTML = html;
+}
+
+// ========== KEYBOARD SHORTCUTS HELP PANEL ==========
+const KEYBOARD_SHORTCUTS = [
+  { key: '?', desc: 'Mostrar atajos de teclado' },
+  { key: '1', desc: 'Dashboard' },
+  { key: '2', desc: 'Planilla de turnos' },
+  { key: '3', desc: 'Mapa de cobertura' },
+  { key: '4', desc: 'Gestor de Ausencias' },
+  { key: '←', desc: 'Mes anterior' },
+  { key: '→', desc: 'Mes siguiente' },
+  { key: 'H', desc: 'Ir a hoy' },
+  { key: 'F', desc: 'Buscar trabajador' },
+  { key: 'I', desc: 'Abrir importador' },
+  { key: 'Esc', desc: 'Cerrar paneles' }
+];
+
+function showKeyboardShortcuts() {
+  let existing = document.getElementById('kbShortcutsOverlay');
+  if (existing) { existing.remove(); return; }
+  const overlay = document.createElement('div');
+  overlay.id = 'kbShortcutsOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  let inner = `<div style="background:var(--surface);border-radius:20px;padding:32px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1px solid var(--border);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h3 style="font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--primary);margin:0;">Atajos de teclado</h3>
+      <button onclick="document.getElementById('kbShortcutsOverlay').remove()" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;">`;
+  KEYBOARD_SHORTCUTS.forEach(s => {
+    inner += `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-radius:10px;">
+      <span style="font-size:13px;color:var(--text);">${s.desc}</span>
+      <kbd style="display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:26px;padding:0 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--text2);box-shadow:0 1px 2px rgba(0,0,0,0.06);">${s.key}</kbd>
+    </div>`;
+  });
+  inner += '</div></div>';
+  overlay.innerHTML = inner;
+  document.body.appendChild(overlay);
+}
+
+// Global keyboard shortcuts listener
+document.addEventListener('keydown', function(e) {
+  // Don't trigger when typing in inputs, textareas, or contenteditable
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+  // Don't trigger if modifiers are held (except shift for ?)
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+  switch(e.key) {
+    case '?':
+      e.preventDefault();
+      showKeyboardShortcuts();
+      break;
+    case '1':
+      e.preventDefault();
+      document.querySelector('[data-view="dashboard"]')?.click();
+      break;
+    case '2':
+      e.preventDefault();
+      document.querySelector('[data-view="schedule"]')?.click();
+      break;
+    case '3':
+      e.preventDefault();
+      document.querySelector('[data-view="coverage"]')?.click();
+      break;
+    case '4':
+      e.preventDefault();
+      document.querySelector('[data-view="absences"]')?.click();
+      break;
+    case 'ArrowLeft':
+      e.preventDefault();
+      if (typeof prevMonth === 'function') prevMonth();
+      break;
+    case 'ArrowRight':
+      e.preventDefault();
+      if (typeof nextMonth === 'function') nextMonth();
+      break;
+    case 'h':
+    case 'H':
+      e.preventDefault();
+      appState.currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      if (typeof renderSchedule === 'function') renderSchedule();
+      break;
+    case 'f':
+    case 'F':
+      e.preventDefault();
+      const searchInput = document.querySelector('#scheduleView input[type="text"], .search-input');
+      if (searchInput) { searchInput.focus(); searchInput.select(); }
+      break;
+    case 'i':
+    case 'I':
+      e.preventDefault();
+      if (typeof showImportModal === 'function') showImportModal();
+      break;
+    case 'Escape':
+      const kbOverlay = document.getElementById('kbShortcutsOverlay');
+      if (kbOverlay) kbOverlay.remove();
+      break;
+  }
+});
+
 // ========== SMART INSIGHTS ENGINE ==========
 function renderSmartInsights() {
   const el = document.getElementById('smartInsights');
@@ -18226,6 +18544,76 @@ function renderMapaCobertura() {
         </div>
       </div>`;
     }
+
+    // ─── Per-worker monthly summary table ───
+    html += `<div style="margin-top:24px;background:white;border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:14px;font-weight:700;color:var(--text1);">Resumen mensual por trabajador</div>
+        <button onclick="exportPlanillaExcel('${selectedPlanta}', ${year}, ${month});" style="padding:6px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:var(--font);font-size:11px;color:var(--text2);font-weight:600;">Exportar</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="background:var(--surface2);">
+              <th style="padding:10px 16px;text-align:left;font-weight:700;color:var(--text1);font-size:11px;">Trabajador</th>
+              <th style="padding:10px 12px;text-align:center;font-weight:700;color:#2e8b7a;font-size:11px;">M</th>
+              <th style="padding:10px 12px;text-align:center;font-weight:700;color:#4a9dd4;font-size:11px;">T</th>
+              <th style="padding:10px 12px;text-align:center;font-weight:700;color:#c9a84c;font-size:11px;">N</th>
+              <th style="padding:10px 12px;text-align:center;font-weight:700;color:#d94444;font-size:11px;">D</th>
+              <th style="padding:10px 12px;text-align:center;font-weight:700;color:#8b2020;font-size:11px;">Aus.</th>
+              <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text1);font-size:11px;">Horas</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+    plantWorkers.forEach((w, wi) => {
+      const counts = countWorkerShifts(w.id, year, month);
+      let ausencias = 0;
+      const shifts = sch[w.id] || [];
+      for (let d = 0; d < daysInMonth; d++) {
+        const s = (shifts[d] || '').toString().trim();
+        if (['VAC','BAJ','LD','INT','LAC','MTC','FOR','CAA','AE','HF','HS','PM','IQF'].includes(s)) ausencias++;
+      }
+      const rowBg = wi % 2 === 0 ? 'white' : '#f8fafc';
+      const isSup = PLANT_SUPERVISORS[selectedPlanta] && PLANT_SUPERVISORS[selectedPlanta].name && w.name && PLANT_SUPERVISORS[selectedPlanta].name.toLowerCase().trim() === w.name.toLowerCase().trim();
+
+      html += `<tr style="background:${rowBg};border-bottom:1px solid var(--border);">
+        <td style="padding:10px 16px;font-weight:600;color:var(--text1);white-space:nowrap;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            ${isSup ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="var(--accent)" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' : ''}
+            ${escHtml(w.name)}
+          </div>
+        </td>
+        <td style="padding:10px 12px;text-align:center;font-weight:700;color:#2e8b7a;">${counts.m}</td>
+        <td style="padding:10px 12px;text-align:center;font-weight:700;color:#4a9dd4;">${counts.t}</td>
+        <td style="padding:10px 12px;text-align:center;font-weight:700;color:#c9a84c;">${counts.n}</td>
+        <td style="padding:10px 12px;text-align:center;font-weight:700;color:#d94444;">${counts.d}</td>
+        <td style="padding:10px 12px;text-align:center;font-weight:700;color:#8b2020;">${ausencias}</td>
+        <td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text1);">${counts.h}h</td>
+      </tr>`;
+    });
+
+    // Totals row
+    let totM=0,totT=0,totN=0,totD=0,totAus=0,totH=0;
+    plantWorkers.forEach(w => {
+      const c = countWorkerShifts(w.id, year, month);
+      totM += c.m; totT += c.t; totN += c.n; totD += c.d; totH += c.h;
+      const shifts = sch[w.id] || [];
+      for (let d = 0; d < daysInMonth; d++) {
+        const s = (shifts[d] || '').toString().trim();
+        if (['VAC','BAJ','LD','INT','LAC','MTC','FOR','CAA','AE','HF','HS','PM','IQF'].includes(s)) totAus++;
+      }
+    });
+
+    html += `<tr style="background:var(--primary);color:white;font-weight:700;">
+      <td style="padding:10px 16px;">TOTAL</td>
+      <td style="padding:10px 12px;text-align:center;">${totM}</td>
+      <td style="padding:10px 12px;text-align:center;">${totT}</td>
+      <td style="padding:10px 12px;text-align:center;">${totN}</td>
+      <td style="padding:10px 12px;text-align:center;">${totD}</td>
+      <td style="padding:10px 12px;text-align:center;">${totAus}</td>
+      <td style="padding:10px 12px;text-align:center;">${totH}h</td>
+    </tr></tbody></table></div></div>`;
 
   } else {
     // ============ OVERVIEW — ultra-minimalist visual coverage ============
@@ -24246,6 +24634,62 @@ if ('serviceWorker' in navigator) {
       console.warn('[SW] Registration failed:', err.message);
     });
   });
+}
+
+// ===============================================================
+// FEATURE: Keyboard shortcuts help panel
+// ===============================================================
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' && !e.target.matches('input, textarea, select, [contenteditable]')) {
+    e.preventDefault();
+    toggleShortcutsHelp();
+  }
+  // Quick nav shortcuts
+  if (e.metaKey || e.ctrlKey) {
+    if (e.key === '1') { e.preventDefault(); switchView('dashboard'); }
+    if (e.key === '2') { e.preventDefault(); switchView('mapa-cobertura'); }
+    if (e.key === '3') { e.preventDefault(); switchView('import'); }
+    if (e.key === '4') { e.preventDefault(); switchView('gestor-ausencias'); }
+  }
+});
+
+function toggleShortcutsHelp() {
+  let panel = document.getElementById('shortcutsHelp');
+  if (panel) { panel.remove(); return; }
+
+  panel = document.createElement('div');
+  panel.id = 'shortcutsHelp';
+  panel.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+  panel.onclick = function(e) { if (e.target === panel) panel.remove(); };
+
+  const shortcuts = [
+    { key: '⌘ K', desc: 'Buscar trabajador o acción' },
+    { key: '⌘ 1', desc: 'Ir al Panel de Control' },
+    { key: '⌘ 2', desc: 'Mapa de Cobertura' },
+    { key: '⌘ 3', desc: 'Importar Planillas' },
+    { key: '⌘ 4', desc: 'Gestor de Ausencias' },
+    { key: '?', desc: 'Mostrar atajos de teclado' },
+    { key: 'Esc', desc: 'Cerrar panel / modal' }
+  ];
+
+  let html = '<div style="background:white;border-radius:20px;padding:32px;width:90%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">';
+  html += '<h3 style="font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--primary);margin:0;">Atajos de teclado</h3>';
+  html += '<button onclick="document.getElementById(\'shortcutsHelp\').remove()" style="background:none;border:none;cursor:pointer;padding:4px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+  html += '</div>';
+
+  shortcuts.forEach(s => {
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">';
+    html += '<span style="font-size:13px;color:var(--text2);">' + s.desc + '</span>';
+    html += '<kbd style="font-family:var(--font);font-size:11px;font-weight:600;color:var(--text1);background:var(--surface2);padding:4px 10px;border-radius:6px;border:1px solid var(--border);min-width:40px;text-align:center;">' + s.key + '</kbd>';
+    html += '</div>';
+  });
+
+  html += '<div style="margin-top:16px;text-align:center;font-size:11px;color:var(--text3);">Pulsa <kbd style="font-size:10px;background:var(--surface2);padding:2px 6px;border-radius:4px;border:1px solid var(--border);">?</kbd> o <kbd style="font-size:10px;background:var(--surface2);padding:2px 6px;border-radius:4px;border:1px solid var(--border);">Esc</kbd> para cerrar</div>';
+  html += '</div>';
+
+  panel.innerHTML = html;
+  document.body.appendChild(panel);
 }
 </script>
 
