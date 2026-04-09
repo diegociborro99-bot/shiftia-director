@@ -14749,6 +14749,43 @@ function openWorkerPanel(wId) {
       ${historyHtml}
     </div>
 
+    <div style="padding:16px 20px;border-top:1px solid var(--border);">
+      <div style="font-size:12px;font-weight:700;color:var(--text1);margin-bottom:12px;">Tendencia (últimos 6 meses)</div>
+      ${(() => {
+        const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const trendData = [];
+        const now = new Date();
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const y = d.getFullYear(), m = d.getMonth();
+          const key = y + '-' + m;
+          const sch = scheduleData[key] || {};
+          const shifts = sch[wId] || [];
+          let nights = 0, hours = 0, absences = 0;
+          shifts.forEach(s => {
+            s = (s || '').toString().trim();
+            if (s === 'N') nights++;
+            if (['VAC','BAJ','LD','INT','LAC','MTC','FOR','CAA'].includes(s)) absences++;
+            hours += (typeof RULES !== 'undefined' && RULES.SHIFT_HOURS ? (RULES.SHIFT_HOURS[s] || 0) : (s === 'M' || s === 'MR' ? 7 : s === 'T' ? 7 : s === 'N' ? 10 : 0));
+          });
+          trendData.push({ label: monthNames[m], nights, hours: Math.round(hours), absences });
+        }
+        const maxN = Math.max(...trendData.map(t => t.nights), 1);
+        let html = '';
+        trendData.forEach(t => {
+          const pct = Math.round((t.nights / maxN) * 100);
+          const barColor = t.nights > 7 ? '#dc2626' : t.nights > 5 ? '#d97706' : '#16a34a';
+          html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">';
+          html += '<span style="font-size:10px;color:var(--text3);min-width:28px;font-weight:600;">' + t.label + '</span>';
+          html += '<div style="flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;"><div style="width:' + pct + '%;height:100%;background:' + barColor + ';border-radius:3px;"></div></div>';
+          html += '<span style="font-size:10px;font-weight:700;color:' + barColor + ';min-width:16px;text-align:right;">' + t.nights + 'N</span>';
+          html += '<span style="font-size:9px;color:var(--text3);min-width:32px;">' + t.hours + 'h</span>';
+          html += '</div>';
+        });
+        return html;
+      })()}
+    </div>
+
     <div style="margin-top:16px;display:flex;gap:8px;">
       <button onclick="closeWorkerPanel();openBulkEdit();setTimeout(()=>{document.querySelector('#bulkEditModal select').value=${wId};bulkEditState.worker=${wId};},100)" style="flex:1;padding:10px;border-radius:10px;border:none;background:var(--accent);color:white;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Edicion masiva</button>
       <button onclick="closeWorkerPanel();goToWorkerSchedule(${wId})" style="flex:1;padding:10px;border-radius:10px;border:none;background:var(--surface2);color:var(--text);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Ver en planilla</button>
@@ -17493,10 +17530,72 @@ function openShiftEditor(workerId, dayIndex, year, month) {
     { code: 'INT', name: 'Incapacidad', color: '#8a8a6a' }
   ];
 
-  const popoverHtml = `<div id="${popoverId}" style="position:absolute; background:white; border:1px solid var(--border); border-radius:8px; padding:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:10000; min-width:160px;">
-    <div style="font-size:10px; color:var(--text3); font-weight:600; margin-bottom:6px; text-transform:uppercase;">Cambiar turno</div>
-    <div style="display:flex; flex-direction:column; gap:4px;">
-      ${shiftOptions.map(opt => `<div onclick="applyShiftChange(${workerId}, ${dayIndex}, '${opt.code}', ${year}, ${month}); document.getElementById('${popoverId}').remove();" style="padding:6px 8px; background:${opt.color}; color:white; border-radius:4px; cursor:pointer; font-size:11px; font-weight:500; transition:all 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">${opt.code} - ${opt.name}</div>`).join('')}
+  // Calculate current coverage for this day
+  const dayCov = {};
+  ['M','T','N'].forEach(shift => {
+    const covData = PLANT_COVERAGE[selectedPlanta] || {};
+    const minReq = (covData[shift] || {}).min || 0;
+    let count = 0;
+    workers.filter(w => w.planta === selectedPlanta).forEach(w => {
+      const s = sch[w.id] ? (sch[w.id][dayIndex] || '').toString().trim() : '';
+      const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+      if (eff === shift) count++;
+    });
+    dayCov[shift] = { count, needed: minReq, ok: count >= minReq };
+  });
+
+  const covHtml = ['M','T','N'].map(s => {
+    const d = dayCov[s];
+    const color = d.needed === 0 ? '#94a3b8' : (d.ok ? '#16a34a' : '#dc2626');
+    const label = s === 'M' ? 'Mañ' : s === 'T' ? 'Tar' : 'Noc';
+    return '<div style="text-align:center;flex:1;"><div style="font-size:9px;color:var(--text3);font-weight:600;">' + label + '</div><div style="font-size:13px;font-weight:800;color:' + color + ';">' + d.count + '/' + d.needed + '</div></div>';
+  }).join('');
+
+  const w = workers.find(x => x.id === workerId);
+  const workerName = w ? escHtml(w.name) : '';
+
+  const popoverHtml = `<div id="${popoverId}" style="position:absolute; background:white; border:1px solid var(--border); border-radius:14px; padding:0; box-shadow:0 12px 40px rgba(0,0,0,0.15); z-index:10000; min-width:220px; overflow:hidden;">
+    <div style="padding:12px 16px; border-bottom:1px solid var(--border); background:var(--surface2);">
+      <div style="font-size:12px; font-weight:700; color:var(--text1); margin-bottom:2px;">${workerName}</div>
+      <div style="font-size:10px; color:var(--text3);">Día ${dayIndex + 1} · Turno actual: <span style="font-weight:700; color:var(--primary);">${currentShift || '—'}</span></div>
+    </div>
+    <div style="padding:8px 16px; border-bottom:1px solid var(--border); display:flex; gap:4px;">
+      ${covHtml}
+    </div>
+    <div style="padding:8px 12px; max-height:220px; overflow-y:auto;">
+      <div style="display:flex; flex-direction:column; gap:3px;">
+        ${shiftOptions.map(opt => {
+          // Calculate impact: what happens if we change to this shift
+          let impactHtml = '';
+          const oldEff = ['MR','M7H','M6R','M55'].includes(currentShift) ? 'M' : currentShift;
+          const newEff = ['MR','M7H','M6R','M55'].includes(opt.code) ? 'M' : opt.code;
+          if (oldEff !== newEff) {
+            const changes = [];
+            if (['M','T','N'].includes(oldEff)) {
+              const newCount = dayCov[oldEff].count - 1;
+              const needed = dayCov[oldEff].needed;
+              if (newCount < needed) changes.push('<span style="color:#dc2626;font-size:9px;">↓' + oldEff + ' ' + newCount + '/' + needed + '</span>');
+            }
+            if (['M','T','N'].includes(newEff)) {
+              const newCount = dayCov[newEff].count + 1;
+              const needed = dayCov[newEff].needed;
+              if (dayCov[newEff].count < needed && newCount >= needed) changes.push('<span style="color:#16a34a;font-size:9px;">↑' + newEff + ' OK</span>');
+            }
+            if (changes.length > 0) impactHtml = '<div style="display:flex;gap:4px;margin-top:1px;">' + changes.join('') + '</div>';
+          }
+
+          const isActive = opt.code === currentShift;
+          const shiftCode = opt.code.replace(/'/g, "\\'");
+          const popId = popoverId.replace(/'/g, "\\'");
+          const colorEsc12 = (opt.color + '12').replace(/'/g, "\\'");
+          const colorEsc15 = (opt.color + '15').replace(/'/g, "\\'");
+          return '<div onclick="applyShiftChange(' + workerId + ', ' + dayIndex + ', \'' + shiftCode + '\', ' + year + ', ' + month + '); document.getElementById(\'' + popId + '\').remove();" style="padding:8px 12px; background:' + (isActive ? opt.color + '15' : 'transparent') + '; border-radius:8px; cursor:pointer; transition:all 0.15s; display:flex; align-items:center; gap:10px;' + (isActive ? 'border:1px solid ' + opt.color + '40;' : 'border:1px solid transparent;') + '" onmouseover="this.style.background=\'' + colorEsc12 + '\'" onmouseout="this.style.background=\'' + (isActive ? colorEsc15 : 'transparent') + '\'">' +
+            '<div style="width:28px;height:28px;border-radius:8px;background:' + opt.color + ';color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">' + opt.code + '</div>' +
+            '<div style="flex:1;"><div style="font-size:12px;font-weight:600;color:var(--text1);">' + opt.name + '</div>' + impactHtml + '</div>' +
+            (isActive ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + opt.color + '" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>' : '') +
+          '</div>';
+        }).join('')}
+      </div>
     </div>
   </div>`;
 
@@ -18245,63 +18344,92 @@ function renderGestorAusencias() {
   const container = document.getElementById('gestorAusenciasContent');
   if (!container) return;
 
-  // This delegates to the gestor overlay functionality
-  // We'll render a simple interface that opens the gestor
-  let html = `
-    <div style="max-width: 800px; margin: 0 auto;">
-      <h2 style="font-size: 28px; font-weight: 400; margin-bottom: 8px;">Gestor de Ausencias</h2>
-      <p style="color: var(--text2); font-size: 13px; margin-bottom: 32px; line-height: 1.6;">
-        Registra y gestiona bajas, vacaciones y ausencias de los trabajadores. La IA ayudará a cubrir los huecos detectados.
-      </p>
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const sch = genSchedule(year, month);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px;">
-        <div onclick="openGestor()" style="
-          cursor: pointer;
-          background: white;
-          border: 2px solid var(--border);
-          border-radius: 12px;
-          padding: 20px;
-          text-align: center;
-          transition: all 0.3s;
-        " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 4px 12px rgba(26,54,93,0.1)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
-          <div style="font-size: 36px; margin-bottom: 12px;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M9 21v-4h6v4"/></svg></div>
-          <h3 style="font-size: 14px; font-weight: 600; color: var(--primary); margin-bottom: 4px;">Registrar Ausencia</h3>
-          <p style="color: var(--text3); font-size: 12px;">Baja, IT, vacaciones, etc.</p>
-        </div>
+  // Collect all absences this month
+  const absences = [];
+  const absenceTypes = ['VAC','BAJ','LD','INT','LAC','MTC','FOR','CAA','AE','HF','HS','PM','IQF'];
+  const absenceLabels = {VAC:'Vacaciones',BAJ:'Baja',LD:'Libre Disp.',INT:'Incapacidad',LAC:'Lactancia',MTC:'Maternidad',FOR:'Formación',CAA:'Comp. Académica',AE:'Ausencia',HF:'Hosp. Familiar',HS:'Sindicales',PM:'Permiso',IQF:'Int. Quirúrgica'};
+  const absenceColors = {VAC:'#8b2020',BAJ:'#cc4444',LD:'#5a8abf',INT:'#8a8a6a',LAC:'#c06090',MTC:'#d070a0',FOR:'#d4883a',CAA:'#7a8a6a',AE:'#a8a832',HF:'#7a5a9a',HS:'#5a7a5a',PM:'#c06080',IQF:'#7a5080'};
 
-        <div onclick="openGestor()" style="
-          cursor: pointer;
-          background: white;
-          border: 2px solid var(--border);
-          border-radius: 12px;
-          padding: 20px;
-          text-align: center;
-          transition: all 0.3s;
-        " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 4px 12px rgba(26,54,93,0.1)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
-          <div style="margin-bottom:12px;display:flex;justify-content:center;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary);"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-4.25M20.49 15a9 9 0 0 1-14.85 4.25"/></svg></div>
-          <h3 style="font-size: 14px; font-weight: 600; color: var(--primary); margin-bottom: 4px;">Cambio de Turno</h3>
-          <p style="color: var(--text3); font-size: 12px;">Reassignar turnos</p>
-        </div>
+  workers.forEach(w => {
+    if (!sch[w.id]) return;
+    const wAbsences = [];
+    for (let d = 0; d < daysInMonth; d++) {
+      const s = (sch[w.id][d] || '').toString().trim();
+      if (absenceTypes.includes(s)) {
+        wAbsences.push({ day: d + 1, type: s });
+      }
+    }
+    if (wAbsences.length > 0) {
+      absences.push({ worker: w, days: wAbsences, total: wAbsences.length });
+    }
+  });
 
-        <div onclick="openGestor()" style="
-          cursor: pointer;
-          background: white;
-          border: 2px solid var(--border);
-          border-radius: 12px;
-          padding: 20px;
-          text-align: center;
-          transition: all 0.3s;
-        " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='0 4px 12px rgba(26,54,93,0.1)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
-          <div style="font-size: 36px; margin-bottom: 12px;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-          <h3 style="font-size: 14px; font-weight: 600; color: var(--primary); margin-bottom: 4px;">Historial</h3>
-          <p style="color: var(--text3); font-size: 12px;">Ver ausencias pasadas</p>
-        </div>
+  // Count by type
+  const typeCounts = {};
+  absences.forEach(a => a.days.forEach(d => { typeCounts[d.type] = (typeCounts[d.type] || 0) + 1; }));
+
+  let html = `<div style="max-width:1000px;margin:0 auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <div>
+        <h2 style="font-family:var(--font-display);font-size:26px;font-weight:400;color:var(--primary);margin:0;">Gestor de Ausencias</h2>
+        <p style="font-size:12px;color:var(--text3);margin-top:4px;">${monthNames[month]} ${year} · ${absences.length} trabajadores con ausencias</p>
       </div>
+      <button onclick="openGestor()" style="padding:10px 20px;background:var(--primary);color:white;border:none;border-radius:10px;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:middle;margin-right:6px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Registrar ausencia
+      </button>
+    </div>`;
 
-      <div id="gestorAusenciasListContainer" style="margin-top: 32px;"></div>
-    </div>
-  `;
+  // Type summary cards
+  const activeTypes = Object.entries(typeCounts).sort((a,b) => b[1] - a[1]);
+  if (activeTypes.length > 0) {
+    html += '<div style="display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;">';
+    activeTypes.forEach(([type, count]) => {
+      const color = absenceColors[type] || '#999';
+      const label = absenceLabels[type] || type;
+      html += '<div style="padding:10px 16px;background:' + color + '08;border:1px solid ' + color + '25;border-radius:10px;display:flex;align-items:center;gap:8px;">';
+      html += '<div style="width:8px;height:8px;border-radius:50%;background:' + color + ';"></div>';
+      html += '<span style="font-size:12px;font-weight:600;color:var(--text1);">' + count + '</span>';
+      html += '<span style="font-size:11px;color:var(--text3);">' + label + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
 
+  // Absence list by worker
+  if (absences.length === 0) {
+    html += '<div style="text-align:center;padding:48px;background:white;border:1px solid var(--border);border-radius:16px;"><div style="font-size:14px;color:var(--text3);">No hay ausencias registradas este mes</div></div>';
+  } else {
+    absences.sort((a, b) => b.total - a.total);
+    html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+    absences.forEach(a => {
+      const w = a.worker;
+      const roleColor = w.type === 'enf' ? '#2e8b7a' : w.area === 'micro' ? '#9a6abf' : '#4a9dd4';
+      const plantName = (PLANTAS.find(p => p.id === w.planta) || {}).short || '—';
+
+      html += '<div style="background:white;border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;">';
+      html += '<div style="width:36px;height:36px;border-radius:10px;background:' + roleColor + ';display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;flex-shrink:0;">' + (w.name || '?').charAt(0).toUpperCase() + '</div>';
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div style="font-size:13px;font-weight:600;color:var(--text1);display:flex;align-items:center;gap:6px;">' + escHtml(w.name) + '<span style="font-size:9px;font-weight:700;color:var(--text3);background:var(--surface2);padding:2px 6px;border-radius:4px;">' + plantName + '</span></div>';
+      html += '<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">';
+      a.days.forEach(d => {
+        const color = absenceColors[d.type] || '#999';
+        html += '<span style="font-size:10px;padding:2px 8px;background:' + color + '15;color:' + color + ';border-radius:4px;font-weight:600;">Día ' + d.day + ' · ' + d.type + '</span>';
+      });
+      html += '</div></div>';
+      html += '<div style="text-align:right;flex-shrink:0;"><div style="font-size:18px;font-weight:800;color:var(--primary);">' + a.total + '</div><div style="font-size:9px;color:var(--text3);">días</div></div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  html += '</div>';
   container.innerHTML = html;
 }
 
