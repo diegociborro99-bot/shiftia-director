@@ -431,17 +431,23 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   font-weight: 600;
 }
 
-.nav-tab.active::after {
+.nav-tab::after {
   content: '';
   position: absolute;
   bottom: -6px;
-  left: 10%;
-  right: 10%;
+  left: 50%;
+  width: 0;
   height: 2.5px;
   background: var(--accent);
   border-radius: 2px;
-  animation: tabIndicatorIn 0.25s ease-out;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(-50%);
 }
+
+.nav-tab.active::after {
+  width: 60%;
+}
+
 @keyframes tabIndicatorIn {
   from { transform: scaleX(0); opacity: 0; }
   to { transform: scaleX(1); opacity: 1; }
@@ -508,10 +514,15 @@ button:active, .nav-btn:active, .btn:active {
 
 .view-panel {
   display: none;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .view-panel.active {
   display: block;
+  opacity: 1;
+  transform: translateY(0);
   animation: viewFadeIn 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
@@ -533,6 +544,11 @@ button:active, .nav-btn:active, .btn:active {
 @keyframes fadeInScale {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes cardSlideIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideInRight {
@@ -1039,16 +1055,16 @@ table.schedule td.name-cell:hover {
   font-weight: 700;
   font-size: 10.5px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
   user-select: none;
   letter-spacing: 0.3px;
   border: 1px solid transparent;
 }
 
 .shift-pill:hover {
-  transform: scale(1.18) translateY(-2px);
-  z-index: 3;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  transform: scale(1.12);
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
   position: relative;
   border-color: rgba(0,0,0,0.08);
 }
@@ -1333,17 +1349,33 @@ table.schedule td.name-cell:hover {
   font-weight: 500;
   box-shadow: 0 4px 20px rgba(0,0,0,0.2);
   opacity: 0;
-  transform: translateY(20px) scale(0.9);
+  transform: translateX(100%) scale(0.95);
   transition: all 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
   pointer-events: auto;
   border-left: 4px solid;
   min-width: 240px;
   max-width: 360px;
+  animation: toastSlideIn 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .toast.show {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateX(0) scale(1);
+  animation: toastSlideIn 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.toast.hide {
+  animation: toastSlideOut 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+@keyframes toastSlideIn {
+  from { transform: translateX(100%) scale(0.95); opacity: 0; }
+  to { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+@keyframes toastSlideOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
 }
 
 .toast.success {
@@ -7936,6 +7968,20 @@ table.schedule tbody tr:hover {
 .cov-hm-cell.hm-warn { background: #e67e22; }
 .cov-hm-cell.hm-crit { background: #cc4444; }
 .cov-hm-cell.hm-off { background: var(--surface2); color: var(--text3); }
+.cov-hm-cell[data-tooltip]:hover::after {
+  content: attr(data-tooltip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-4px);
+  background: rgba(0,0,0,0.8); color: white; padding: 6px 10px; border-radius: 4px; font-size: 9px;
+  white-space: nowrap; z-index: 100; font-weight: 500; pointer-events: none;
+}
+.cov-hm-detail-row { display: none; padding: 8px 0; border-top: 1px solid var(--border); margin-top: 8px; }
+.cov-hm-detail-row.open { display: grid; }
+.heatmap-export-btn {
+  padding: 6px 12px; background: var(--accent); color: white; border: none; border-radius: 6px;
+  font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  font-family: inherit; margin-left: auto;
+}
+.heatmap-export-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(212,168,67,0.3); }
+.heatmap-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 
 /* Conflict predictions */
 .dash-alerts {
@@ -8092,6 +8138,9 @@ table.schedule tbody tr:hover {
   font-size: 8px; font-weight: 700; padding: 2px 7px; border-radius: 5px;
   text-transform: uppercase; letter-spacing: 0.5px;
 }
+.gs-result.gs-action { border-left: 3px solid var(--accent); background: rgba(212,168,67,0.06); }
+.gs-result.gs-action:hover, .gs-result.gs-action.gs-selected { background: rgba(212,168,67,0.12); }
+.gs-result-kbd { font-size: 9px; color: var(--text3); background: var(--surface2); padding: 2px 6px; border-radius: 3px; margin-left: auto; flex-shrink: 0; }
 .gs-empty { padding: 36px 20px; text-align: center; color: var(--text3); font-size: 13px; }
 .gs-footer {
   padding: 10px 20px;
@@ -8454,6 +8503,9 @@ table.schedule tbody tr:hover {
             text-align: center;
             position: relative;
             box-shadow: var(--shadow-sm);
+            animation: cardSlideIn 0.3s ease forwards;
+            animation-delay: 0ms;
+            opacity: 0;
           " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='-sm';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='var(--shadow-sm)';this.style.transform='translateY(0)'">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">IMPORTAR PLANILLAS</h2>
@@ -8478,6 +8530,9 @@ table.schedule tbody tr:hover {
             transition: var(--transition);
             text-align: center;
             box-shadow: var(--shadow-sm);
+            animation: cardSlideIn 0.3s ease forwards;
+            animation-delay: 60ms;
+            opacity: 0;
           " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='var(--shadow-sm)';this.style.transform='translateY(0)'">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">MAPA DE COBERTURA</h2>
@@ -8502,6 +8557,9 @@ table.schedule tbody tr:hover {
             transition: var(--transition);
             text-align: center;
             box-shadow: var(--shadow-sm);
+            animation: cardSlideIn 0.3s ease forwards;
+            animation-delay: 120ms;
+            opacity: 0;
           " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='var(--shadow-sm)';this.style.transform='translateY(0)'">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 11v6"/><path d="M9 14h6"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">GESTOR DE AUSENCIAS</h2>
@@ -8526,6 +8584,9 @@ table.schedule tbody tr:hover {
             transition: var(--transition);
             text-align: center;
             box-shadow: var(--shadow-sm);
+            animation: cardSlideIn 0.3s ease forwards;
+            animation-delay: 180ms;
+            opacity: 0;
           " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='var(--shadow-sm)';this.style.transform='translateY(0)'">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/><circle cx="9" cy="15" r="1"/><circle cx="15" cy="15" r="1"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">GESTOR DE COBERTURA</h2>
@@ -8545,6 +8606,8 @@ table.schedule tbody tr:hover {
         <div id="weeklyDashboard" style="margin-top:32px;"></div>
         <div id="smartInsights" style="margin-top:32px;"></div>
         <div id="plantComparison" style="margin-top:32px;"></div>
+        <div id="coverageRiskGauge" style="margin-top:32px;"></div>
+        <div id="fatigueRecommendations" style="margin-top:12px;"></div>
         <div id="auditLogContainer" style="margin-top:32px;"></div>
       </div>
     </div>
@@ -9193,6 +9256,381 @@ function suggestCoverageAssignment(gap, unplannedWorkers) {
   return candidates.sort((a, b) => b.score - a.score).slice(0, 3);
 }
 
+// ========== TASK 1: 7-DAY PREDICTIVE COVERAGE RISK GAUGE ==========
+function renderCoverageRiskGauge() {
+  const container = document.getElementById('coverageRiskGauge');
+  if (!container) return;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  // Calculate coverage for next 7 days
+  const sevenDayData = [];
+  let totalGaps = 0;
+
+  for (let i = 0; i < 7; i++) {
+    const dayDate = new Date(year, month, now.getDate() + i);
+    const dayIdx = dayDate.getDate() - 1;
+    const dayYear = dayDate.getFullYear();
+    const dayMonth = dayDate.getMonth();
+    const sch = genSchedule(dayYear, dayMonth);
+
+    let dayGaps = 0;
+    let dayShiftsChecked = 0;
+
+    // Check all shifts for all plants
+    PLANTAS.forEach(planta => {
+      ['M', 'T', 'N'].forEach(shift => {
+        const plantWorkers = workers.filter(w => w.planta === planta.id);
+        let onShift = 0;
+        plantWorkers.forEach(w => {
+          const s = sch[w.id] ? (sch[w.id][dayIdx] || '').toString().trim() : '';
+          const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+          if (eff === shift) onShift++;
+        });
+        const needed = (PLANT_COVERAGE[planta.id] || {})[shift]?.min || 0;
+        dayShiftsChecked++;
+        if (needed > 0 && onShift < needed) {
+          dayGaps += (needed - onShift);
+        }
+      });
+    });
+
+    totalGaps += dayGaps;
+    const riskScore = dayShiftsChecked > 0 ? Math.round(100 - (dayGaps / dayShiftsChecked * 20)) : 100;
+    const riskScore_clamped = Math.max(0, Math.min(100, riskScore));
+
+    const dayName = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][dayDate.getDay()];
+
+    sevenDayData.push({
+      date: dayDate,
+      dayName: dayName,
+      dayNum: dayDate.getDate(),
+      gaps: dayGaps,
+      riskScore: riskScore_clamped,
+      color: riskScore_clamped >= 80 ? '#16a34a' : riskScore_clamped >= 50 ? '#eab308' : '#dc2626'
+    });
+  }
+
+  // Build HTML
+  let html = `<div style="background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:18px 20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span style="font-family:var(--font-display);font-size:16px;font-weight:400;color:var(--primary);">Previsión de cobertura</span>
+      <span style="font-size:11px;color:var(--text3);">Próximos 7 días</span>
+    </div>`;
+
+  // 7-day bar chart
+  html += `<div style="display:flex;gap:4px;height:40px;align-items:flex-end;margin-bottom:12px;">`;
+  sevenDayData.forEach((day, idx) => {
+    const heightPct = Math.max(5, (day.riskScore / 100) * 100);
+    html += `<div style="flex:1;background:${day.color};border-radius:4px;height:${heightPct}%;cursor:pointer;transition:all 0.2s;opacity:0.8;"
+      onmouseover="this.style.opacity='1';this.style.transform='scaleY(1.05)'"
+      onmouseout="this.style.opacity='0.8';this.style.transform='scaleY(1)'"
+      onclick="showCoverageDayTooltip(event, ${idx})"
+      title="${day.dayName} ${day.dayNum}: ${day.gaps} brechas, riesgo: ${100-day.riskScore}%"></div>`;
+  });
+  html += `</div>`;
+
+  // Day labels
+  html += `<div style="display:flex;gap:4px;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:12px;">`;
+  sevenDayData.forEach((day, idx) => {
+    html += `<div style="flex:1;text-align:center;cursor:pointer;" onclick="showCoverageDayTooltip(event, ${idx})">${day.dayName}</div>`;
+  });
+  html += `</div>`;
+
+  // Summary
+  const summaryColor = totalGaps === 0 ? '#16a34a' : totalGaps <= 5 ? '#eab308' : '#dc2626';
+  const summaryText = totalGaps === 0 ? '✓ Cobertura completa en 7 días' : ('⚠️ ' + totalGaps + ' brechas detectadas');
+  html += `<div style="padding:10px 12px;background:${summaryColor}14;border:1px solid ${summaryColor}40;border-radius:8px;text-align:center;">
+    <div style="font-size:12px;font-weight:600;color:var(--primary);">
+      ${summaryText}
+    </div>
+  </div>`;
+
+  // Store data for tooltips
+  window._coverageRiskData = sevenDayData;
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+// Helper: Show coverage day tooltip
+function showCoverageDayTooltip(event, dayIdx) {
+  event.stopPropagation();
+  const data = window._coverageRiskData;
+  if (!data || !data[dayIdx]) return;
+
+  const day = data[dayIdx];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const dayDate = new Date(year, month, now.getDate() + dayIdx);
+  const dayIdxInMonth = dayDate.getDate() - 1;
+  const dayYear = dayDate.getFullYear();
+  const dayMonth = dayDate.getMonth();
+  const sch = genSchedule(dayYear, dayMonth);
+
+  // Collect gaps
+  const gapsByPlant = {};
+  PLANTAS.forEach(planta => {
+    gapsByPlant[planta.id] = { name: planta.name, shifts: {} };
+    ['M', 'T', 'N'].forEach(shift => {
+      const plantWorkers = workers.filter(w => w.planta === planta.id);
+      let onShift = 0;
+      plantWorkers.forEach(w => {
+        const s = sch[w.id] ? (sch[w.id][dayIdxInMonth] || '').toString().trim() : '';
+        const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+        if (eff === shift) onShift++;
+      });
+      const needed = (PLANT_COVERAGE[planta.id] || {})[shift]?.min || 0;
+      if (needed > 0 && onShift < needed) {
+        const shiftName = shift === 'M' ? 'Mañana' : shift === 'T' ? 'Tarde' : 'Noche';
+        gapsByPlant[planta.id].shifts[shift] = { have: onShift, need: needed, name: shiftName };
+      }
+    });
+  });
+
+  let tooltipHtml = `<div style="position:fixed;top:${event.clientY-10}px;left:${event.clientX}px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:10000;max-width:320px;font-size:12px;">
+    <div style="font-weight:600;color:var(--primary);margin-bottom:10px;">${day.dayName} ${day.dayNum} - ${Object.keys(gapsByPlant).filter(p => Object.keys(gapsByPlant[p].shifts).length > 0).length} plantas con brechas</div>`;
+
+  let hasGaps = false;
+  Object.entries(gapsByPlant).forEach(([plantId, plant]) => {
+    if (Object.keys(plant.shifts).length === 0) return;
+    hasGaps = true;
+    tooltipHtml += `<div style="margin:8px 0;padding:8px;background:var(--surface2);border-radius:6px;">
+      <div style="font-weight:600;color:var(--text);margin-bottom:4px;">${plant.name}</div>`;
+    Object.entries(plant.shifts).forEach(([shift, info]) => {
+      tooltipHtml += `<div style="font-size:11px;color:var(--danger);margin:2px 0;">• ${info.name}: ${info.have}/${info.need}</div>`;
+    });
+    tooltipHtml += `</div>`;
+  });
+
+  if (!hasGaps) {
+    tooltipHtml += `<div style="color:var(--text2);font-style:italic;">Sin brechas detectadas</div>`;
+  }
+
+  tooltipHtml += `</div>`;
+
+  // Remove old tooltips
+  document.querySelectorAll('[id^="coverage-tooltip-"]').forEach(el => el.remove());
+
+  const tooltipEl = document.createElement('div');
+  tooltipEl.id = 'coverage-tooltip-' + dayIdx;
+  tooltipEl.innerHTML = tooltipHtml;
+  document.body.appendChild(tooltipEl.firstChild);
+
+  // Remove tooltip on click outside
+  setTimeout(() => {
+    document.addEventListener('click', function removeTooltip() {
+      const tt = document.getElementById('coverage-tooltip-' + dayIdx);
+      if (tt) tt.remove();
+      document.removeEventListener('click', removeTooltip);
+    });
+  }, 10);
+}
+
+// ========== TASK 2: FATIGUE SMART RECOMMENDATIONS PANEL ==========
+function renderFatigueRecommendations() {
+  const container = document.getElementById('fatigueRecommendations');
+  if (!container) return;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const sch = genSchedule(year, month);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const recommendations = [];
+
+  workers.forEach(w => {
+    // Count consecutive working days ending today or in past
+    let maxConsecutive = 0;
+    let currentConsecutive = 0;
+    let nightsInLast7 = 0;
+    const todayIdx = now.getDate() - 1;
+
+    // Analyze shifts
+    for (let d = 0; d <= todayIdx && d < daysInMonth; d++) {
+      const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+      const isWorking = s && s !== 'D' && !['VAC','BAJ','FOR','LAC','MTC','HS','CAA','INT'].includes(s);
+
+      if (isWorking) {
+        currentConsecutive++;
+        maxConsecutive = Math.max(maxConsecutive, currentConsecutive);
+      } else {
+        currentConsecutive = 0;
+      }
+
+      // Count nights in last 7 days
+      if (d >= Math.max(0, todayIdx - 6) && s === 'N') {
+        nightsInLast7++;
+      }
+    }
+
+    // Check for N->M transitions (risky: night then morning)
+    let hasNMTransition = false;
+    for (let d = 1; d <= todayIdx && d < daysInMonth; d++) {
+      const prevS = sch[w.id] ? (sch[w.id][d-1] || '').toString().trim() : '';
+      const currS = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+      const prevEff = ['MR','M7H','M6R','M55'].includes(prevS) ? 'M' : prevS;
+      const currEff = ['MR','M7H','M6R','M55'].includes(currS) ? 'M' : currS;
+      if (prevEff === 'N' && currEff === 'M') {
+        hasNMTransition = true;
+      }
+    }
+
+    // Generate recommendations
+    let riskLevel = 0; // 0=none, 1=low, 2=medium, 3=high
+    let reason = '';
+
+    if (maxConsecutive > 5) {
+      riskLevel = 3;
+      reason = `${maxConsecutive} días consecutivos`;
+    }
+    if (nightsInLast7 > 3) {
+      riskLevel = Math.max(riskLevel, 2);
+      if (reason) reason += ' + ';
+      reason += `${nightsInLast7} noches en 7 días`;
+    }
+    if (hasNMTransition && riskLevel < 2) {
+      riskLevel = Math.max(riskLevel, 1);
+      if (reason) reason += ' + ';
+      reason += 'Turnos N→M sin descanso';
+    }
+
+    if (riskLevel > 0) {
+      recommendations.push({
+        workerId: w.id,
+        workerName: w.name,
+        riskLevel: riskLevel,
+        reason: reason,
+        maxConsecutive: maxConsecutive,
+        nightsInLast7: nightsInLast7,
+        hasNMTransition: hasNMTransition
+      });
+    }
+  });
+
+  // Sort by risk and take top 5
+  recommendations.sort((a, b) => {
+    if (b.riskLevel !== a.riskLevel) return b.riskLevel - a.riskLevel;
+    return b.maxConsecutive - a.maxConsecutive;
+  });
+  recommendations.splice(5);
+
+  // Build HTML
+  let html = `<div style="background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:18px 20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span style="font-family:var(--font-display);font-size:16px;font-weight:400;color:var(--primary);">Recomendaciones de descanso</span>
+      <span style="font-size:11px;color:var(--text3);">Top ${recommendations.length}</span>
+    </div>`;
+
+  if (recommendations.length === 0) {
+    html += `<div style="padding:12px;text-align:center;color:var(--text3);font-size:13px;">✓ Sin alertas de fatiga detectadas</div>`;
+  } else {
+    recommendations.forEach(rec => {
+      const colors = ['#10b981', '#f59e0b', '#ef4444']; // low, medium, high
+      const color = colors[rec.riskLevel - 1] || '#10b981';
+      const icon = rec.riskLevel === 1 ? '⚠️' : rec.riskLevel === 2 ? '🔶' : '🔴';
+
+      html += `<div style="display:flex;gap:12px;padding:12px;background:${color}14;border:1px solid ${color}40;border-radius:8px;margin-bottom:8px;align-items:center;">
+        <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:600;color:var(--text);">${escHtml(rec.workerName)}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px;">${escHtml(rec.reason)}</div>
+        </div>
+        <button onclick="openWorkerPanel(${rec.workerId})" style="padding:6px 12px;background:${color};color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">Ver perfil</button>
+      </div>`;
+    });
+  }
+
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+// ========== TASK 3: DOMINO EFFECT WARNING ON SHIFT CHANGES ==========
+function checkAndWarnShiftChangeGaps(workerId, dayIndex, newShift, year, month) {
+  const key = year + '-' + month;
+  const testSchedule = { ...scheduleData[key] || {} };
+  if (!testSchedule[workerId]) testSchedule[workerId] = [];
+  const oldShift = testSchedule[workerId][dayIndex] || '';
+  testSchedule[workerId][dayIndex] = newShift;
+
+  // Check coverage impact
+  const oldEff = ['MR','M7H','M6R','M55'].includes(oldShift) ? 'M' : oldShift;
+  const newEff = ['MR','M7H','M6R','M55'].includes(newShift) ? 'M' : newShift;
+
+  if (oldEff === newEff || !['M','T','N'].includes(oldEff) || !['M','T','N'].includes(newEff)) {
+    return null; // No coverage change
+  }
+
+  // Find affected plant
+  const worker = workers.find(w => w.id === workerId);
+  if (!worker) return null;
+
+  const plantId = worker.planta;
+  const plantWorkers = workers.filter(w => w.planta === plantId);
+  const needed = (PLANT_COVERAGE[plantId] || {})[oldEff]?.min || 0;
+
+  if (needed === 0) return null; // No requirement for this shift
+
+  // Count current coverage for old shift
+  let count = 0;
+  plantWorkers.forEach(w => {
+    if (w.id === workerId) return;
+    const sch = genSchedule(year, month);
+    const s = sch[w.id] ? (sch[w.id][dayIndex] || '').toString().trim() : '';
+    const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+    if (eff === oldEff) count++;
+  });
+
+  const newCount = count; // Not adding current worker
+  if (newCount < needed) {
+    const planta = PLANTAS.find(p => p.id === plantId);
+    const shiftName = oldEff === 'M' ? 'Mañana' : oldEff === 'T' ? 'Tarde' : 'Noche';
+    return {
+      plantaName: planta?.name || plantId,
+      shift: shiftName,
+      have: newCount,
+      need: needed,
+      gap: needed - newCount
+    };
+  }
+
+  return null;
+}
+
+function showUndoToast(workerId, dayIndex, oldShift, year, month) {
+  const toastId = 'undo-toast-' + workerId + '-' + dayIndex;
+  let existing = document.getElementById(toastId);
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = toastId;
+  toast.innerHTML = `<div style="position:fixed;bottom:24px;right:24px;background:var(--accent);color:white;padding:12px 16px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:10001;display:flex;align-items:center;gap:12px;font-size:13px;animation:slideInUp 0.3s ease;">
+    <span>Turno cambiado</span>
+    <button onclick="undoShiftChange(${workerId}, ${dayIndex}, '${oldShift.replace(/'/g, "\\'")}', ${year}, ${month}); document.getElementById('${toastId}').remove();" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">Deshacer</button>
+  </div>`;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    const el = document.getElementById(toastId);
+    if (el) el.remove();
+  }, 3000);
+}
+
+function undoShiftChange(workerId, dayIndex, originalShift, year, month) {
+  const key = year + '-' + month;
+  if (!scheduleData[key]) scheduleData[key] = {};
+  if (!scheduleData[key][workerId]) scheduleData[key][workerId] = [];
+  scheduleData[key][workerId][dayIndex] = originalShift;
+  const worker = workers.find(w => w.id === workerId);
+  logAudit('shift_undo', `Undid shift change on day ${dayIndex + 1}`, worker?.planta, workerId);
+  saveToStorage();
+  renderMapaCobertura();
+  showToast('Cambio deshecho');
+}
+
 // ===== SECTION STAFFING ANALYSIS (v3.1) =====
 // Analyze staffing levels per section for a given day, detecting shortages and cross-reinforcement opportunities
 function analyzeSectionStaffing(dayIdx, month, year, excludeId) {
@@ -9722,38 +10160,53 @@ function switchView(view) {
     'guardia': 'guardiaPanel'
   };
 
-  document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
-  const panelId = panelMap[view] || (view + 'Panel');
-  const panel = document.getElementById(panelId);
-  if (panel) panel.classList.add('active');
-
-  document.querySelectorAll('.nav-tab').forEach(t => {
-    t.classList.remove('active');
-    t.setAttribute('aria-selected', 'false');
+  // Fade out current panels
+  const currentPanels = document.querySelectorAll('.view-panel.active');
+  currentPanels.forEach(p => {
+    p.style.opacity = '0';
+    p.style.transform = 'translateY(-8px)';
   });
-  const tab = document.querySelector(`[data-view="${view}"]`);
-  if (tab) {
-    tab.classList.add('active');
-    tab.setAttribute('aria-selected', 'true');
-  }
 
-  appState.currentView = view;
+  // Switch panels and tabs after fade out
+  setTimeout(() => {
+    document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+    const panelId = panelMap[view] || (view + 'Panel');
+    const panel = document.getElementById(panelId);
+    if (panel) {
+      panel.classList.add('active');
+      // Reset to initial state for fade in
+      panel.style.opacity = '1';
+      panel.style.transform = 'translateY(0)';
+    }
 
-  // Render content based on view
-  if (view === 'dashboard') renderDashboard();
-  if (view === 'import') { renderImportManagement(); updateImportBadge(); }
-  if (view === 'mapa-cobertura') renderMapaCobertura();
-  if (view === 'gestor-ausencias') renderGestorAusencias();
-  if (view === 'gestor-cobertura') renderCoberturaIA();
+    document.querySelectorAll('.nav-tab').forEach(t => {
+      t.classList.remove('active');
+      t.setAttribute('aria-selected', 'false');
+    });
+    const tab = document.querySelector(`[data-view="${view}"]`);
+    if (tab) {
+      tab.classList.add('active');
+      tab.setAttribute('aria-selected', 'true');
+    }
 
-  // Legacy view support
-  if (view === 'schedule') renderSchedule();
-  if (view === 'workers') renderWorkers();
-  if (view === 'heatmap') renderHeatmap();
-  if (view === 'incidents') renderIncidents();
-  if (view === 'conflicts') { detectConflicts(); renderConflicts(); }
-  if (view === 'metrics') { renderMetrics(); try { renderComparativa(); } catch(e) { console.warn('[Shiftia] renderComparativa error:', e); } }
-  if (view === 'guardia') renderGuardia();
+    appState.currentView = view;
+
+    // Render content based on view
+    if (view === 'dashboard') renderDashboard();
+    if (view === 'import') { renderImportManagement(); updateImportBadge(); }
+    if (view === 'mapa-cobertura') renderMapaCobertura();
+    if (view === 'gestor-ausencias') renderGestorAusencias();
+    if (view === 'gestor-cobertura') renderCoberturaIA();
+
+    // Legacy view support
+    if (view === 'schedule') renderSchedule();
+    if (view === 'workers') renderWorkers();
+    if (view === 'heatmap') renderHeatmap();
+    if (view === 'incidents') renderIncidents();
+    if (view === 'conflicts') { detectConflicts(); renderConflicts(); }
+    if (view === 'metrics') { renderMetrics(); try { renderComparativa(); } catch(e) { console.warn('[Shiftia] renderComparativa error:', e); } }
+    if (view === 'guardia') renderGuardia();
+  }, 150);
 }
 
 // ========== NOTIFICATION BELL ==========
@@ -9944,6 +10397,12 @@ function renderDashboard() {
 
   // Render plant comparison
   try { renderPlantComparison(); } catch(e) { console.error('Plant comparison error:', e); }
+
+  // Render coverage risk gauge
+  try { renderCoverageRiskGauge(); } catch(e) { console.warn('[Shiftia] Coverage risk gauge error:', e); }
+
+  // Render fatigue recommendations
+  try { renderFatigueRecommendations(); } catch(e) { console.warn('[Shiftia] Fatigue recommendations error:', e); }
 
   // Render audit log
   try {
@@ -17759,6 +18218,16 @@ function applyShiftChange(workerId, dayIndex, newShift, year, month) {
   logAudit('shift_change', `Changed shift from ${oldShift} to ${newShift} on day ${dayIndex + 1}`, worker?.planta, workerId);
   saveToStorage();
   renderMapaCobertura();
+  // Task 3: Check for domino effect and show warning if coverage gap created
+  const gap = checkAndWarnShiftChangeGaps(workerId, dayIndex, newShift, year, month);
+  if (gap) {
+    const warnMsg = `⚠️ Este cambio deja ${gap.plantaName} sin cobertura en turno ${gap.shift}`;
+    showToast(warnMsg);
+  }
+  // Show undo toast
+  if (oldShift && oldShift !== 'N/A') {
+    showUndoToast(workerId, dayIndex, oldShift, year, month);
+  }
 }
 
 // Export planilla to CSV (Excel-compatible)
@@ -24016,7 +24485,7 @@ function renderIntelligentDashboard() {
 
   // 7-day Coverage Heatmap
   html += '<div class="cov-heatmap-wrap">';
-  html += '<div class="dash-section-title"><span class="dst-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Cobertura próximos 7 días</div>';
+  html += '<div class="heatmap-header-row"><div class="dash-section-title"><span class="dst-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Cobertura próximos 7 días</div><button class="heatmap-export-btn" onclick="exportCoverageHeatmap()">📥 Exportar</button></div>';
   html += '<div class="cov-heatmap">';
   // Headers
   html += '<div class="cov-hm-label"></div>';
@@ -24050,7 +24519,8 @@ function renderIntelligentDashboard() {
       const need = needE + needT;
       const pct = need > 0 ? Math.round(total / need * 100) : 100;
       const cls = pct >= 100 ? 'hm-ok' : pct >= 80 ? 'hm-warn' : 'hm-crit';
-      html += `<div class="cov-hm-cell ${cls}" onclick="goToDay(${yr},${mo},${d.getDate()})" title="${sh}: ${total}/${need} (ENF ${eCount}/${needE}, TEC ${tCount}/${needT})">
+      const tooltip = `${sh}: ${eCount}/${needE} ENF + ${tCount}/${needT} TEC = ${total}/${need}`;
+      html += `<div class="cov-hm-cell ${cls}" onclick="goToDay(${yr},${mo},${d.getDate()})" data-tooltip="${tooltip}">
         ${total}/${need}
       </div>`;
     }
@@ -24132,9 +24602,119 @@ function renderIntelligentDashboard() {
   target.innerHTML = html;
 }
 
+// Export coverage heatmap as printable HTML
+function exportCoverageHeatmap() {
+  const now = new Date();
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const monthStr = monthNames[now.getMonth()] + ' ' + now.getFullYear();
+
+  let html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapa de Cobertura - ${monthStr}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; padding: 40px; background: white; color: #333; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .header h1 { font-size: 24px; margin-bottom: 5px; color: #1e293b; }
+    .header p { font-size: 12px; color: #666; }
+    .content { max-width: 900px; margin: 0 auto; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th, td { padding: 12px; text-align: center; border: 1px solid #ddd; font-size: 12px; }
+    th { background: #1e293b; color: white; font-weight: bold; }
+    .day-header { background: #f0f0f0; font-weight: bold; }
+    .shift-label { text-align: left; font-weight: bold; background: #f9f9f9; }
+    .cell-ok { background: #e8f5e9; color: #27ae60; }
+    .cell-warn { background: #fff3e0; color: #e67e22; }
+    .cell-crit { background: #ffebee; color: #cc4444; }
+    .footer { margin-top: 30px; font-size: 10px; color: #999; text-align: center; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Mapa de Cobertura</h1>
+    <p>${monthStr} | Generado: ${now.toLocaleDateString('es-ES')} ${now.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'})}</p>
+  </div>
+  <div class="content">
+    <table>
+      <thead>
+        <tr>
+          <th>Turno</th>`;
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    html += `<th class="day-header">${dayNames[d.getDay()]} ${d.getDate()}</th>`;
+  }
+  html += `</tr></thead><tbody>`;
+
+  ['M', 'T', 'N'].forEach(sh => {
+    const shNames = { M: 'Mañana', T: 'Tarde', N: 'Noche' };
+    html += `<tr><td class="shift-label">${shNames[sh]}</td>`;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+      const yr = d.getFullYear(), mo = d.getMonth(), di = d.getDate() - 1;
+      const daySch = genSchedule(yr, mo);
+      const dayCov = getCoverageRules(yr, mo, d.getDate());
+      let eCount = 0, tCount = 0;
+      workers.forEach(w => {
+        const s = daySch[w.id] ? daySch[w.id][di] : '';
+        const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+        if (eff === sh) {
+          if (w.type === 'enf') eCount++;
+          else if (w.area !== 'micro') tCount++;
+        }
+      });
+      const needE = dayCov[sh] ? dayCov[sh].enf : 0;
+      const needT = dayCov[sh] ? dayCov[sh].tec : 0;
+      const total = eCount + tCount;
+      const need = needE + needT;
+      const pct = need > 0 ? Math.round(total / need * 100) : 100;
+      const cls = pct >= 100 ? 'cell-ok' : pct >= 80 ? 'cell-warn' : 'cell-crit';
+      html += `<td class="${cls}">${total}/${need}</td>`;
+    }
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table>
+    <div style="font-size: 11px; color: #666; margin-top: 20px;">
+      <strong>Leyenda:</strong>
+      <span style="color: #27ae60;">■ Verde: Cobertura OK (100%)</span> |
+      <span style="color: #e67e22;">■ Naranja: Cobertura parcial (80-99%)</span> |
+      <span style="color: #cc4444;">■ Rojo: Cobertura crítica (&lt;80%)</span>
+    </div>
+  </div>
+  <div class="footer">
+    <p>Shiftia Director - Hospital Management System</p>
+  </div>
+  <scr` + `ipt>
+    window.onload = function() { setTimeout(() => window.print(), 500); }
+  </scr` + `ipt>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
+
 // ===============================================================
 // GLOBAL SEARCH ENGINE (Cmd+K)
 // ===============================================================
+
+const COMMAND_ACTIONS = [
+  { id: 'nav_dashboard', label: 'Ir al Dashboard', keywords: ['dashboard', 'panel', 'inicio', 'resumen'], icon: '📊', action: () => switchView('dashboard') },
+  { id: 'nav_schedule', label: 'Abrir Planilla', keywords: ['planilla', 'turnos', 'calendario', 'horario'], icon: '📅', action: () => switchView('schedule') },
+  { id: 'nav_coverage', label: 'Mapa de Cobertura', keywords: ['cobertura', 'mapa', 'plantas'], icon: '🏥', action: () => switchView('mapa-cobertura') },
+  { id: 'nav_absences', label: 'Gestor de Ausencias', keywords: ['ausencias', 'bajas', 'vacaciones'], icon: '📋', action: () => switchView('gestor-ausencias') },
+  { id: 'act_import', label: 'Importar Planillas', keywords: ['importar', 'subir', 'pdf', 'cargar'], icon: '📤', action: () => { if(typeof showImportModal==='function') showImportModal(); else switchView('import'); } },
+  { id: 'act_today', label: 'Ir a Hoy', keywords: ['hoy', 'today', 'ahora'], icon: '📌', action: () => { const n=new Date(); goToDay(n.getFullYear(),n.getMonth(),n.getDate()); } },
+  { id: 'act_tomorrow', label: 'Ir a Mañana', keywords: ['mañana', 'tomorrow'], icon: '➡️', action: () => { const n=new Date(); n.setDate(n.getDate()+1); goToDay(n.getFullYear(),n.getMonth(),n.getDate()); } },
+  { id: 'act_shortcuts', label: 'Atajos de Teclado', keywords: ['atajos', 'shortcuts', 'teclas', 'ayuda'], icon: '⌨️', action: () => { if(typeof showKeyboardShortcuts==='function') showKeyboardShortcuts(); } },
+];
 
 let gsSelectedIdx = 0;
 let gsResults = [];
@@ -24183,6 +24763,15 @@ function performGlobalSearch(query) {
   const sch = genSchedule(now.getFullYear(), now.getMonth());
   const todayIdx = now.getDate() - 1;
   gsResults = [];
+
+  // Search command actions
+  const actionResults = COMMAND_ACTIONS.filter(a =>
+    a.keywords.some(k => k.includes(q)) || a.label.toLowerCase().includes(q)
+  ).slice(0, 4).map(a => ({
+    type: 'action', isAction: true, icon: a.icon,
+    text: a.label, meta: 'Atajos', kbd: 'Enter',
+    action: () => { closeGlobalSearch(); a.action(); }
+  }));
 
   // Search workers
   const workerResults = workers.filter(w =>
@@ -24240,7 +24829,7 @@ function performGlobalSearch(query) {
     action: () => { closeGlobalSearch(); switchView(v.name); }
   }));
 
-  gsResults = [...viewResults, ...workerResults, ...shiftResults, ...incResults];
+  gsResults = [...actionResults, ...viewResults, ...workerResults, ...shiftResults, ...incResults];
   gsSelectedIdx = 0;
   renderGlobalSearchResults(q);
 }
@@ -24252,23 +24841,26 @@ function renderGlobalSearchResults(query) {
     return;
   }
 
-  // Group by type
+  // Group by type (actions first)
   const groups = {};
-  const groupLabels = { view: 'Secciones', worker: 'Trabajadores', shift: 'Turnos', incident: 'Incidencias' };
+  const groupLabels = { action: 'Acciones', view: 'Secciones', worker: 'Trabajadores', shift: 'Turnos', incident: 'Incidencias' };
   gsResults.forEach((r, i) => {
     if (!groups[r.type]) groups[r.type] = [];
     groups[r.type].push({ ...r, idx: i });
   });
 
   let html = '';
-  Object.keys(groups).forEach(type => {
+  ['action', 'view', 'worker', 'shift', 'incident'].forEach(type => {
+    if (!groups[type] || groups[type].length === 0) return;
     html += `<div class="gs-group"><div class="gs-group-title">${groupLabels[type] || type}</div>`;
     groups[type].forEach(r => {
       const highlighted = r.text.replace(new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'), '<mark>$1</mark>');
-      html += `<div class="gs-result ${r.idx === gsSelectedIdx ? 'gs-selected' : ''}" data-idx="${r.idx}" onclick="gsExecuteResult(${r.idx})">
+      const actionCls = r.isAction ? 'gs-action' : '';
+      html += `<div class="gs-result ${actionCls} ${r.idx === gsSelectedIdx ? 'gs-selected' : ''}" data-idx="${r.idx}" onclick="gsExecuteResult(${r.idx})">
         <span class="gs-result-icon">${r.icon}</span>
         <span class="gs-result-text">${highlighted}</span>
         <span class="gs-result-meta">${r.meta}</span>
+        ${r.kbd ? `<span class="gs-result-kbd">${r.kbd}</span>` : ''}
       </div>`;
     });
     html += '</div>';
