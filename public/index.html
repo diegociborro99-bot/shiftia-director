@@ -70,7 +70,7 @@
 /* Login Screen */
 .login-screen {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 99998;
-  background: linear-gradient(145deg, #f8f6f3 0%, #e8e4df 100%);
+  background: linear-gradient(145deg, #e0e7ff 0%, #f0f2f5 50%, #ede9fe 100%);
   display: flex; align-items: center; justify-content: center;
   opacity: 0; pointer-events: none;
   transition: opacity 0.5s ease;
@@ -78,8 +78,13 @@
 .login-screen.active { opacity: 1; pointer-events: all; }
 .login-screen.hidden { display: none; }
 .login-card {
-  background: #ffffff; border-radius: 20px; padding: 48px 40px 40px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 48px 40px 40px;
+  box-shadow: var(--glass-shadow);
   width: 380px; max-width: 90vw; text-align: center;
   transform: translateY(20px); opacity: 0;
   animation: loginCardIn 0.6s ease-out 0.3s forwards;
@@ -97,33 +102,40 @@
 }
 .plant-map-overlay {
   display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  z-index: 99990; background: rgba(10,20,35,0.45); backdrop-filter: blur(6px);
+  z-index: 99990; background: rgba(0,0,0,0.25); backdrop-filter: blur(16px);
 }
 .plant-map-overlay.active { display: block; }
 .plant-map-panel {
   position: absolute; top: 56px; left: 50%; transform: translateX(-50%);
-  background: #fff; border-radius: 20px; padding: 0;
-  box-shadow: 0 32px 100px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.04);
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg); padding: 0;
+  box-shadow: var(--glass-shadow);
   width: 680px; max-width: 96vw; max-height: calc(100vh - 80px);
   overflow-y: auto; animation: plantMapSlideIn 0.25s ease-out;
 }
 .plant-map-header {
-  padding: 24px 28px 0; position: sticky; top: 0; background: #fff;
-  border-radius: 20px 20px 0 0; z-index: 2;
+  padding: 24px 28px 0; position: sticky; top: 0; background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0; z-index: 2;
 }
 .plant-map-body { padding: 16px 28px 24px; }
 .plant-floor-card {
-  position: relative; border: 1.5px solid var(--border); border-radius: 14px;
-  background: #fff; cursor: pointer; padding: 14px 16px 12px; text-align: left;
+  position: relative; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 14px;
+  background: rgba(255,255,255,0.5); backdrop-filter: blur(12px); cursor: pointer; padding: 14px 16px 12px; text-align: left;
   font-family: var(--font); transition: all 0.2s ease; overflow: hidden;
 }
 .plant-floor-card:hover {
-  border-color: var(--primary); transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(26,54,93,0.1);
+  border-color: rgba(99,102,241,0.5); transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(99,102,241,0.12);
+  background: rgba(255,255,255,0.65);
 }
 .plant-floor-card.active {
-  border-color: var(--primary); background: linear-gradient(135deg, rgba(26,54,93,0.04) 0%, rgba(201,168,76,0.04) 100%);
-  box-shadow: 0 0 0 3px rgba(26,54,93,0.08), 0 4px 16px rgba(26,54,93,0.08);
+  border-color: #6366f1; background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(139,92,246,0.06) 100%);
+  box-shadow: 0 4px 16px rgba(99,102,241,0.12);
 }
 .plant-floor-card .pf-status {
   position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 14px 0 0 14px;
@@ -187,12 +199,12 @@
 }
 .login-btn {
   width: 100%; padding: 14px; border: none; border-radius: 12px;
-  background: linear-gradient(135deg, var(--accent), #2980b9);
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
   color: #fff; font-size: 15px; font-weight: 600; font-family: var(--font);
   cursor: pointer; margin-top: 8px; transition: transform 0.15s, box-shadow 0.2s;
-  box-shadow: 0 4px 15px rgba(46,139,122,0.3);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
 }
-.login-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(46,139,122,0.4); }
+.login-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4); }
 .login-btn:active { transform: translateY(0); }
 .login-error-msg {
   color: var(--danger); font-size: 12px; font-weight: 500; margin-top: 12px;
@@ -217,56 +229,73 @@
 
 :root {
   --primary: #1e293b;
-  --primary-light: #2c5282;
-  --primary-dark: #0f2440;
-  --accent: #d4a843;
-  --bg: #f8fafc;
-  --surface: #ffffff;
-  --surface2: #edf0f7;
-  --surface3: #faf9f7;
-  --border: #e2e8f0;
-  --text1: #1a202c;
-  --text2: #4a5568;
-  --text3: #a0aec0;
+  --primary-light: #334155;
+  --primary-dark: #0f172a;
+  --accent: #6366f1;
+  --accent-light: rgba(99, 102, 241, 0.1);
+  --accent-glow: rgba(99, 102, 241, 0.2);
+  --bg: #f0f2f5;
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-solid: #ffffff;
+  --surface2: rgba(241, 245, 249, 0.8);
+  --surface3: rgba(248, 250, 252, 0.6);
+  --border: rgba(148, 163, 184, 0.2);
+  --border-strong: rgba(148, 163, 184, 0.35);
+  --text1: #0f172a;
+  --text2: #475569;
+  --text3: #94a3b8;
   --text: var(--text1);
-  --accent2: #8faa9b;
-  --morning: #2b6cb0;
-  --afternoon: #38a169;
-  --night: #805ad5;
-  --rest: #cc4444;
-  --vac: #8b2020;
-  --danger: #c53030;
-  --success: #276749;
-  --for: #d4883a;
-  --caa: #7a8a6a;
-  --ld: #5a8abf;
-  --ae: #a8a832;
-  --ex: #9a9a9a;
-  --baj: #b04050;
+  --accent2: #8b5cf6;
+  --morning: #3b82f6;
+  --afternoon: #10b981;
+  --evening: #f59e0b;
+  --night: #8b5cf6;
+  --rest: #ef4444;
+  --vac: #dc2626;
+  --danger: #ef4444;
+  --success: #10b981;
+  --for: #f59e0b;
+  --caa: #6b7280;
+  --ld: #3b82f6;
+  --ae: #eab308;
+  --ex: #9ca3af;
+  --baj: #ef4444;
   --font: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: 'Fraunces', Georgia, serif;
-  --shadow: 0 1px 2px rgba(0,0,0,0.02);
+  --glass: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --glass-blur: blur(20px);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  --shadow: 0 1px 2px rgba(0,0,0,0.03);
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
-  --shadow-hover: 0 4px 16px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
-  --shadow-md: 0 8px 24px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.03);
-  --shadow-lg: 0 20px 50px rgba(0,0,0,0.08);
+  --shadow-hover: 0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 8px 30px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.03);
+  --shadow-lg: 0 24px 60px rgba(0,0,0,0.1), 0 4px 16px rgba(0,0,0,0.04);
   --transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-lg: 24px;
 }
 
 [data-theme="dark"] {
-  --bg: #0f1319;
-  --surface: #1a202c;
-  --surface2: #222226;
-  --surface3: #2a2a2f;
-  --border: #2e2e34;
+  --bg: #0c0f17;
+  --surface: rgba(22, 28, 45, 0.75);
+  --surface-solid: #161c2d;
+  --surface2: rgba(30, 36, 54, 0.8);
+  --surface3: rgba(36, 42, 60, 0.6);
+  --border: rgba(99, 102, 241, 0.12);
+  --border-strong: rgba(99, 102, 241, 0.2);
   --text1: #e2e8f0;
   --text: var(--text1);
-  --text2: #9a9a9a;
-  --text3: #5a5a5a;
-  --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
-  --shadow-hover: 0 2px 8px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.25);
-  --shadow-md: 0 8px 25px rgba(0,0,0,0.25);
-  --shadow-lg: 0 15px 40px rgba(0,0,0,0.35);
+  --text2: #94a3b8;
+  --text3: #475569;
+  --glass: rgba(22, 28, 45, 0.6);
+  --glass-border: rgba(99, 102, 241, 0.15);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --shadow: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-hover: 0 4px 20px rgba(0,0,0,0.35);
+  --shadow-md: 0 8px 30px rgba(0,0,0,0.3);
+  --shadow-lg: 0 24px 60px rgba(0,0,0,0.4);
 }
 [data-theme="dark"] .login-screen {
   background: linear-gradient(145deg, #111114 0%, #1a1a1e 100%);
@@ -307,6 +336,11 @@
 body {
   font-family: var(--font);
   background: var(--bg);
+  background-image:
+    radial-gradient(at 20% 20%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+    radial-gradient(at 80% 80%, rgba(139, 92, 246, 0.04) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(59, 130, 246, 0.03) 0px, transparent 50%);
+  background-attachment: fixed;
   color: var(--text);
   min-height: 100vh;
   transition: background 0.3s ease, color 0.3s ease;
@@ -350,24 +384,24 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 
 /* Navigation */
 .topbar {
-  background: rgba(255,255,255,0.85);
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 1px 12px rgba(0,0,0,0.04);
   padding: 18px 24px 14px;
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   margin-bottom: 24px;
   transition: background 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease;
-  border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 50;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   overflow: visible;
 }
 [data-theme="dark"] .topbar {
-  background: rgba(17,17,20,0.88);
+  background: var(--glass);
 }
 .topbar.scrolled {
   padding-top: 10px;
@@ -403,19 +437,20 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .nav-tabs::-webkit-scrollbar { display: none; }
 
 .nav-tab {
-  background: none;
+  background: transparent;
   border: none;
-  color: var(--text3);
+  color: var(--text2);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  padding: 8px 4px;
+  padding: 8px 14px;
   position: relative;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: inherit;
   letter-spacing: 0.2px;
   white-space: nowrap;
   flex-shrink: 0;
+  border-radius: 10px;
 }
 
 .nav-tab:active {
@@ -423,29 +458,20 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 
 .nav-tab:hover {
-  color: var(--text);
+  background: var(--accent-light);
+  color: var(--accent);
 }
 
 .nav-tab.active {
-  color: var(--accent);
+  background: var(--accent);
+  color: white;
   font-weight: 600;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
 
 .nav-tab::after {
   content: '';
-  position: absolute;
-  bottom: -6px;
-  left: 50%;
-  width: 0;
-  height: 2.5px;
-  background: var(--accent);
-  border-radius: 2px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  transform: translateX(-50%);
-}
-
-.nav-tab.active::after {
-  width: 60%;
+  display: none;
 }
 
 @keyframes tabIndicatorIn {
@@ -600,13 +626,15 @@ button:active, .nav-btn:active, .btn:active {
 
 .stat-pill {
   background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   padding: 20px 24px;
   border-radius: 14px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--glass-shadow);
   text-align: center;
   transition: all 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
   animation: fadeInUp 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-  border: 1px solid var(--border);
+  border: 1px solid var(--glass-border);
   position: relative;
   overflow: hidden;
 }
@@ -671,9 +699,12 @@ button:active, .nav-btn:active, .btn:active {
 
 .shift-card {
   background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   padding: 24px;
   border-radius: 14px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--glass-shadow);
   transition: all 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
   animation: fadeInScale 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
@@ -719,10 +750,13 @@ button:active, .nav-btn:active, .btn:active {
 
 .week-day {
   background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   padding: 16px;
   border-radius: 12px;
   text-align: center;
-  box-shadow: var(--shadow);
+  box-shadow: var(--glass-shadow);
   transition: all 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
   cursor: pointer;
   animation: fadeInUp 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
@@ -765,9 +799,12 @@ button:active, .nav-btn:active, .btn:active {
 
 .recent-activity {
   background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   padding: 28px;
   border-radius: 14px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--glass-shadow);
 }
 
 .activity-item {
@@ -800,10 +837,12 @@ button:active, .nav-btn:active, .btn:active {
   flex-wrap: wrap;
   gap: 12px;
   background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   padding: 16px 20px;
   border-radius: 16px;
-  border: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
 
 .month-nav {
@@ -864,15 +903,16 @@ button:active, .nav-btn:active, .btn:active {
 }
 
 .search-box {
-  background: var(--surface2);
-  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.2);
   padding: 9px 16px 9px 36px;
   border-radius: 10px;
   width: 200px;
   font-size: 13px;
   color: var(--text);
   font-family: inherit;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: all 0.2s;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23b0b0b0' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: 12px center;
@@ -881,9 +921,9 @@ button:active, .nav-btn:active, .btn:active {
 
 .search-box:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(92,122,111,0.1);
-  background-color: var(--surface);
+  border-color: rgba(99,102,241,0.5);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+  background-color: rgba(255,255,255,0.65);
 }
 
 .search-box::placeholder {
@@ -942,6 +982,8 @@ table.schedule {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
+  border-radius: 12px;
+  overflow: hidden;
   font-size: 13px;
   min-width: 1100px;
 }
@@ -962,15 +1004,17 @@ table.schedule th.day-header {
   min-width: 50px;
   padding: 10px 2px 12px;
   position: relative;
+  background: rgba(255,255,255,0.6);
+  border-bottom: 1px solid rgba(255,255,255,0.2);
 }
 
 table.schedule th.day-header .day-name {
   font-size: 9px;
   color: var(--text3);
-  font-weight: 600;
+  font-weight: 500;
   display: block;
   margin-bottom: 2px;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
 }
 
@@ -1027,7 +1071,7 @@ table.schedule tbody tr:hover td.name-cell {
 table.schedule td.name-cell {
   text-align: left;
   padding: 8px 12px 8px 14px;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 13px;
   position: sticky;
   left: 0;
@@ -1035,7 +1079,8 @@ table.schedule td.name-cell {
   background: var(--surface);
   cursor: pointer;
   border-right: 1px solid var(--border);
-  border-left: 3px solid transparent;
+  border-left: none;
+  border-bottom: 1px solid var(--border);
   width: 160px;
   min-width: 160px;
   max-width: 160px;
@@ -1044,11 +1089,11 @@ table.schedule td.name-cell {
   white-space: nowrap;
   transition: background 0.15s ease, border-color 0.15s ease;
   letter-spacing: -0.01em;
+  color: var(--text2);
 }
 
 table.schedule td.name-cell:hover {
   background: var(--surface3);
-  border-left-color: var(--accent);
 }
 
 .drag-over { background: rgba(46,139,122,0.15) !important; outline: 2px dashed var(--morning); outline-offset: -2px; border-radius: 4px; }
@@ -1061,22 +1106,21 @@ table.schedule td.name-cell:hover {
   justify-content: center;
   width: 38px;
   height: 26px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-weight: 700;
   font-size: 10.5px;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
   user-select: none;
   letter-spacing: 0.3px;
-  border: 1px solid transparent;
+  border: none;
 }
 
 .shift-pill:hover {
-  transform: scale(1.12);
+  transform: scale(1.08);
   z-index: 2;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   position: relative;
-  border-color: rgba(0,0,0,0.08);
 }
 
 .shift-pill:active {
@@ -1085,8 +1129,7 @@ table.schedule td.name-cell:hover {
 
 /* Dark mode: shift-pill hover glow */
 [data-theme="dark"] .shift-pill:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.12);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
 /* Swipe action container for shift pills */
@@ -1121,25 +1164,31 @@ table.schedule td.name-cell:hover {
   justify-content: center;
   cursor: pointer;
   font-size: 11px;
-  transition: transform 0.15s ease;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.spa-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .spa-btn:active {
-  transform: scale(0.9);
+  transform: scale(0.95);
 }
 
 .spa-btn-edit {
-  background: var(--accent);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: white;
 }
 
 .spa-btn-swap {
-  background: #4a9dd4;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: white;
 }
 
 .spa-btn-clear {
-  background: var(--danger);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
 }
 
@@ -1147,8 +1196,8 @@ table.schedule td.name-cell:hover {
 .shift-editor-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.3);
-  backdrop-filter: blur(8px);
+  background: rgba(0,0,0,0.25);
+  backdrop-filter: blur(20px);
   z-index: 200;
   display: flex;
   align-items: center;
@@ -1157,9 +1206,12 @@ table.schedule td.name-cell:hover {
 }
 
 .shift-editor {
-  background: var(--surface);
-  border-radius: 16px;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
   width: 380px;
   max-height: 90vh;
   overflow-y: auto;
@@ -1223,7 +1275,7 @@ table.schedule td.name-cell:hover {
 
 .se-shift-btn {
   background: var(--surface2);
-  border: 2px solid transparent;
+  border: 1.5px solid var(--border);
   border-radius: 10px;
   padding: 10px 6px;
   cursor: pointer;
@@ -1233,14 +1285,16 @@ table.schedule td.name-cell:hover {
 }
 
 .se-shift-btn:hover {
-  border-color: var(--accent);
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.06);
   transform: translateY(-1px);
-  box-shadow: var(--shadow);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
 }
 
 .se-shift-btn.active {
-  border-color: var(--accent);
-  background: rgba(92, 122, 111, 0.1);
+  border-color: #6366f1;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.08));
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
 }
 
 .se-shift-btn .se-code {
@@ -1408,15 +1462,18 @@ table.schedule td.name-cell:hover {
   align-items: center;
   gap: 12px;
   padding: 14px 20px;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 13px;
   font-weight: 500;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.3);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
   opacity: 0;
   transform: translateX(100%) scale(0.95);
   transition: all 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
   pointer-events: auto;
-  border-left: 4px solid;
+  border-left: none;
   min-width: 240px;
   max-width: 360px;
   animation: toastSlideIn 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -1443,27 +1500,27 @@ table.schedule td.name-cell:hover {
 }
 
 .toast.success {
-  background: rgba(122, 171, 138, 0.12);
   color: var(--success);
-  border-left-color: var(--success);
+  background: rgba(16, 185, 129, 0.08);
+  backdrop-filter: blur(16px);
 }
 
 .toast.error {
-  background: rgba(204, 68, 68, 0.12);
   color: var(--danger);
-  border-left-color: var(--danger);
+  background: rgba(204, 68, 68, 0.08);
+  backdrop-filter: blur(16px);
 }
 
 .toast.warning {
-  background: rgba(212, 136, 58, 0.12);
   color: var(--for);
-  border-left-color: var(--for);
+  background: rgba(212, 136, 58, 0.08);
+  backdrop-filter: blur(16px);
 }
 
 .toast.info {
-  background: rgba(92, 122, 111, 0.12);
   color: var(--accent);
-  border-left-color: var(--accent);
+  background: rgba(92, 122, 111, 0.08);
+  backdrop-filter: blur(16px);
 }
 
 .toast-icon {
@@ -1475,12 +1532,12 @@ table.schedule td.name-cell:hover {
   flex: 1;
 }
 
-.shift-M, .shift-MR { background: rgba(46, 139, 122, 0.18); color: #1a6b5a; }
-.shift-M7H { background: rgba(46, 139, 122, 0.14); color: #1a6b5a; font-size: 8px; }
-.shift-M6R { background: rgba(46, 139, 122, 0.12); color: #2e8b7a; font-size: 8px; }
-.shift-M55 { background: rgba(46, 139, 122, 0.10); color: #2e8b7a; font-size: 8px; }
-.shift-T { background: rgba(74, 157, 212, 0.18); color: #2266a0; }
-.shift-N { background: rgba(197, 168, 50, 0.20); color: #7a6510; }
+.shift-M, .shift-MR { background: rgba(59, 130, 246, 0.12); color: #1e40af; }
+.shift-M7H { background: rgba(59, 130, 246, 0.12); color: #1e40af; font-size: 8px; }
+.shift-M6R { background: rgba(59, 130, 246, 0.12); color: #1e40af; font-size: 8px; }
+.shift-M55 { background: rgba(59, 130, 246, 0.12); color: #1e40af; font-size: 8px; }
+.shift-T { background: rgba(16, 185, 129, 0.12); color: #047857; }
+.shift-N { background: rgba(139, 92, 246, 0.12); color: #6d28d9; }
 .shift-D { background: rgba(204, 68, 68, 0.10); color: #b03333; }
 .shift-VAC, .shift-VAA { background: rgba(139, 32, 32, 0.14); color: #8b2020; font-size: 9px; }
 .shift-LD { background: rgba(90, 138, 191, 0.18); color: #2a5a8f; font-size: 9px; }
@@ -1657,10 +1714,12 @@ table.schedule td.name-cell:hover {
   top: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: 14px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--glass-shadow);
   padding: 16px;
   z-index: 100;
   min-width: 260px;
@@ -1716,11 +1775,13 @@ table.schedule td.name-cell:hover {
 /* Coverage heatmap */
 .coverage-heatmap-wrap {
   background: var(--surface);
-  border: 1px solid var(--border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: 14px;
   padding: 16px 20px 14px;
   margin-bottom: 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: var(--glass-shadow);
 }
 .coverage-heatmap-header {
   display: flex;
@@ -2030,13 +2091,16 @@ table.schedule.focus-mode tbody tr.schedule-type-separator {
 .bulk-edit-overlay.open { display: flex; }
 
 .bulk-edit-modal {
-  background: var(--surface);
-  border-radius: 20px;
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
   width: 95%;
   max-width: 480px;
   max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  box-shadow: var(--glass-shadow);
   animation: gestorSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   padding: 24px;
 }
@@ -2132,19 +2196,19 @@ table.schedule.focus-mode tbody tr.schedule-type-separator {
   transition: all 0.2s;
 }
 
-.bulk-apply-btn { background: linear-gradient(135deg, #e67e22, #d35400); color: white; }
-.bulk-apply-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(230,126,34,0.3); }
+.bulk-apply-btn { background: linear-gradient(135deg, #f97316, #ea580c); color: white; box-shadow: 0 2px 10px rgba(249,115,22,0.25); }
+.bulk-apply-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(249,115,22,0.35); }
 .bulk-apply-btn:disabled { opacity: 0.5; transform: none; cursor: not-allowed; }
-.bulk-cancel-btn { background: var(--surface2); color: var(--text2); }
-.bulk-cancel-btn:hover { background: var(--border); }
+.bulk-cancel-btn { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); transition: all 0.2s; }
+.bulk-cancel-btn:hover { background: var(--surface3); border-color: var(--text3); }
 
 /* === FEATURE: Worker Side Panel === */
 .worker-panel-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.3);
-  backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0.25);
+  backdrop-filter: blur(16px);
   z-index: 150;
 }
 
@@ -2158,6 +2222,9 @@ table.schedule.focus-mode tbody tr.schedule-type-separator {
   width: 400px;
   max-width: 95vw;
   background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-left: 1px solid var(--glass-border);
   box-shadow: -10px 0 40px rgba(0,0,0,0.12);
   z-index: 151;
   overflow-y: auto;
@@ -2403,12 +2470,14 @@ table.schedule.focus-mode tbody tr.schedule-type-separator {
   transform: translateY(-1px);
 }
 .toolbar-btn-accent {
-  background: linear-gradient(135deg, #e67e22, #d35400);
+  background: linear-gradient(135deg, #f97316, #ea580c);
   color: white;
-  box-shadow: 0 2px 8px rgba(230,126,34,0.25);
+  box-shadow: 0 2px 10px rgba(249,115,22,0.25);
+  border: none;
 }
 .toolbar-btn-accent:hover {
-  box-shadow: 0 4px 14px rgba(230,126,34,0.35);
+  box-shadow: 0 4px 16px rgba(249,115,22,0.35);
+  transform: translateY(-1px);
 }
 .toolbar-btn-ghost {
   background: transparent;
@@ -2421,13 +2490,14 @@ table.schedule.focus-mode tbody tr.schedule-type-separator {
   color: var(--text);
 }
 .toolbar-btn-primary {
-  background: var(--accent);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: white;
-  box-shadow: 0 2px 8px rgba(92,122,111,0.2);
+  border: none;
+  box-shadow: 0 2px 10px rgba(99,102,241,0.25);
 }
 .toolbar-btn-primary:hover {
-  box-shadow: 0 4px 14px rgba(92,122,111,0.3);
-  background: var(--accent2);
+  box-shadow: 0 4px 16px rgba(99,102,241,0.35);
+  transform: translateY(-1px);
 }
 
 /* Schedule Legend Bar */
@@ -4854,10 +4924,12 @@ table.schedule th.month-total-header {
 
 .onboarding-tooltip {
   position: fixed;
-  background: white;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.3);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   max-width: 320px;
   z-index: 8001;
   animation: tooltipSlideIn 0.3s ease;
@@ -5536,16 +5608,16 @@ table.schedule th.month-total-header {
 }
 
 .schedule-filter-btn:hover {
-  background: rgba(92,122,111,0.08);
-  border-color: var(--accent2);
+  background: rgba(99,102,241,0.08);
+  border-color: #6366f1;
   color: var(--text);
 }
 
 .schedule-filter-btn.active {
-  background: var(--accent);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: white;
-  border-color: var(--accent);
-  box-shadow: 0 2px 8px rgba(92,122,111,0.2);
+  border-color: #6366f1;
+  box-shadow: 0 2px 10px rgba(99,102,241,0.25);
 }
 
 @media (max-width: 768px) {
@@ -5954,8 +6026,8 @@ table.schedule td.drag-target {
   border: 1px solid var(--border);
 }
 .schedule-mode-btn {
-  background: none;
-  border: none;
+  background: transparent;
+  border: 1px solid var(--border);
   padding: 5px 14px;
   border-radius: 6px;
   font-size: 11px;
@@ -5967,11 +6039,14 @@ table.schedule td.drag-target {
 }
 .schedule-mode-btn:hover {
   color: var(--text2);
+  background: rgba(99,102,241,0.06);
+  border-color: #6366f1;
 }
 .schedule-mode-btn.active {
-  background: var(--surface);
+  background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.08));
   color: var(--text);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  border-color: #6366f1;
+  box-shadow: 0 2px 8px rgba(99,102,241,0.1);
 }
 
 /* Compact mode */
@@ -8287,8 +8362,8 @@ table.schedule tbody tr:hover {
   font-size: 11px; font-weight: 600; cursor: pointer;
   color: var(--text2); font-family: inherit; transition: all 0.15s;
 }
-.filter-toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
-.filter-toggle-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.filter-toggle-btn:hover { border-color: #6366f1; color: #6366f1; }
+.filter-toggle-btn.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border-color: #6366f1; box-shadow: 0 2px 10px rgba(99,102,241,0.25); }
 .filter-active-badge {
   background: #cc4444; color: white; font-size: 9px; font-weight: 700;
   min-width: 16px; height: 16px; border-radius: 8px;
@@ -8523,7 +8598,7 @@ table.schedule tbody tr:hover {
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;background:#dc2626;color:white;font-size:9px;font-weight:800;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg);"></span>
         </button>
-        <div id="notifPanel" style="display:none;position:absolute;top:100%;right:0;width:360px;max-height:400px;overflow-y:auto;background:white;border:1px solid var(--border);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.12);z-index:9999;margin-top:4px;"></div>
+        <div id="notifPanel" style="display:none;position:absolute;top:100%;right:0;width:360px;max-height:400px;overflow-y:auto;background:rgba(255,255,255,0.85);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.3);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.08);z-index:9999;margin-top:4px;"></div>
       </div>
       <span id="wsSyncBadge" style="display:none;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;background:rgba(46,139,122,0.1);color:var(--morning);font-size:10px;font-weight:600;letter-spacing:0.3px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--morning);animation:savePulse 1.5s ease infinite;"></span><span id="wsSyncText"></span></span>
       <span class="user-display" id="userDisplay" style="font-size:12px;color:var(--text3);margin-right:8px;"></span>
@@ -8570,18 +8645,20 @@ table.schedule tbody tr:hover {
           <!-- Card 1: Importar Planillas -->
           <div onclick="switchView('import')" style="
             cursor: pointer;
-            background: white;
-            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.3);
             border-radius: 16px;
             padding: 32px 24px;
             transition: var(--transition);
             text-align: center;
             position: relative;
-            box-shadow: var(--shadow-sm);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.04);
             animation: cardSlideIn 0.3s ease forwards;
             animation-delay: 0ms;
             opacity: 0;
-          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='-sm';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='var(--shadow-sm)';this.style.transform='translateY(0)'">
+          " onmouseover="this.style.borderColor='rgba(255,255,255,0.5)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.3)';this.style.boxShadow='0 4px 24px rgba(0,0,0,0.04)';this.style.transform='translateY(0)'">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">IMPORTAR PLANILLAS</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Sube PDFs de planificación. Indica planta y rol de cada trabajador.</p>
@@ -8598,17 +8675,19 @@ table.schedule tbody tr:hover {
           <!-- Card 2: Mapa de Cobertura -->
           <div onclick="switchView('mapa-cobertura')" style="
             cursor: pointer;
-            background: white;
-            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.3);
             border-radius: 16px;
             padding: 32px 24px;
             transition: var(--transition);
             text-align: center;
-            box-shadow: var(--shadow-sm);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.04);
             animation: cardSlideIn 0.3s ease forwards;
             animation-delay: 60ms;
             opacity: 0;
-          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='var(--shadow-sm)';this.style.transform='translateY(0)'">
+          " onmouseover="this.style.borderColor='rgba(255,255,255,0.5)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.3)';this.style.boxShadow='0 4px 24px rgba(0,0,0,0.04)';this.style.transform='translateY(0)'">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">MAPA DE COBERTURA</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Visión global de cobertura por planta y turno</p>
@@ -8625,17 +8704,19 @@ table.schedule tbody tr:hover {
           <!-- Card 3: Gestor de Ausencias -->
           <div onclick="switchView('gestor-ausencias')" style="
             cursor: pointer;
-            background: white;
-            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.3);
             border-radius: 16px;
             padding: 32px 24px;
             transition: var(--transition);
             text-align: center;
-            box-shadow: var(--shadow-sm);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.04);
             animation: cardSlideIn 0.3s ease forwards;
             animation-delay: 120ms;
             opacity: 0;
-          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='var(--shadow-sm)';this.style.transform='translateY(0)'">
+          " onmouseover="this.style.borderColor='rgba(255,255,255,0.5)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.3)';this.style.boxShadow='0 4px 24px rgba(0,0,0,0.04)';this.style.transform='translateY(0)'">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 11v6"/><path d="M9 14h6"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">GESTOR DE AUSENCIAS</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Gestiona bajas, vacaciones y ausencias con IA</p>
@@ -8652,17 +8733,19 @@ table.schedule tbody tr:hover {
           <!-- Card 4: Gestor de Cobertura -->
           <div onclick="switchView('gestor-cobertura')" style="
             cursor: pointer;
-            background: white;
-            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.3);
             border-radius: 16px;
             padding: 32px 24px;
             transition: var(--transition);
             text-align: center;
-            box-shadow: var(--shadow-sm);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.04);
             animation: cardSlideIn 0.3s ease forwards;
             animation-delay: 180ms;
             opacity: 0;
-          " onmouseover="this.style.borderColor='var(--primary)';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='var(--shadow-sm)';this.style.transform='translateY(0)'">
+          " onmouseover="this.style.borderColor='rgba(255,255,255,0.5)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.3)';this.style.boxShadow='0 4px 24px rgba(0,0,0,0.04)';this.style.transform='translateY(0)'">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/><circle cx="9" cy="15" r="1"/><circle cx="15" cy="15" r="1"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">GESTOR DE COBERTURA</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Asigna días sin planificar para cubrir huecos</p>
@@ -9419,7 +9502,7 @@ function renderCoverageRiskGauge() {
   }
 
   // Build HTML
-  let html = `<div style="background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:18px 20px;">
+  let html = `<div style="background:var(--surface);border-radius:14px;border:1px solid var(--glass-border);padding:18px 20px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <span style="font-family:var(--font-display);font-size:16px;font-weight:400;color:var(--primary);">Previsión de cobertura</span>
       <span style="font-size:11px;color:var(--text3);">Próximos 7 días</span>
@@ -9495,7 +9578,7 @@ function showCoverageDayTooltip(event, dayIdx) {
     });
   });
 
-  let tooltipHtml = `<div style="position:fixed;top:${event.clientY-10}px;left:${event.clientX}px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:10000;max-width:320px;font-size:12px;">
+  let tooltipHtml = `<div style="position:fixed;top:${event.clientY-10}px;left:${event.clientX}px;background:var(--surface);border:1px solid var(--glass-border);border-radius:12px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:10000;max-width:320px;font-size:12px;">
     <div style="font-weight:600;color:var(--primary);margin-bottom:10px;">${day.dayName} ${day.dayNum} - ${Object.keys(gapsByPlant).filter(p => Object.keys(gapsByPlant[p].shifts).length > 0).length} plantas con brechas</div>`;
 
   let hasGaps = false;
@@ -9624,7 +9707,7 @@ function renderFatigueRecommendations() {
   recommendations.splice(5);
 
   // Build HTML
-  let html = `<div style="background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:18px 20px;">
+  let html = `<div style="background:var(--surface);border-radius:14px;border:1px solid var(--glass-border);padding:18px 20px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <span style="font-family:var(--font-display);font-size:16px;font-weight:400;color:var(--primary);">Recomendaciones de descanso</span>
       <span style="font-size:11px;color:var(--text3);">Top ${recommendations.length}</span>
@@ -10718,7 +10801,7 @@ function renderWeeklyDashboard() {
   });
 
   // Build HTML
-  let html = `<div style="padding:24px;background:#fff;border:1px solid var(--border);border-radius:12px;">
+  let html = `<div style="padding:24px;background:#fff;border:1px solid var(--glass-border);border-radius:12px;">
     <h3 style="font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--primary);margin:0 0 20px 0;">Resumen Semanal</h3>
 
     <!-- Coverage Matrix -->
@@ -10842,7 +10925,7 @@ function renderWeeklyShortageRollup() {
   });
 
   // Build HTML
-  let html = `<div style="padding:24px;background:var(--surface);border:1px solid var(--border);border-radius:12px;">
+  let html = `<div style="padding:24px;background:var(--surface);border:1px solid var(--glass-border);border-radius:12px;">
     <h3 style="font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--primary);margin:0 0 20px 0;">Déficit de la Semana</h3>`;
 
   // Grid table
@@ -10933,17 +11016,17 @@ function renderAuditLog(container, maxEntries) {
     'default': 'Accion'
   };
 
-  let html = `<div style="padding:16px; background:white; border:1px solid var(--border); border-radius:12px;">
+  let html = `<div style="padding:16px; background:var(--surface); backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:12px;">
     <div style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
       <h4 style="margin:0; font-size:13px; font-weight:600; color:var(--text1); text-transform:uppercase; letter-spacing:0.5px;">Registro de cambios (ultimas ${Math.min(limit, entries.length)})</h4>
-      <button onclick="toggleAuditFilters()" style="padding:4px 12px; border:1px solid var(--border); background:var(--bg); border-radius:6px; cursor:pointer; font-size:10px; color:var(--text2); transition:all 0.2s;">Filtros</button>
+      <button onclick="toggleAuditFilters()" style="padding:4px 12px; border:1px solid var(--glass-border); background:var(--bg); border-radius:6px; cursor:pointer; font-size:10px; color:var(--text2); transition:all 0.2s;">Filtros</button>
     </div>
 
-    <div id="auditFiltersPanel" style="display:none; margin-bottom:12px; padding:12px; background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
+    <div id="auditFiltersPanel" style="display:none; margin-bottom:12px; padding:12px; background:var(--surface2); border-radius:8px; border:1px solid var(--glass-border);">
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
         <div>
           <label style="display:block; font-size:9px; font-weight:600; color:var(--text3); text-transform:uppercase; margin-bottom:4px;">Tipo de accion</label>
-          <select id="auditActionFilter" style="width:100%; padding:6px; font-size:10px; border:1px solid var(--border); border-radius:4px; background:white;">
+          <select id="auditActionFilter" style="width:100%; padding:6px; font-size:10px; border:1px solid var(--glass-border); border-radius:4px; background:var(--surface); backdrop-filter:var(--glass-blur);">
             <option value="">Todas</option>
             <option value="shift_change">Cambios de turno</option>
             <option value="file_import">Importaciones</option>
@@ -10952,7 +11035,7 @@ function renderAuditLog(container, maxEntries) {
         </div>
         <div>
           <label style="display:block; font-size:9px; font-weight:600; color:var(--text3); text-transform:uppercase; margin-bottom:4px;">Rango de fechas</label>
-          <select id="auditDateFilter" style="width:100%; padding:6px; font-size:10px; border:1px solid var(--border); border-radius:4px; background:white;">
+          <select id="auditDateFilter" style="width:100%; padding:6px; font-size:10px; border:1px solid var(--glass-border); border-radius:4px; background:var(--surface); backdrop-filter:var(--glass-blur);">
             <option value="">Ultima semana</option>
             <option value="today">Hoy</option>
             <option value="week">Ultima semana</option>
@@ -10980,7 +11063,7 @@ function renderAuditLog(container, maxEntries) {
     const plant = entry.plantId ? PLANTAS.find(p => p.id === entry.plantId) : null;
 
     html += `<div style="margin-bottom:16px; position:relative;">
-      <div style="position:absolute; left:-34px; width:18px; height:18px; background:white; border:3px solid ${color}; border-radius:50%; top:2px; z-index:1;"></div>
+      <div style="position:absolute; left:-34px; width:18px; height:18px; background:var(--surface); backdrop-filter:var(--glass-blur); border:3px solid ${color}; border-radius:50%; top:2px; z-index:1;"></div>
       <div style="padding:10px 12px; background:${color}15; border-left:3px solid ${color}; border-radius:6px;">
         <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
           <span style="font-size:11px; font-weight:600; color:${color}; text-transform:uppercase; letter-spacing:0.5px;">${label}</span>
@@ -10999,7 +11082,7 @@ function renderAuditLog(container, maxEntries) {
 
   if (entries.length >= limit) {
     html += `<div style="text-align:center; margin-top:12px;">
-      <button onclick="renderAuditLogExpanded()" style="padding:6px 14px; border:1px solid var(--border); background:var(--bg); border-radius:6px; cursor:pointer; font-size:10px; color:var(--text2); transition:all 0.2s;">Ver mas registros</button>
+      <button onclick="renderAuditLogExpanded()" style="padding:6px 14px; border:1px solid var(--glass-border); background:var(--bg); border-radius:6px; cursor:pointer; font-size:10px; color:var(--text2); transition:all 0.2s;">Ver mas registros</button>
     </div>`;
   }
 
@@ -11107,7 +11190,7 @@ function renderPlantComparison() {
   // Sort by health score
   const sorted = [...plantMetrics].sort((a, b) => b.healthScore - a.healthScore);
 
-  let html = `<div style="margin-top:20px; padding:20px; background:white; border-radius:14px; border:1px solid var(--border);">
+  let html = `<div style="margin-top:20px; padding:20px; background:var(--surface); backdrop-filter:var(--glass-blur); border-radius:14px; border:1px solid var(--glass-border);">
     <h3 style="font-family:var(--font-display); font-size:20px; font-weight:400; color:var(--primary); margin:0 0 16px;">Comparativa de Plantas</h3>
 
     <!-- Horizontal Bar Charts -->
@@ -11166,7 +11249,7 @@ function renderPlantComparison() {
     <!-- Ranking Table -->
     <div style="margin-bottom:16px;">
       <div style="font-size:12px; font-weight:600; color:var(--text3); text-transform:uppercase; margin-bottom:12px;">Ranking de salud de planta</div>
-      <div style="border:1px solid var(--border); border-radius:10px; overflow:hidden;">
+      <div style="border:1px solid var(--glass-border); border-radius:10px; overflow:hidden;">
         <table style="width:100%; font-size:11px; border-collapse:collapse;">
           <thead>
             <tr style="background:var(--surface2); border-bottom:1px solid var(--border);">
@@ -12754,7 +12837,7 @@ function showShiftPatternMenu(event, workerId, workerName) {
   const shifts = sch[workerId] || [];
 
   // Create menu HTML
-  let menuHTML = `<div id="shiftPatternMenu" style="position:fixed;top:${event.clientY}px;left:${event.clientX}px;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);min-width:180px;overflow:hidden;">`;
+  let menuHTML = `<div id="shiftPatternMenu" style="position:fixed;top:${event.clientY}px;left:${event.clientX}px;z-index:9999;background:var(--surface);border:1px solid var(--glass-border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);min-width:180px;overflow:hidden;">`;
 
   // Copy option
   menuHTML += `<div style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);font-family:var(--font);" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''" onclick="copyShiftPattern(${workerId}, '${escHtml(workerName)}'); document.getElementById('shiftPatternMenu').remove();">
@@ -14889,14 +14972,14 @@ function showImportConfigModal(workerName, existingWorker) {
         <!-- Worker name (editable if new) -->
         <div style="margin-bottom:20px;">
           <label style="display:block;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Nombre del trabajador</label>
-          <input type="text" id="importWorkerName" value="${escHtml(isNew ? workerName : existingWorker.name)}" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text1);font-size:14px;font-weight:600;font-family:var(--font);box-sizing:border-box;">
+          <input type="text" id="importWorkerName" value="${escHtml(isNew ? workerName : existingWorker.name)}" style="width:100%;padding:12px 14px;border:1px solid var(--glass-border);border-radius:10px;background:var(--bg);color:var(--text1);font-size:14px;font-weight:600;font-family:var(--font);box-sizing:border-box;">
           ${!isNew ? '<p style="font-size:10px;color:var(--accent);margin-top:4px;">Trabajador existente detectado (ID #' + existingWorker.id + '). Puedes editar el nombre si es incorrecto.</p>' : '<p style="font-size:10px;color:var(--text3);margin-top:4px;">Nombre detectado del PDF: ' + escHtml(workerName) + '</p>'}
         </div>
 
         <!-- Rol -->
         <div style="margin-bottom:20px;">
           <label style="display:block;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Rol profesional</label>
-          <select id="importRole" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text1);font-size:13px;font-family:var(--font);cursor:pointer;box-sizing:border-box;appearance:auto;">
+          <select id="importRole" style="width:100%;padding:12px 14px;border:1px solid var(--glass-border);border-radius:10px;background:var(--bg);color:var(--text1);font-size:13px;font-family:var(--font);cursor:pointer;box-sizing:border-box;appearance:auto;">
             <option value="">Selecciona rol...</option>
             <option value="enf" ${existingWorker && existingWorker.type === 'enf' ? 'selected' : ''}>Enfermero/a</option>
             <option value="tec" ${existingWorker && existingWorker.type === 'tec' ? 'selected' : ''}>Técnico/TCAE</option>
@@ -14924,17 +15007,17 @@ function showImportConfigModal(workerName, existingWorker) {
         <!-- Planta -->
         <div style="margin-bottom:28px;" id="importPlantaSection">
           <label style="display:block;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Planta asignada</label>
-          <select id="importPlanta" style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text1);font-size:13px;font-family:var(--font);cursor:pointer;box-sizing:border-box;appearance:auto;">
+          <select id="importPlanta" style="width:100%;padding:12px 14px;border:1px solid var(--glass-border);border-radius:10px;background:var(--bg);color:var(--text1);font-size:13px;font-family:var(--font);cursor:pointer;box-sizing:border-box;appearance:auto;">
             <option value="">Selecciona planta...</option>
             ${plantaOptions}
           </select>
         </div>
 
         <!-- Supervisor Assignment -->
-        <div style="margin-bottom:24px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:rgba(201,168,76,0.04);display:none;" id="importSupervisorSection">
+        <div style="margin-bottom:24px;padding:14px 16px;border:1px solid var(--glass-border);border-radius:12px;background:rgba(201,168,76,0.04);display:none;" id="importSupervisorSection">
           <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;">
             <div id="importSupervisorToggle" onclick="const t=this;const isOn=t.dataset.on==='true';t.dataset.on=isOn?'false':'true';t.style.background=isOn?'var(--border)':'var(--accent)';t.querySelector('div').style.transform=isOn?'translateX(0)':'translateX(20px)';" data-on="false" style="width:44px;height:24px;border-radius:12px;background:var(--border);padding:2px;cursor:pointer;transition:background 0.2s;flex-shrink:0;">
-              <div style="width:20px;height:20px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:transform 0.2s;"></div>
+              <div style="width:20px;height:20px;border-radius:50%;background:var(--surface); backdrop-filter:var(--glass-blur);box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:transform 0.2s;"></div>
             </div>
             <div>
               <div style="font-size:13px;font-weight:600;color:var(--text1);display:flex;align-items:center;gap:6px;">
@@ -14948,7 +15031,7 @@ function showImportConfigModal(workerName, existingWorker) {
 
         <!-- Buttons -->
         <div style="display:flex;gap:12px;">
-          <button id="importCancelBtn" style="flex:1;padding:12px 16px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text2);font-weight:500;cursor:pointer;font-size:13px;font-family:var(--font);transition:all 0.2s;">Cancelar</button>
+          <button id="importCancelBtn" style="flex:1;padding:12px 16px;border:1px solid var(--glass-border);border-radius:10px;background:transparent;color:var(--text2);font-weight:500;cursor:pointer;font-size:13px;font-family:var(--font);transition:all 0.2s;">Cancelar</button>
           <button id="importConfirmBtn" style="flex:1.5;padding:12px 16px;border:none;border-radius:10px;background:linear-gradient(135deg,#1a365d,#2c5aa0);color:white;font-weight:600;cursor:pointer;font-size:13px;font-family:var(--font);transition:all 0.2s;box-shadow:0 2px 8px rgba(26,54,93,0.2);">Confirmar e importar</button>
         </div>
       </div>
@@ -18458,7 +18541,7 @@ function renderGuardia() {
     </div>
 
     <!-- Previsión próximos 3 turnos -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">
+    <div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:16px;padding:20px;margin-bottom:16px;">
       <div style="font-size:13px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Previsión próximos turnos</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
         ${riskShifts.map(rs => {
@@ -18477,14 +18560,14 @@ function renderGuardia() {
     </div>
 
     <!-- Siguiente turno -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">
+    <div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:16px;padding:20px;margin-bottom:16px;">
       <div style="font-size:13px;font-weight:700;color:${shiftColors[nextShift]};text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">⏭ Siguiente: ${nextLabel}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">
         ${onNext.map(w => {
           const fat = getGuardiaFatigueInfo(w.id, nextDayIdx, sch);
           const fatColor = fat.level === 'high' ? '#cc4444' : fat.level === 'medium' ? '#e67e22' : 'var(--text3)';
           return `
-          <div style="background:var(--bg);border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px;border:1px solid var(--border);">
+          <div style="background:var(--bg);border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px;border:1px solid var(--glass-border);">
             <div style="width:28px;height:28px;border-radius:50%;background:${shiftColors[nextShift]}18;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:${shiftColors[nextShift]};">${escHtml(w.name.charAt(0))}</div>
             <div>
               <div style="font-size:12px;font-weight:600;color:var(--text2);">${escHtml(w.name)} <span style="font-size:9px;color:var(--text3);">${w.type === 'enf' ? 'ENF' : 'TEC'}</span></div>
@@ -18497,7 +18580,7 @@ function renderGuardia() {
 
     <!-- Ausencias hoy -->
     ${absToday.length > 0 ? `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">
+    <div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:16px;padding:20px;margin-bottom:16px;">
       <div style="font-size:13px;font-weight:700;color:#cc4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:middle;margin-right:4px;"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M9 21v-4h6v4"/></svg> Ausencias hoy (${absToday.length})</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;">
         ${absToday.map(a => `<span style="padding:6px 12px;border-radius:8px;background:rgba(204,68,68,0.08);font-size:12px;font-weight:500;color:var(--text2);">${escHtml(a.name.split(' ')[0])} <span style="color:#cc4444;font-weight:700;">${escHtml(a.code)}</span></span>`).join('')}
@@ -18506,7 +18589,7 @@ function renderGuardia() {
     ` : ''}
 
     <!-- Refuerzos disponibles (ranked by priority) -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">
+    <div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:16px;padding:20px;margin-bottom:16px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <div style="font-size:13px;font-weight:700;color:#e67e22;text-transform:uppercase;letter-spacing:1px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:middle;margin-right:4px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Disponibles para refuerzo (${available.length})</div>
         ${!covOk ? '<div style="font-size:10px;color:#cc4444;font-weight:600;">Se necesita: ' + (needEnf ? 'ENF ' : '') + (needTec ? 'TEC' : '') + '</div>' : ''}
@@ -18535,9 +18618,9 @@ function renderGuardia() {
     </div>
 
     <!-- Notas de traspaso -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">
+    <div style="background:var(--surface);border:1px solid var(--glass-border);border-radius:16px;padding:20px;margin-bottom:16px;">
       <div style="font-size:13px;font-weight:700;color:var(--text1);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6m1-7h-6m3-3v6"/></svg>Notas de Traspaso</div>
-      <textarea id="guardiaHandoffNote" placeholder="Escribe notas para el siguiente turno (ej: paciente en observación, pendiente resultado lab, incidencia en equipo...)" style="width:100%;min-height:80px;border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px;font-family:inherit;background:var(--bg);color:var(--text1);resize:vertical;box-sizing:border-box;">${escHtml(existingNote)}</textarea>
+      <textarea id="guardiaHandoffNote" placeholder="Escribe notas para el siguiente turno (ej: paciente en observación, pendiente resultado lab, incidencia en equipo...)" style="width:100%;min-height:80px;border:1px solid var(--glass-border);border-radius:10px;padding:12px;font-size:12px;font-family:inherit;background:var(--bg);color:var(--text1);resize:vertical;box-sizing:border-box;">${escHtml(existingNote)}</textarea>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
         <div style="font-size:10px;color:var(--text3);">Turno: ${currentShift} — ${now.toLocaleDateString('es-ES')}</div>
         <button onclick="(function(){
@@ -18546,7 +18629,7 @@ function renderGuardia() {
           saveHandoffNotes();
           var btn = this; this.textContent = '✓ Guardado';
           setTimeout(function(){ btn.textContent = 'Guardar nota'; }, 1500);
-        }).call(this)" style="padding:6px 16px;border-radius:8px;border:1px solid var(--border);background:var(--primary);color:#fff;font-size:11px;font-weight:600;cursor:pointer;">Guardar nota</button>
+        }).call(this)" style="padding:6px 16px;border-radius:8px;border:1px solid var(--glass-border);background:var(--primary);color:#fff;font-size:11px;font-weight:600;cursor:pointer;">Guardar nota</button>
       </div>
       ${(() => {
         // Show previous shift's note if exists
@@ -18566,8 +18649,8 @@ function renderGuardia() {
 
     <!-- Controls -->
     <div style="display:flex;justify-content:center;gap:10px;padding:12px;">
-      <button onclick="renderGuardia()" style="padding:8px 20px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;">↻ Actualizar</button>
-      <button id="guardiaAutoRefreshBtn" onclick="toggleGuardiaAutoRefresh()" style="padding:8px 20px;border-radius:10px;border:1px solid var(--border);background:${guardiaAutoRefreshInterval ? 'var(--primary)' : 'var(--surface)'};color:${guardiaAutoRefreshInterval ? '#fff' : 'var(--text2)'};font-size:12px;font-weight:600;cursor:pointer;">
+      <button onclick="renderGuardia()" style="padding:8px 20px;border-radius:10px;border:1px solid var(--glass-border);background:var(--surface);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;">↻ Actualizar</button>
+      <button id="guardiaAutoRefreshBtn" onclick="toggleGuardiaAutoRefresh()" style="padding:8px 20px;border-radius:10px;border:1px solid var(--glass-border);background:${guardiaAutoRefreshInterval ? 'var(--primary)' : 'var(--surface)'};color:${guardiaAutoRefreshInterval ? '#fff' : 'var(--text2)'};font-size:12px;font-weight:600;cursor:pointer;">
         ${guardiaAutoRefreshInterval ? '⏸ Auto-refresh ON' : '▶ Auto-refresh'}
       </button>
     </div>
@@ -18782,7 +18865,7 @@ function openShiftEditor(workerId, dayIndex, year, month) {
   const w = workers.find(x => x.id === workerId);
   const workerName = w ? escHtml(w.name) : '';
 
-  const popoverHtml = `<div id="${popoverId}" style="position:absolute; background:white; border:1px solid var(--border); border-radius:14px; padding:0; box-shadow:0 12px 40px rgba(0,0,0,0.15); z-index:10000; min-width:220px; overflow:hidden;">
+  const popoverHtml = `<div id="${popoverId}" style="position:absolute; background:var(--surface); backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:14px; padding:0; box-shadow:0 12px 40px rgba(0,0,0,0.15); z-index:10000; min-width:220px; overflow:hidden;">
     <div style="padding:12px 16px; border-bottom:1px solid var(--border); background:var(--surface2);">
       <div style="font-size:12px; font-weight:700; color:var(--text1); margin-bottom:2px;">${workerName}</div>
       <div style="font-size:10px; color:var(--text3);">Día ${dayIndex + 1} · Turno actual: <span style="font-weight:700; color:var(--primary);">${currentShift || '—'}</span></div>
@@ -19046,12 +19129,12 @@ function renderWorkerMonthlySummary() {
     return a.name.localeCompare(b.name);
   });
 
-  let html = `<div style="margin-top:24px;padding:20px;background:var(--surface);border-radius:16px;border:1px solid var(--border);">
+  let html = `<div style="margin-top:24px;padding:20px;background:var(--surface);border-radius:16px;border:1px solid var(--glass-border);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
       <h3 style="font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--primary);margin:0;">Resumen mensual por trabajador</h3>
       <span style="font-size:11px;color:var(--text3);">${monthLabel}</span>
     </div>
-    <div style="overflow-x:auto;border-radius:10px;border:1px solid var(--border);">
+    <div style="overflow-x:auto;border-radius:10px;border:1px solid var(--glass-border);">
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
     <thead><tr style="background:var(--surface2);">
       <th style="text-align:left;padding:10px 12px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);">Trabajador</th>
@@ -19114,7 +19197,7 @@ function showKeyboardShortcuts() {
   overlay.id = 'kbShortcutsOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-  let inner = `<div style="background:var(--surface);border-radius:20px;padding:32px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1px solid var(--border);">
+  let inner = `<div style="background:var(--surface);border-radius:20px;padding:32px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1px solid var(--glass-border);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
       <h3 style="font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--primary);margin:0;">Atajos de teclado</h3>
       <button onclick="document.getElementById('kbShortcutsOverlay').remove()" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;">✕</button>
@@ -19123,7 +19206,7 @@ function showKeyboardShortcuts() {
   KEYBOARD_SHORTCUTS.forEach(s => {
     inner += `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-radius:10px;">
       <span style="font-size:13px;color:var(--text);">${s.desc}</span>
-      <kbd style="display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:26px;padding:0 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--text2);box-shadow:0 1px 2px rgba(0,0,0,0.06);">${s.key}</kbd>
+      <kbd style="display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:26px;padding:0 8px;background:var(--surface);border:1px solid var(--glass-border);border-radius:6px;font-family:var(--font);font-size:12px;font-weight:600;color:var(--text2);box-shadow:0 1px 2px rgba(0,0,0,0.06);">${s.key}</kbd>
     </div>`;
   });
   inner += '</div></div>';
@@ -19415,7 +19498,7 @@ function renderSmartInsights() {
   html += '<div style="display:flex;flex-direction:column;gap:16px;">';
 
   insights.forEach(insight => {
-    html += '<div style="background:white;border:1px solid var(--border);border-radius:14px;overflow:hidden;">';
+    html += '<div style="background:var(--surface); backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:14px;overflow:hidden;">';
     html += '<div style="padding:16px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);">';
     html += '<div style="width:36px;height:36px;border-radius:10px;background:' + insight.color + '08;display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + insight.icon + '</div>';
     html += '<div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text1);">' + insight.title + '</div>';
@@ -19476,12 +19559,12 @@ function renderMapaCobertura() {
         </p>
       </div>
       <div style="display:flex; gap:8px; align-items:center;">
-        ${selectedPlanta !== 'all' ? '<button onclick="selectedPlanta=\'all\';document.getElementById(\'plantaFilterLabel\').textContent=\'Todas las plantas\';document.getElementById(\'plantaFilterBtn\').style.borderColor=\'var(--surface2)\';document.getElementById(\'plantaFilterBtn\').style.background=\'var(--bg)\';renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:white; border-radius:10px; cursor:pointer; font-family:var(--font); font-size:12px; transition:all 0.2s; color:var(--text2);">Vista global</button>' : ''}
-        <button onclick="mapaViewMonth--;if(mapaViewMonth<0){mapaViewMonth=11;mapaViewYear--;}renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:white; border-radius:10px; cursor:pointer; font-family:var(--font); font-size:13px; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+        ${selectedPlanta !== 'all' ? '<button onclick="selectedPlanta=\'all\';document.getElementById(\'plantaFilterLabel\').textContent=\'Todas las plantas\';document.getElementById(\'plantaFilterBtn\').style.borderColor=\'var(--surface2)\';document.getElementById(\'plantaFilterBtn\').style.background=\'var(--bg)\';renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:var(--surface); backdrop-filter:var(--glass-blur); border-radius:10px; cursor:pointer; font-family:var(--font); font-size:12px; transition:all 0.2s; color:var(--text2);">Vista global</button>' : ''}
+        <button onclick="mapaViewMonth--;if(mapaViewMonth<0){mapaViewMonth=11;mapaViewYear--;}renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:var(--surface); backdrop-filter:var(--glass-blur); border-radius:10px; cursor:pointer; font-family:var(--font); font-size:13px; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
-        <button onclick="mapaViewMonth=${now.getMonth()};mapaViewYear=${now.getFullYear()};renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:white; border-radius:10px; cursor:pointer; font-family:var(--font); font-size:12px; font-weight:600; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">${monthNames[month]}</button>
-        <button onclick="mapaViewMonth++;if(mapaViewMonth>11){mapaViewMonth=0;mapaViewYear++;}renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:white; border-radius:10px; cursor:pointer; font-family:var(--font); font-size:13px; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+        <button onclick="mapaViewMonth=${now.getMonth()};mapaViewYear=${now.getFullYear()};renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:var(--surface); backdrop-filter:var(--glass-blur); border-radius:10px; cursor:pointer; font-family:var(--font); font-size:12px; font-weight:600; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">${monthNames[month]}</button>
+        <button onclick="mapaViewMonth++;if(mapaViewMonth>11){mapaViewMonth=0;mapaViewYear++;}renderMapaCobertura();" style="padding:8px 14px; border:1.5px solid var(--border); background:var(--surface); backdrop-filter:var(--glass-blur); border-radius:10px; cursor:pointer; font-family:var(--font); font-size:13px; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
         ${selectedPlanta !== 'all' ? '<button onclick="exportPlanillaExcel(\'' + selectedPlanta + '\', ' + year + ', ' + month + ');" style="padding:8px 14px; border:1.5px solid var(--accent); background:rgba(201,168,76,0.1); border-radius:10px; cursor:pointer; font-family:var(--font); font-size:12px; color:var(--accent); font-weight:600; transition:all 0.2s;" onmouseover="this.style.backgroundColor=\'rgba(201,168,76,0.2)\'" onmouseout="this.style.backgroundColor=\'rgba(201,168,76,0.1)\'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline; margin-right:4px; vertical-align:middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Excel</button>' : ''}
@@ -19510,7 +19593,7 @@ function renderMapaCobertura() {
       { code: 'VAC', name: 'Vacaciones', color: '#8b2020' }
     ];
 
-    html += `<div style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap; padding:10px; background:white; border:1px solid var(--border); border-radius:10px;">
+    html += `<div style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap; padding:10px; background:var(--surface); backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:10px;">
       <div style="font-size:10px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-right:6px; align-self:center;">Leyenda:</div>`;
     shiftLegendDefs.forEach(def => {
       html += `<div style="display:flex; align-items:center; gap:4px; font-size:10px;">
@@ -19522,7 +19605,7 @@ function renderMapaCobertura() {
     html += `</div>`;
 
     // Table
-    html += `<div style="overflow-x:auto; border:1px solid var(--border); border-radius:14px; background:white;">
+    html += `<div style="overflow-x:auto; border:1px solid var(--glass-border); border-radius:14px; background:var(--surface); backdrop-filter:var(--glass-blur);">
       <table style="width:100%; border-collapse:collapse; min-width:${daysInMonth * 40 + 280}px; font-size:11px;">
         <thead>
           <tr style="background:var(--primary);">
@@ -19675,19 +19758,19 @@ function renderMapaCobertura() {
 
     // Coverage summary cards
     html += `<div style="display:flex; gap:12px; margin-top:16px; flex-wrap:wrap;">
-      <div style="flex:1; min-width:120px; padding:12px 16px; background:white; border:1px solid var(--border); border-radius:10px; text-align:center;">
+      <div style="flex:1; min-width:120px; padding:12px 16px; background:var(--surface); backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:10px; text-align:center;">
         <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600;">Asignados</div>
         <div style="font-size:24px; font-weight:700; color:var(--primary); margin-top:2px;">${plantWorkers.length}</div>
       </div>
-      <div style="flex:1; min-width:120px; padding:12px 16px; background:white; border:1px solid var(--border); border-radius:10px; text-align:center;">
+      <div style="flex:1; min-width:120px; padding:12px 16px; background:var(--surface); backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:10px; text-align:center;">
         <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600;">Min. Mañana</div>
         <div style="font-size:24px; font-weight:700; color:#2e8b7a; margin-top:2px;">${minM}</div>
       </div>
-      <div style="flex:1; min-width:120px; padding:12px 16px; background:white; border:1px solid var(--border); border-radius:10px; text-align:center;">
+      <div style="flex:1; min-width:120px; padding:12px 16px; background:var(--surface); backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:10px; text-align:center;">
         <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600;">Min. Tarde</div>
         <div style="font-size:24px; font-weight:700; color:#4a9dd4; margin-top:2px;">${minT}</div>
       </div>
-      <div style="flex:1; min-width:120px; padding:12px 16px; background:white; border:1px solid var(--border); border-radius:10px; text-align:center;">
+      <div style="flex:1; min-width:120px; padding:12px 16px; background:var(--surface); backdrop-filter:var(--glass-blur); border:1px solid var(--glass-border); border-radius:10px; text-align:center;">
         <div style="font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; font-weight:600;">Min. Noche</div>
         <div style="font-size:24px; font-weight:700; color:#c9a84c; margin-top:2px;">${minN}</div>
       </div>
@@ -19705,10 +19788,10 @@ function renderMapaCobertura() {
     }
 
     // ─── Per-worker monthly summary table ───
-    html += `<div style="margin-top:24px;background:white;border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+    html += `<div style="margin-top:24px;background:var(--surface); backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:14px;overflow:hidden;">
       <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
         <div style="font-size:14px;font-weight:700;color:var(--text1);">Resumen mensual por trabajador</div>
-        <button onclick="exportPlanillaExcel('${selectedPlanta}', ${year}, ${month});" style="padding:6px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:var(--font);font-size:11px;color:var(--text2);font-weight:600;">Exportar</button>
+        <button onclick="exportPlanillaExcel('${selectedPlanta}', ${year}, ${month});" style="padding:6px 14px;background:var(--surface2);border:1px solid var(--glass-border);border-radius:8px;cursor:pointer;font-family:var(--font);font-size:11px;color:var(--text2);font-weight:600;">Exportar</button>
       </div>
       <div style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -19819,12 +19902,12 @@ function renderMapaCobertura() {
 
     // ─── Global summary strip ───
     html += `<div style="display:flex;gap:24px;margin-bottom:32px;align-items:stretch;flex-wrap:wrap;">
-      <div style="flex:1;min-width:200px;background:white;border:1px solid var(--border);border-radius:16px;padding:24px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="flex:1;min-width:200px;background:var(--surface); backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:16px;padding:24px;display:flex;flex-direction:column;justify-content:center;">
         <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Hoy</div>
         <div style="font-size:42px;font-weight:800;color:var(--primary);line-height:1;letter-spacing:-2px;">${okCount}<span style="font-size:18px;font-weight:400;color:var(--text3);letter-spacing:0;">/${PLANTAS.length}</span></div>
         <div style="font-size:12px;color:var(--text2);margin-top:4px;">plantas con cobertura completa</div>
       </div>
-      <div style="flex:1;min-width:200px;background:white;border:1px solid var(--border);border-radius:16px;padding:24px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="flex:1;min-width:200px;background:var(--surface); backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:16px;padding:24px;display:flex;flex-direction:column;justify-content:center;">
         <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Profesionales</div>
         <div style="font-size:42px;font-weight:800;color:var(--primary);line-height:1;letter-spacing:-2px;">${totalWorkers}</div>
         <div style="font-size:12px;color:var(--text2);margin-top:4px;">asignados en ${PLANTAS.length} plantas</div>
@@ -19844,7 +19927,7 @@ function renderMapaCobertura() {
       const plantName = escHtml(pd.planta.name);
       const plantShort = escHtml(pd.planta.short);
 
-      html += `<div onclick="selectedPlanta='${pd.planta.id}';document.getElementById('plantaFilterLabel').textContent='${plantName}';document.getElementById('plantaFilterBtn').style.borderColor='var(--primary)';renderMapaCobertura();" style="background:white;border:1px solid var(--border);border-radius:16px;cursor:pointer;transition:all 0.2s ease;overflow:hidden;" onmouseover="this.style.borderColor='var(--primary)';this.style.transform='translateY(-2px)';this.style.boxShadow='var(--shadow-hover)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='';this.style.boxShadow=''">
+      html += `<div onclick="selectedPlanta='${pd.planta.id}';document.getElementById('plantaFilterLabel').textContent='${plantName}';document.getElementById('plantaFilterBtn').style.borderColor='var(--primary)';renderMapaCobertura();" style="background:var(--surface); backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:16px;cursor:pointer;transition:all 0.2s ease;overflow:hidden;" onmouseover="this.style.borderColor='var(--primary)';this.style.transform='translateY(-2px)';this.style.boxShadow='var(--shadow-hover)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='';this.style.boxShadow=''">
 
         <div style="padding:20px 24px 16px;display:flex;align-items:start;justify-content:space-between;">
           <div style="flex:1;">
@@ -19951,7 +20034,7 @@ function renderGestorAusencias() {
 
   // Absence list by worker
   if (absences.length === 0) {
-    html += '<div style="text-align:center;padding:48px;background:white;border:1px solid var(--border);border-radius:16px;"><div style="font-size:14px;color:var(--text3);">No hay ausencias registradas este mes</div></div>';
+    html += '<div style="text-align:center;padding:48px;background:var(--surface); backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:16px;"><div style="font-size:14px;color:var(--text3);">No hay ausencias registradas este mes</div></div>';
   } else {
     absences.sort((a, b) => b.total - a.total);
     html += '<div style="display:flex;flex-direction:column;gap:8px;">';
@@ -19960,7 +20043,7 @@ function renderGestorAusencias() {
       const roleColor = w.type === 'enf' ? '#2e8b7a' : w.area === 'micro' ? '#9a6abf' : '#4a9dd4';
       const plantName = (PLANTAS.find(p => p.id === w.planta) || {}).short || '—';
 
-      html += '<div style="background:white;border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;">';
+      html += '<div style="background:var(--surface); backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;">';
       html += '<div style="width:36px;height:36px;border-radius:10px;background:' + roleColor + ';display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;flex-shrink:0;">' + (w.name || '?').charAt(0).toUpperCase() + '</div>';
       html += '<div style="flex:1;min-width:0;">';
       html += '<div style="font-size:13px;font-weight:600;color:var(--text1);display:flex;align-items:center;gap:6px;">' + escHtml(w.name) + '<span style="font-size:9px;font-weight:700;color:var(--text3);background:var(--surface2);padding:2px 6px;border-radius:4px;">' + plantName + '</span></div>';
@@ -20155,19 +20238,19 @@ function renderVacacionesGantt() {
         <div style="font-size:12px;color:var(--text3);">${withVac} con vacaciones · ${withoutVac} sin planificar · Media: ${avgDays}d/persona</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <button onclick="vacGanttYear=${year - 1};renderVacacionesGantt();" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:12px;cursor:pointer;">◀ ${year - 1}</button>
+        <button onclick="vacGanttYear=${year - 1};renderVacacionesGantt();" style="padding:6px 12px;border-radius:8px;border:1px solid var(--glass-border);background:var(--surface);color:var(--text2);font-size:12px;cursor:pointer;">◀ ${year - 1}</button>
         <span style="font-size:16px;font-weight:800;color:var(--text1);padding:0 8px;">${year}</span>
-        <button onclick="vacGanttYear=${year + 1};renderVacacionesGantt();" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:12px;cursor:pointer;">${year + 1} ▶</button>
+        <button onclick="vacGanttYear=${year + 1};renderVacacionesGantt();" style="padding:6px 12px;border-radius:8px;border:1px solid var(--glass-border);background:var(--surface);color:var(--text2);font-size:12px;cursor:pointer;">${year + 1} ▶</button>
       </div>
     </div>
 
     <!-- Summary cards -->
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:20px;">
-      <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border);">
+      <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;border:1px solid var(--glass-border);">
         <div style="font-size:22px;font-weight:800;color:var(--primary);">${VAC_QUOTA}</div>
         <div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600;">Cuota anual</div>
       </div>
-      <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;border:1px solid var(--border);">
+      <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;border:1px solid var(--glass-border);">
         <div style="font-size:22px;font-weight:800;color:#2e8b7a;">${avgDays}</div>
         <div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600;">Media disfrutados</div>
       </div>
@@ -20182,7 +20265,7 @@ function renderVacacionesGantt() {
     </div>
 
     <!-- Monthly heatmap -->
-    <div style="background:var(--surface);border-radius:14px;padding:16px;margin-bottom:20px;border:1px solid var(--border);">
+    <div style="background:var(--surface);border-radius:14px;padding:16px;margin-bottom:20px;border:1px solid var(--glass-border);">
       <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Distribución mensual de vacaciones</div>
       <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;">
         ${monthlyHeat.map(mh => {
@@ -20206,7 +20289,7 @@ function renderVacacionesGantt() {
 
     <!-- Recommendations -->
     ${recommendations.length > 0 ? `
-    <div style="background:var(--surface);border-radius:14px;padding:16px;margin-bottom:20px;border:1px solid var(--border);">
+    <div style="background:var(--surface);border-radius:14px;padding:16px;margin-bottom:20px;border:1px solid var(--glass-border);">
       <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg> Recomendaciones inteligentes</div>
       ${recommendations.map(r => {
         const color = r.severity === 'high' ? '#cc4444' : r.severity === 'medium' ? '#e67e22' : '#27ae60';
@@ -20228,11 +20311,11 @@ function renderVacacionesGantt() {
     <!-- Filter and sort controls -->
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
       <span style="font-size:11px;color:var(--text3);font-weight:600;">Filtrar:</span>
-      <button onclick="vacGanttFilter='all';renderVacacionesGantt();" style="padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:${vacGanttFilter === 'all' ? 'var(--primary)' : 'var(--surface)'};color:${vacGanttFilter === 'all' ? '#fff' : 'var(--text2)'};font-size:11px;font-weight:600;cursor:pointer;">Todos</button>
-      <button onclick="vacGanttFilter='enf';renderVacacionesGantt();" style="padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:${vacGanttFilter === 'enf' ? '#2e8b7a' : 'var(--surface)'};color:${vacGanttFilter === 'enf' ? '#fff' : 'var(--text2)'};font-size:11px;font-weight:600;cursor:pointer;">ENF</button>
-      <button onclick="vacGanttFilter='tec';renderVacacionesGantt();" style="padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:${vacGanttFilter === 'tec' ? '#4a9dd4' : 'var(--surface)'};color:${vacGanttFilter === 'tec' ? '#fff' : 'var(--text2)'};font-size:11px;font-weight:600;cursor:pointer;">TEC</button>
+      <button onclick="vacGanttFilter='all';renderVacacionesGantt();" style="padding:4px 12px;border-radius:6px;border:1px solid var(--glass-border);background:${vacGanttFilter === 'all' ? 'var(--primary)' : 'var(--surface)'};color:${vacGanttFilter === 'all' ? '#fff' : 'var(--text2)'};font-size:11px;font-weight:600;cursor:pointer;">Todos</button>
+      <button onclick="vacGanttFilter='enf';renderVacacionesGantt();" style="padding:4px 12px;border-radius:6px;border:1px solid var(--glass-border);background:${vacGanttFilter === 'enf' ? '#2e8b7a' : 'var(--surface)'};color:${vacGanttFilter === 'enf' ? '#fff' : 'var(--text2)'};font-size:11px;font-weight:600;cursor:pointer;">ENF</button>
+      <button onclick="vacGanttFilter='tec';renderVacacionesGantt();" style="padding:4px 12px;border-radius:6px;border:1px solid var(--glass-border);background:${vacGanttFilter === 'tec' ? '#4a9dd4' : 'var(--surface)'};color:${vacGanttFilter === 'tec' ? '#fff' : 'var(--text2)'};font-size:11px;font-weight:600;cursor:pointer;">TEC</button>
       <span style="margin-left:12px;font-size:11px;color:var(--text3);font-weight:600;">Ordenar:</span>
-      <select onchange="vacGanttSort=this.value;renderVacacionesGantt();" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:11px;">
+      <select onchange="vacGanttSort=this.value;renderVacacionesGantt();" style="padding:4px 8px;border-radius:6px;border:1px solid var(--glass-border);background:var(--surface);color:var(--text2);font-size:11px;">
         <option value="days" ${vacGanttSort === 'days' ? 'selected' : ''}>Dias (mayor)</option>
         <option value="remaining" ${vacGanttSort === 'remaining' ? 'selected' : ''}>Pendientes</option>
         <option value="name" ${vacGanttSort === 'name' ? 'selected' : ''}>Nombre</option>
@@ -20302,7 +20385,7 @@ function renderVacacionesGantt() {
     </div>` : ''}
 
     <!-- Coverage impact by month -->
-    <div style="margin-top:16px;background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--border);">
+    <div style="margin-top:16px;background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--glass-border);">
       <div style="font-size:13px;font-weight:700;color:var(--text1);margin-bottom:10px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:text-bottom;margin-right:4px;"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M9 21v-4h6v4"/></svg> Impacto en cobertura por mes</div>
       <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;">
         ${monthlyCoverageImpact.map((ci, mi) => {
@@ -20387,8 +20470,8 @@ function openFestivosEditor() {
       </div>
 
       <div style="display:flex;gap:8px;margin-bottom:16px;">
-        <input type="date" id="newFestivoDate" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text1);" min="${year}-01-01" max="${year}-12-31">
-        <input type="text" id="newFestivoName" placeholder="Nombre del festivo" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text1);">
+        <input type="date" id="newFestivoDate" style="flex:1;padding:8px 12px;border:1px solid var(--glass-border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text1);" min="${year}-01-01" max="${year}-12-31">
+        <input type="text" id="newFestivoName" placeholder="Nombre del festivo" style="flex:1;padding:8px 12px;border:1px solid var(--glass-border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text1);">
         <button onclick="addFestivo()" style="padding:8px 14px;border-radius:8px;background:#2e8b7a;color:#fff;border:none;font-weight:600;font-size:12px;cursor:pointer;">+</button>
       </div>
 
@@ -20757,7 +20840,7 @@ function exportSchedulePDF() {
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap');
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:var(--font); color:#2c2c2c; padding:40px; background:white; }
+    body { font-family:var(--font); color:#2c2c2c; padding:40px; background:var(--surface); backdrop-filter:var(--glass-blur); }
     .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:32px; padding-bottom:20px; border-bottom:2px solid #e8e5e1; }
     .header h1 { font-size:24px; font-weight:700; color:#5c7a6f; }
     .header h2 { font-size:14px; font-weight:500; color:#7a7a7a; margin-top:4px; }
@@ -25958,7 +26041,7 @@ function toggleShortcutsHelp() {
     { key: 'Esc', desc: 'Cerrar panel / modal' }
   ];
 
-  let html = '<div style="background:var(--surface);border-radius:20px;padding:32px;width:90%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.2);border:1px solid var(--border);">';
+  let html = '<div style="background:var(--surface);border-radius:20px;padding:32px;width:90%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.2);border:1px solid var(--glass-border);">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">';
   html += '<h3 style="font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--primary);margin:0;">Atajos de teclado</h3>';
   html += '<button onclick="document.getElementById(\'shortcutsHelp\').remove()" style="background:none;border:none;cursor:pointer;padding:4px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
@@ -25967,11 +26050,11 @@ function toggleShortcutsHelp() {
   shortcuts.forEach(s => {
     html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">';
     html += '<span style="font-size:13px;color:var(--text2);">' + s.desc + '</span>';
-    html += '<kbd style="font-family:var(--font);font-size:11px;font-weight:600;color:var(--text1);background:var(--surface2);padding:4px 10px;border-radius:6px;border:1px solid var(--border);min-width:40px;text-align:center;">' + s.key + '</kbd>';
+    html += '<kbd style="font-family:var(--font);font-size:11px;font-weight:600;color:var(--text1);background:var(--surface2);padding:4px 10px;border-radius:6px;border:1px solid var(--glass-border);min-width:40px;text-align:center;">' + s.key + '</kbd>';
     html += '</div>';
   });
 
-  html += '<div style="margin-top:16px;text-align:center;font-size:11px;color:var(--text3);">Pulsa <kbd style="font-size:10px;background:var(--surface2);padding:2px 6px;border-radius:4px;border:1px solid var(--border);">?</kbd> o <kbd style="font-size:10px;background:var(--surface2);padding:2px 6px;border-radius:4px;border:1px solid var(--border);">Esc</kbd> para cerrar</div>';
+  html += '<div style="margin-top:16px;text-align:center;font-size:11px;color:var(--text3);">Pulsa <kbd style="font-size:10px;background:var(--surface2);padding:2px 6px;border-radius:4px;border:1px solid var(--glass-border);">?</kbd> o <kbd style="font-size:10px;background:var(--surface2);padding:2px 6px;border-radius:4px;border:1px solid var(--glass-border);">Esc</kbd> para cerrar</div>';
   html += '</div>';
 
   panel.innerHTML = html;
