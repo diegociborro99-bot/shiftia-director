@@ -981,6 +981,16 @@ table.schedule th.day-header .day-num {
   line-height: 1.2;
 }
 
+table.schedule thead {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+}
+
+table.schedule thead th {
+  background: var(--surface);
+}
+
 table.schedule th.name-col {
   text-align: left;
   padding-left: 16px;
@@ -1077,6 +1087,60 @@ table.schedule td.name-cell:hover {
 [data-theme="dark"] .shift-pill:hover {
   box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.08);
   border-color: rgba(255,255,255,0.12);
+}
+
+/* Swipe action container for shift pills */
+.shift-cell-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+.shift-pill-actions {
+  position: absolute;
+  right: -100%;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transition: right 0.2s ease;
+  z-index: 5;
+}
+
+.shift-pill-actions.revealed {
+  right: 0;
+}
+
+.spa-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+  transition: transform 0.15s ease;
+}
+
+.spa-btn:active {
+  transform: scale(0.9);
+}
+
+.spa-btn-edit {
+  background: var(--accent);
+  color: white;
+}
+
+.spa-btn-swap {
+  background: #4a9dd4;
+  color: white;
+}
+
+.spa-btn-clear {
+  background: var(--danger);
+  color: white;
 }
 
 /* Shift Editor Popup */
@@ -8607,6 +8671,7 @@ table.schedule tbody tr:hover {
         <div id="smartInsights" style="margin-top:32px;"></div>
         <div id="plantComparison" style="margin-top:32px;"></div>
         <div id="coverageRiskGauge" style="margin-top:32px;"></div>
+        <div id="weeklyShortageRollup" style="margin-top:32px;"></div>
         <div id="fatigueRecommendations" style="margin-top:12px;"></div>
         <div id="auditLogContainer" style="margin-top:32px;"></div>
       </div>
@@ -9148,6 +9213,9 @@ let shiftiaOnboarded = false;
 
 // Simulation mode flag
 let simulationMode = false;
+
+// FEATURE 2: Copy/Paste Shift Patterns
+let copiedShiftPattern = null;
 
 // Helper: is this worker a lab worker (counts for lab coverage)?
 function isLabWorker(w) { return w.area !== 'micro'; }
@@ -10401,6 +10469,9 @@ function renderDashboard() {
   // Render coverage risk gauge
   try { renderCoverageRiskGauge(); } catch(e) { console.warn('[Shiftia] Coverage risk gauge error:', e); }
 
+  // Render weekly shortage rollup
+  try { renderWeeklyShortageRollup(); } catch(e) { console.warn('[Shiftia] Weekly shortage rollup error:', e); }
+
   // Render fatigue recommendations
   try { renderFatigueRecommendations(); } catch(e) { console.warn('[Shiftia] Fatigue recommendations error:', e); }
 
@@ -10681,6 +10752,118 @@ function renderWeeklyDashboard() {
   </div>`;
 
   weeklyDashEl.innerHTML = html;
+}
+
+// ========= WEEKLY SHORTAGE ROLLUP =========
+function renderWeeklyShortageRollup() {
+  const container = document.getElementById('weeklyShortageRollup');
+  if (!container) return;
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const sch = genSchedule(year, month);
+
+  // Get next 7 days starting today
+  const sevenDays = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(year, month, now.getDate() + i);
+    sevenDays.push(d);
+  }
+
+  const shifts = ['M', 'T', 'N'];
+  const shiftLabels = { M: 'Mañana', T: 'Tarde', N: 'Noche' };
+
+  // Build deficit matrix: shortage[shift][dayIndex] = deficit amount
+  let totalShortages = 0;
+  const shortage = {};
+  shifts.forEach(shift => {
+    shortage[shift] = [];
+    sevenDays.forEach((date, idx) => {
+      const dayIdx = date.getDate() - 1;
+      const dayMonth = date.getMonth();
+      const dayYear = date.getFullYear();
+      const dayKey = `${dayYear}-${dayMonth}`;
+      const daySch = scheduleData[dayKey] || genSchedule(dayYear, dayMonth);
+
+      // Count workers on this shift
+      let onShift = 0;
+      workers.forEach(w => {
+        const s = daySch[w.id] ? (daySch[w.id][dayIdx] || '').toString().trim() : '';
+        const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+        if (eff === shift) onShift++;
+      });
+
+      // Get coverage requirements
+      const covRules = getCoverageRules(dayYear, dayMonth, date.getDate());
+      const needed = covRules[shift]?.enf + covRules[shift]?.tec || 0;
+      const deficit = Math.max(0, needed - onShift);
+      shortage[shift].push(deficit);
+      if (deficit > 0) totalShortages++;
+    });
+  });
+
+  // Build HTML
+  let html = `<div style="padding:24px;background:var(--surface);border:1px solid var(--border);border-radius:12px;">
+    <h3 style="font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--primary);margin:0 0 20px 0;">Déficit de la Semana</h3>`;
+
+  // Grid table
+  html += `<div style="margin-bottom:24px;overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border);">
+          <th style="text-align:left;padding:12px;font-weight:600;color:var(--text);width:80px;">Turno</th>`;
+
+  sevenDays.forEach((date, idx) => {
+    const dayName = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][date.getDay()];
+    html += `<th style="text-align:center;padding:12px;font-weight:600;color:var(--text);min-width:60px;">${dayName}<br><span style="font-size:10px;font-weight:400;color:var(--text2);">${date.getDate()}</span></th>`;
+  });
+
+  html += `</tr></thead><tbody>`;
+
+  // Shift rows
+  shifts.forEach(shift => {
+    html += `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:12px;font-weight:600;color:var(--text);">${shiftLabels[shift]}</td>`;
+
+    shortage[shift].forEach((def, idx) => {
+      let cellColor = '#22c55e';
+      let cellBg = 'rgba(34,197,94,0.08)';
+      let cellText = '✓';
+
+      if (def === 1) {
+        cellColor = '#f59e0b';
+        cellBg = 'rgba(245,158,11,0.12)';
+        cellText = '-1';
+      } else if (def >= 2) {
+        cellColor = '#ef4444';
+        cellBg = 'rgba(239,68,68,0.12)';
+        cellText = '-' + def;
+      }
+
+      html += `<td style="text-align:center;padding:12px;background:${cellBg};cursor:pointer;" title="Déficit: ${def}">
+        <span style="color:${cellColor};font-weight:700;font-size:13px;">${cellText}</span>
+      </td>`;
+    });
+
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table>
+    </div>`;
+
+  // Summary and button
+  html += `<div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--border);">
+    <div style="font-size:13px;color:var(--text2);">
+      <span style="font-weight:600;">${totalShortages}</span> turno(s) con déficit esta semana
+    </div>
+    <button onclick="switchView('gestor-cobertura')" style="padding:10px 20px;background:linear-gradient(135deg,var(--accent),#d4a843);color:white;border:none;border-radius:10px;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(212,168,76,0.3);" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(212,168,76,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(212,168,76,0.3)'">
+      Resolver con IA
+    </button>
+  </div>
+  </div>`;
+
+  container.innerHTML = html;
 }
 
 // ========= AUDIT LOG VIEWER =========
@@ -11951,6 +12134,169 @@ function renderMiniCal() {
   }, 10);
 }
 
+// Setup swipe gestures on shift pills for touch devices
+function setupShiftSwipeGestures() {
+  // Only on touch devices
+  if (!('ontouchstart' in window)) return;
+
+  let currentOpenActions = null;
+
+  document.querySelectorAll('#scheduleTable .shift-pill').forEach(pill => {
+    let startX = 0, startY = 0, swiping = false;
+
+    pill.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      swiping = false;
+    }, { passive: true });
+
+    pill.addEventListener('touchmove', (e) => {
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      // Only horizontal swipe
+      if (Math.abs(dx) > 20 && Math.abs(dy) < 15) {
+        swiping = true;
+        if (dx < -30) {
+          // Swipe left: show actions
+          showPillActions(pill, currentOpenActions);
+          currentOpenActions = pill;
+        }
+      }
+    }, { passive: true });
+
+    pill.addEventListener('touchend', () => {
+      if (!swiping) return; // Let normal click handle it
+    });
+  });
+
+  // Close actions on document click
+  document.addEventListener('click', (e) => {
+    if (currentOpenActions && !currentOpenActions.contains(e.target) && !e.target.closest('.shift-pill-actions')) {
+      closePillActions(currentOpenActions);
+      currentOpenActions = null;
+    }
+  }, { passive: true });
+}
+
+// Show action buttons next to a shift pill
+function showPillActions(pill, previousOpenPill) {
+  // Close any previously open action panel
+  if (previousOpenPill && previousOpenPill !== pill) {
+    closePillActions(previousOpenPill);
+  }
+
+  // Check if actions already exist
+  let actions = pill.parentElement.querySelector('.shift-pill-actions');
+  if (actions) {
+    actions.classList.add('revealed');
+    return;
+  }
+
+  // Wrap the pill cell if not already wrapped
+  let wrap = pill.parentElement.querySelector('.shift-cell-wrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.className = 'shift-cell-wrap';
+    pill.parentElement.style.position = 'relative';
+    pill.parentElement.style.overflow = 'hidden';
+    wrap.appendChild(pill.cloneNode(true));
+    pill.parentElement.innerHTML = '';
+    pill.parentElement.appendChild(wrap);
+    pill = wrap.querySelector('.shift-pill');
+  }
+
+  // Get worker and day data
+  const wid = pill.getAttribute('data-wid');
+  const day = pill.getAttribute('data-day');
+  const month = pill.getAttribute('data-month');
+  const year = pill.getAttribute('data-year');
+
+  // Create actions container
+  actions = document.createElement('div');
+  actions.className = 'shift-pill-actions revealed';
+
+  // Edit button
+  const editBtn = document.createElement('button');
+  editBtn.className = 'spa-btn spa-btn-edit';
+  editBtn.innerHTML = '✎';
+  editBtn.title = 'Edit shift';
+  editBtn.onclick = (e) => {
+    e.stopPropagation();
+    openShiftEditorScheduleView(parseInt(wid), parseInt(day));
+    closePillActions(pill);
+  };
+
+  // Swap button
+  const swapBtn = document.createElement('button');
+  swapBtn.className = 'spa-btn spa-btn-swap';
+  swapBtn.innerHTML = '⇄';
+  swapBtn.title = 'Swap shift';
+  swapBtn.onclick = (e) => {
+    e.stopPropagation();
+    openSwapDialogFromSchedule(parseInt(wid), parseInt(day), parseInt(month), parseInt(year));
+    closePillActions(pill);
+  };
+
+  // Clear button
+  const clearBtn = document.createElement('button');
+  clearBtn.className = 'spa-btn spa-btn-clear';
+  clearBtn.innerHTML = '×';
+  clearBtn.title = 'Clear shift';
+  clearBtn.onclick = (e) => {
+    e.stopPropagation();
+    if (confirm('Remove this shift?')) {
+      clearShiftFromSchedule(parseInt(wid), parseInt(day), parseInt(month), parseInt(year));
+      closePillActions(pill);
+    }
+  };
+
+  actions.appendChild(editBtn);
+  actions.appendChild(swapBtn);
+  actions.appendChild(clearBtn);
+
+  // Insert actions after the pill
+  pill.parentElement.appendChild(actions);
+
+  // Auto-close after 3 seconds
+  setTimeout(() => {
+    closePillActions(pill);
+  }, 3000);
+}
+
+// Close action buttons
+function closePillActions(pill) {
+  const actions = pill.parentElement ? pill.parentElement.querySelector('.shift-pill-actions') : null;
+  if (actions) {
+    actions.classList.remove('revealed');
+  }
+}
+
+// Helper: Open swap dialog from schedule view
+function openSwapDialogFromSchedule(wid, day, month, year) {
+  const w = workers.find(x => x.id === wid);
+  if (!w) return;
+  const s = genSchedule(year, month)[wid] ? genSchedule(year, month)[wid][day] : '';
+  if (!s || s === '') {
+    alert('No shift to swap');
+    return;
+  }
+  // TODO: Implement swap dialog or call existing function
+  alert('Swap functionality for ' + w.name + ' on shift ' + s);
+}
+
+// Helper: Clear shift from schedule
+function clearShiftFromSchedule(wid, day, month, year) {
+  const w = workers.find(x => x.id === wid);
+  if (!w) return;
+  // TODO: Implement clear shift logic
+  const sch = genSchedule(year, month);
+  if (sch[wid] && sch[wid][day]) {
+    sch[wid][day] = '';
+    saveSchedule(year, month, sch);
+    renderSchedule();
+  }
+}
+
 // Render Schedule
 function renderSchedule() {
   const m = appState.currentMonth;
@@ -12063,7 +12409,7 @@ function renderSchedule() {
 
     let wM = 0, wT = 0, wN = 0, wD = 0, wH = 0;
     const dotColor = w.type === 'enf' ? '#2e8b7a' : '#4a9dd4';
-    html += `<tr data-worker-id="${w.id}"><td class="name-cell" title="${escHtml(w.name)} — clic para foco, doble-clic para perfil" onclick="toggleFocusMode(${w.id})" ondblclick="openWorkerPanel(${w.id})"><span style="display:inline-block;width:5px;height:5px;background:${dotColor};border-radius:50%;flex-shrink:0;vertical-align:middle;margin-right:8px;opacity:0.7;"></span><span style="vertical-align:middle;">${escHtml(w.name)}</span></td>`;
+    html += `<tr data-worker-id="${w.id}"><td class="name-cell" title="${escHtml(w.name)} — clic para foco, doble-clic para perfil" onclick="toggleFocusMode(${w.id})" ondblclick="openWorkerPanel(${w.id})" oncontextmenu="showShiftPatternMenu(event, ${w.id}, '${escHtml(w.name)}')"><span style="display:inline-block;width:5px;height:5px;background:${dotColor};border-radius:50%;flex-shrink:0;vertical-align:middle;margin-right:8px;opacity:0.7;"></span><span style="vertical-align:middle;">${escHtml(w.name)}</span></td>`;
     allDays.forEach((dd, i) => {
       const s = dd.sch[w.id] ? dd.sch[w.id][dd.dayIdx] : '';
       const isToday = dd.isToday;
@@ -12166,6 +12512,9 @@ function renderSchedule() {
 
   // Setup drag-to-scroll on the table wrap
   setupDragScroll();
+
+  // Setup swipe gestures for touch devices
+  setupShiftSwipeGestures();
 }
 
 // Scroll the schedule so today's column is centered in the visible area
@@ -12310,6 +12659,129 @@ function goToWorkerSchedule(wId) {
       }
     });
   }, 200);
+}
+
+// ========= FEATURE 2: SHIFT PATTERN COPY/PASTE =========
+function showShiftPatternMenu(event, workerId, workerName) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const worker = workers.find(w => w.id === workerId);
+  if (!worker) return;
+
+  // Close any existing menu
+  const existing = document.getElementById('shiftPatternMenu');
+  if (existing) existing.remove();
+
+  const now = new Date();
+  const month = appState.currentMonth.getMonth();
+  const year = appState.currentMonth.getFullYear();
+  const sch = genSchedule(year, month);
+  const shifts = sch[workerId] || [];
+
+  // Create menu HTML
+  let menuHTML = `<div id="shiftPatternMenu" style="position:fixed;top:${event.clientY}px;left:${event.clientX}px;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);min-width:180px;overflow:hidden;">`;
+
+  // Copy option
+  menuHTML += `<div style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);font-family:var(--font);" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''" onclick="copyShiftPattern(${workerId}, '${escHtml(workerName)}'); document.getElementById('shiftPatternMenu').remove();">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:6px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+    Copiar patrón
+  </div>`;
+
+  // Paste option (only if a pattern is copied)
+  if (copiedShiftPattern) {
+    menuHTML += `<div style="padding:10px 12px;cursor:pointer;font-size:13px;color:var(--text);font-family:var(--font);" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''" onclick="pasteShiftPattern(${workerId}, '${escHtml(workerName)}'); document.getElementById('shiftPatternMenu').remove();">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:6px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 9h6"/><path d="M9 13h6"/><path d="M9 17h2"/></svg>
+      Pegar patrón
+    </div>`;
+  }
+
+  menuHTML += `</div>`;
+
+  // Insert and show menu
+  document.body.insertAdjacentHTML('beforeend', menuHTML);
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', closeShiftPatternMenu, { once: true });
+  }, 100);
+}
+
+function closeShiftPatternMenu() {
+  const menu = document.getElementById('shiftPatternMenu');
+  if (menu) menu.remove();
+}
+
+function copyShiftPattern(workerId, workerName) {
+  const worker = workers.find(w => w.id === workerId);
+  if (!worker) return;
+
+  const month = appState.currentMonth.getMonth();
+  const year = appState.currentMonth.getFullYear();
+  const sch = genSchedule(year, month);
+  const shifts = sch[workerId] ? [...sch[workerId]] : [];
+
+  copiedShiftPattern = {
+    workerId: workerId,
+    name: workerName,
+    shifts: shifts,
+    month: month,
+    year: year
+  };
+
+  // Show toast
+  showToast(`Patrón de ${workerName} copiado`, 'success');
+
+  // Add visual badge to source worker
+  const workerRow = document.querySelector(`tr[data-worker-id="${workerId}"] .name-cell`);
+  if (workerRow) {
+    workerRow.style.background = 'rgba(34,197,94,0.1)';
+    workerRow.style.borderLeft = '3px solid #22c55e';
+    setTimeout(() => {
+      workerRow.style.background = '';
+      workerRow.style.borderLeft = '';
+    }, 3000);
+  }
+}
+
+function pasteShiftPattern(targetWorkerId, targetWorkerName) {
+  if (!copiedShiftPattern) {
+    showToast('No hay patrón copiado', 'warning');
+    return;
+  }
+
+  const sourceWorkerName = copiedShiftPattern.name;
+  const sourceMonth = copiedShiftPattern.month;
+  const sourceYear = copiedShiftPattern.year;
+  const sourceShifts = copiedShiftPattern.shifts;
+
+  // Apply to target worker in current month
+  const targetMonth = appState.currentMonth.getMonth();
+  const targetYear = appState.currentMonth.getFullYear();
+  const key = `${targetYear}-${targetMonth}`;
+
+  if (!scheduleData[key]) {
+    scheduleData[key] = {};
+  }
+
+  // Copy the shifts
+  scheduleData[key][targetWorkerId] = [...sourceShifts];
+
+  // Save to storage
+  try {
+    saveToStorage();
+  } catch (e) {
+    console.warn('Error saving to storage:', e);
+  }
+
+  // Re-render
+  renderSchedule();
+
+  // Show toast
+  showToast(`Patrón de ${sourceWorkerName} aplicado a ${targetWorkerName}`, 'success');
+
+  // Log action
+  logAudit('shift_pattern_pasted', `Patrón de ${sourceWorkerName} aplicado a ${targetWorkerName}`, null, targetWorkerId);
 }
 
 // Render Workers — stats computed live from actual schedule
@@ -18191,6 +18663,7 @@ function openShiftEditor(workerId, dayIndex, year, month) {
           '</div>';
         }).join('')}
       </div>
+      <div style="padding:8px 12px; border-top:1px solid var(--border); background:var(--surface2); font-size:9px; color:var(--text3); text-align:center; letter-spacing:0.5px;">Atajos: 1=M 2=T 3=N 4=D 5=VAC 0=Limpiar</div>
     </div>
   </div>`;
 
@@ -18204,6 +18677,62 @@ function openShiftEditor(workerId, dayIndex, year, month) {
     const popover = document.getElementById(popoverId);
     popover.style.left = rect.left + 'px';
     popover.style.top = (rect.bottom + 4) + 'px';
+
+    // Add keyboard shortcut listener
+    const keydownHandler = function(e) {
+      // Map number keys to shift codes
+      const keyMap = {
+        '1': 'M',    // Mañana
+        '2': 'T',    // Tarde
+        '3': 'N',    // Noche
+        '4': 'D',    // Descanso
+        '5': 'VAC',  // Vacaciones
+        '0': ''      // Clear/remove
+      };
+
+      if (e.key in keyMap) {
+        e.preventDefault();
+        const newShift = keyMap[e.key];
+        // Find the matching shift option and apply it
+        const matchingOption = shiftOptions.find(opt => opt.code === newShift);
+
+        if (newShift === '' || matchingOption) {
+          // Apply the shift
+          applyShiftChange(workerId, dayIndex, newShift, year, month);
+
+          // Find the shift button that was "clicked" for visual feedback
+          if (matchingOption) {
+            const shiftButtons = popover.querySelectorAll('[onclick*="applyShiftChange"]');
+            for (let btn of shiftButtons) {
+              if (btn.textContent.includes(matchingOption.code)) {
+                // Flash the button
+                btn.style.opacity = '0.6';
+                setTimeout(() => { btn.style.opacity = '1'; }, 100);
+                break;
+              }
+            }
+          }
+
+          // Close the popover
+          setTimeout(() => {
+            const popEl = document.getElementById(popoverId);
+            if (popEl) popEl.remove();
+          }, 100);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', keydownHandler);
+
+    // Store the handler on the popover so we can remove it when popover closes
+    popover.keydownHandler = keydownHandler;
+
+    // Remove listener when popover is removed
+    const originalRemove = popover.remove.bind(popover);
+    popover.remove = function() {
+      document.removeEventListener('keydown', keydownHandler);
+      originalRemove();
+    };
   }
 }
 
