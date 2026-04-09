@@ -8767,6 +8767,12 @@ table.schedule tbody tr:hover {
         <div id="coverageRiskGauge" style="margin-top:32px;"></div>
         <div id="weeklyShortageRollup" style="margin-top:32px;"></div>
         <div id="fatigueRecommendations" style="margin-top:12px;"></div>
+        <div id="predictiveAbsenceEngine" style="margin-top:32px;"></div>
+        <div id="equityDashboard" style="margin-top:32px;"></div>
+        <div id="scheduleOptimizer" style="margin-top:32px;"></div>
+        <div id="swapRecommender" style="margin-top:32px;"></div>
+        <div id="scenarioSimulator" style="margin-top:32px;"></div>
+        <div id="patternRecognition" style="margin-top:32px;"></div>
         <div id="auditLogContainer" style="margin-top:32px;"></div>
       </div>
     </div>
@@ -10595,6 +10601,14 @@ function renderDashboard() {
 
   // Render fatigue recommendations
   try { renderFatigueRecommendations(); } catch(e) { console.warn('[Shiftia] Fatigue recommendations error:', e); }
+
+  // Render advanced intelligence panels
+  try { renderPredictiveAbsenceEngine(); } catch(e) { console.warn('[Shiftia] Predictive absence error:', e); }
+  try { renderEquityDashboard(); } catch(e) { console.warn('[Shiftia] Equity dashboard error:', e); }
+  try { renderScheduleOptimizer(); } catch(e) { console.warn('[Shiftia] Schedule optimizer error:', e); }
+  try { renderSwapRecommender(); } catch(e) { console.warn('[Shiftia] Swap recommender error:', e); }
+  try { renderScenarioSimulator(); } catch(e) { console.warn('[Shiftia] Scenario simulator error:', e); }
+  try { renderPatternRecognition(); } catch(e) { console.warn('[Shiftia] Pattern recognition error:', e); }
 
   // Render audit log
   try {
@@ -19273,6 +19287,820 @@ document.addEventListener('keydown', function(e) {
       break;
   }
 });
+
+// ========== ADVANCED INTELLIGENCE: 6 NEW FEATURES ==========
+
+// ── FEATURE 1: Motor Predictivo de Ausencias ──
+function renderPredictiveAbsenceEngine() {
+  const container = document.getElementById('predictiveAbsenceEngine');
+  if (!container) return;
+  if (workers.length === 0) { container.innerHTML = ''; return; }
+
+  const now = new Date();
+  const dayOfWeekNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const ABSENCE_CODES = ['VAC','VAA','BAJ','LD','LAC','FOR','INT','MTC','CAA','AE','EX','DLA','CJ','FN','VAN','IQF','PM','HF','HS'];
+
+  // Analyze historical absence patterns across all available months
+  const absencePatterns = {};
+  workers.forEach(w => {
+    absencePatterns[w.id] = { byDow: new Array(7).fill(0), byType: {}, total: 0, monthsAnalyzed: 0 };
+  });
+
+  let totalMonthsAnalyzed = 0;
+  Object.keys(scheduleData).forEach(key => {
+    const sch = scheduleData[key];
+    const parts = key.split('-');
+    const y = parseInt(parts[0]), m = parseInt(parts[1]);
+    totalMonthsAnalyzed++;
+
+    workers.forEach(w => {
+      if (!sch[w.id]) return;
+      absencePatterns[w.id].monthsAnalyzed++;
+      sch[w.id].forEach((shift, dayIdx) => {
+        if (!shift) return;
+        const s = shift.toString().trim();
+        if (ABSENCE_CODES.includes(s)) {
+          const date = new Date(y, m, dayIdx + 1);
+          if (date.getMonth() !== m) return;
+          absencePatterns[w.id].byDow[date.getDay()]++;
+          absencePatterns[w.id].byType[s] = (absencePatterns[w.id].byType[s] || 0) + 1;
+          absencePatterns[w.id].total++;
+        }
+      });
+    });
+  });
+
+  // Calculate probability for next 7 days per worker
+  const next7 = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    next7.push({ date: d, dow: d.getDay() });
+  }
+
+  const predictions = [];
+  const divisor = Math.max(1, totalMonthsAnalyzed);
+
+  workers.forEach(w => {
+    const pat = absencePatterns[w.id];
+    if (pat.total === 0) return;
+
+    let weekRisk = 0;
+    next7.forEach(day => {
+      weekRisk += (pat.byDow[day.dow] || 0) / divisor;
+    });
+
+    const prob = Math.min(95, Math.round((weekRisk / 7) * 100));
+    if (prob < 3) return;
+
+    const topType = Object.entries(pat.byType).sort((a, b) => b[1] - a[1])[0];
+    predictions.push({
+      id: w.id, name: w.name, planta: w.planta,
+      probability: prob,
+      topReason: topType ? topType[0] : '—',
+      totalHistorical: pat.total,
+      peakDow: pat.byDow.indexOf(Math.max(...pat.byDow))
+    });
+  });
+
+  predictions.sort((a, b) => b.probability - a.probability);
+  const top5 = predictions.slice(0, 5);
+
+  // Plant risk for next 7 days
+  const plantRiskMap = {};
+  PLANTAS.forEach(p => {
+    plantRiskMap[p.id] = next7.map(day => {
+      let riskSum = 0, count = 0;
+      predictions.filter(pr => pr.planta === p.id).forEach(pr => {
+        riskSum += (absencePatterns[pr.id].byDow[day.dow] || 0) / divisor;
+        count++;
+      });
+      return { date: day.date, risk: count > 0 ? Math.min(100, Math.round(riskSum / count * 100)) : 0 };
+    });
+  });
+
+  // Build HTML
+  let html = '<div style="background:var(--surface);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:14px;padding:20px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+  html += '<div><h3 style="font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--primary);margin:0;">Motor Predictivo de Ausencias</h3>';
+  html += '<p style="font-size:11px;color:var(--text3);margin-top:2px;">Análisis de ' + totalMonthsAnalyzed + ' meses de datos históricos</p></div>';
+  html += '<span style="font-size:10px;padding:4px 10px;background:rgba(139,92,246,0.1);color:#8b5cf6;border-radius:6px;font-weight:600;">IA PREDICTIVA</span></div>';
+
+  if (top5.length > 0) {
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text1);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Top trabajadores en riesgo</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">';
+    top5.forEach(pred => {
+      const pName = (PLANTAS.find(p => p.id === pred.planta) || {}).short || '—';
+      const rColor = pred.probability > 60 ? '#ef4444' : pred.probability > 30 ? '#f59e0b' : '#6b7280';
+      const peakDay = dayOfWeekNames[pred.peakDow];
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:' + rColor + '08;border-radius:10px;border-left:3px solid ' + rColor + ';">';
+      html += '<div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:600;color:var(--text1);">' + escHtml(pred.name) + '</div>';
+      html += '<div style="font-size:10px;color:var(--text3);margin-top:2px;">' + pName + ' · Pico: ' + peakDay + ' · Motivo habitual: ' + pred.topReason + ' · ' + pred.totalHistorical + ' ausencias históricas</div></div>';
+      html += '<div style="text-align:center;flex-shrink:0;width:52px;height:52px;border-radius:10px;background:' + rColor + '12;border:2px solid ' + rColor + ';display:flex;align-items:center;justify-content:center;flex-direction:column;">';
+      html += '<div style="font-size:16px;font-weight:800;color:' + rColor + ';">' + pred.probability + '%</div>';
+      html += '<div style="font-size:8px;color:var(--text3);">riesgo</div></div></div>';
+    });
+    html += '</div>';
+  }
+
+  html += '<div style="font-size:11px;font-weight:700;color:var(--text1);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Calendario de riesgo: próximos 7 días</div>';
+  html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:10px;">';
+  html += '<thead><tr><th style="text-align:left;padding:6px 8px;color:var(--text3);font-weight:600;">Planta</th>';
+  next7.forEach(day => {
+    html += '<th style="text-align:center;padding:6px;color:var(--text3);font-weight:600;">' + dayOfWeekNames[day.dow] + ' ' + day.date.getDate() + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  PLANTAS.forEach(p => {
+    html += '<tr><td style="padding:6px 8px;font-weight:600;color:var(--text2);">' + p.short + '</td>';
+    (plantRiskMap[p.id] || []).forEach(cell => {
+      const r = cell.risk;
+      const bg = r > 50 ? 'rgba(239,68,68,0.2)' : r > 25 ? 'rgba(245,158,11,0.15)' : r > 5 ? 'rgba(234,179,8,0.1)' : 'rgba(34,197,94,0.08)';
+      const fg = r > 50 ? '#dc2626' : r > 25 ? '#d97706' : r > 5 ? '#92400e' : '#16a34a';
+      html += '<td style="text-align:center;padding:6px;background:' + bg + ';font-weight:700;color:' + fg + ';">' + r + '%</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div></div>';
+  container.innerHTML = html;
+}
+
+// ── FEATURE 2: Dashboard de Equidad y Justicia ──
+function renderEquityDashboard() {
+  const container = document.getElementById('equityDashboard');
+  if (!container) return;
+  if (workers.length === 0) { container.innerHTML = ''; return; }
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const key = year + '-' + month;
+  const sch = scheduleData[key] || genSchedule(year, month);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const stats = {};
+  const HOURS_MAP = { M: 7, T: 7, N: 10, MR: 7, M7H: 7, M6R: 6.5, M55: 5.5 };
+
+  workers.forEach(w => {
+    const shifts = sch[w.id] || [];
+    let nights = 0, weekends = 0, hours = 0, consec = 0, maxConsec = 0, workDays = 0;
+
+    for (let d = 0; d < daysInMonth; d++) {
+      const s = (shifts[d] || '').toString().trim();
+      const date = new Date(year, month, d + 1);
+      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+      const isWorking = s && s !== 'D' && s !== '' && !['VAC','BAJ','FOR','LAC','MTC','HS','CAA','INT'].includes(s);
+
+      if (isWorking) {
+        workDays++;
+        consec++;
+        maxConsec = Math.max(maxConsec, consec);
+        hours += HOURS_MAP[s] || 7;
+        if (s === 'N') nights++;
+        if (isWeekend) weekends++;
+      } else {
+        consec = 0;
+      }
+    }
+    stats[w.id] = { name: w.name, planta: w.planta, type: w.type, nights, weekends, hours: Math.round(hours * 10) / 10, maxConsec, workDays };
+  });
+
+  const vals = Object.values(stats);
+  const avgN = vals.reduce((a, v) => a + v.nights, 0) / vals.length || 0;
+  const avgW = vals.reduce((a, v) => a + v.weekends, 0) / vals.length || 0;
+  const avgH = vals.reduce((a, v) => a + v.hours, 0) / vals.length || 0;
+
+  const fairness = {};
+  Object.entries(stats).forEach(([wId, s]) => {
+    let score = 100;
+    score -= Math.max(0, Math.abs(s.nights - avgN) - 2) * 5;
+    score -= Math.max(0, Math.abs(s.weekends - avgW) - 1) * 4;
+    score -= Math.max(0, s.maxConsec - 5) * 6;
+    fairness[wId] = Math.max(0, Math.min(100, Math.round(score)));
+  });
+
+  const plantData = {};
+  PLANTAS.forEach(p => {
+    const pw = Object.entries(stats).filter(([, s]) => s.planta === p.id);
+    if (pw.length === 0) { plantData[p.id] = { avg: 100, gini: 0 }; return; }
+    const avgF = pw.reduce((a, [wId]) => a + fairness[wId], 0) / pw.length;
+    const hrs = pw.map(([, s]) => s.hours).sort((a, b) => a - b);
+    const n = hrs.length;
+    const mean = hrs.reduce((a, b) => a + b, 0) / n;
+    let gini = 0;
+    if (mean > 0 && n > 1) {
+      const sumDiff = hrs.reduce((acc, val, i) => acc + (2 * i - n + 1) * val, 0);
+      gini = Math.abs(sumDiff / (n * n * mean));
+    }
+    plantData[p.id] = { avg: Math.round(avgF), gini: Math.round(gini * 100) / 100 };
+  });
+
+  const sorted = Object.entries(fairness).sort((a, b) => a[1] - b[1]);
+  const overworked = sorted.slice(0, 3).map(([wId, f]) => ({ ...stats[wId], wId, fairness: f }));
+  const underworked = sorted.slice(-3).reverse().map(([wId, f]) => ({ ...stats[wId], wId, fairness: f }));
+
+  let html = '<div style="background:var(--surface);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:14px;padding:20px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+  html += '<div><h3 style="font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--primary);margin:0;">Equidad y Distribución de Carga</h3>';
+  html += '<p style="font-size:11px;color:var(--text3);margin-top:2px;">Media noches: ' + avgN.toFixed(1) + ' · Media fines de semana: ' + avgW.toFixed(1) + ' · Media horas: ' + avgH.toFixed(0) + 'h</p></div>';
+  html += '<span style="font-size:10px;padding:4px 10px;background:rgba(99,102,241,0.1);color:var(--accent);border-radius:6px;font-weight:600;">EQUIDAD</span></div>';
+
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:20px;">';
+  PLANTAS.forEach(p => {
+    const pd = plantData[p.id];
+    const clr = pd.avg > 75 ? '#16a34a' : pd.avg > 50 ? '#d97706' : '#dc2626';
+    html += '<div style="padding:12px;background:var(--bg);border-radius:10px;border:1px solid var(--border);">';
+    html += '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px;"><span style="font-weight:600;color:var(--text1);">' + p.short + '</span><span style="color:var(--text3);">Gini: ' + pd.gini.toFixed(2) + '</span></div>';
+    html += '<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;"><div style="width:' + pd.avg + '%;height:100%;background:' + clr + ';border-radius:4px;transition:width 0.3s;"></div></div>';
+    html += '<div style="font-size:10px;color:' + clr + ';font-weight:700;margin-top:4px;">' + pd.avg + '% justo</div></div>';
+  });
+  html += '</div>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
+  html += '<div><div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Más sobrecargados</div>';
+  overworked.forEach(w => {
+    html += '<div style="padding:10px 12px;background:rgba(239,68,68,0.05);border-radius:8px;border-left:3px solid #dc2626;margin-bottom:6px;">';
+    html += '<div style="font-size:12px;font-weight:600;color:var(--text1);">' + escHtml(w.name) + '</div>';
+    html += '<div style="font-size:10px;color:var(--text3);margin-top:3px;">N:' + w.nights + ' · FDS:' + w.weekends + ' · Consec:' + w.maxConsec + ' · ' + w.hours + 'h</div>';
+    html += '<div style="font-size:10px;color:#dc2626;font-weight:700;margin-top:3px;">Puntuación: ' + w.fairness + '/100</div></div>';
+  });
+  html += '</div>';
+
+  html += '<div><div style="font-size:11px;font-weight:700;color:#16a34a;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Menos cargados</div>';
+  underworked.forEach(w => {
+    html += '<div style="padding:10px 12px;background:rgba(34,197,94,0.05);border-radius:8px;border-left:3px solid #16a34a;margin-bottom:6px;">';
+    html += '<div style="font-size:12px;font-weight:600;color:var(--text1);">' + escHtml(w.name) + '</div>';
+    html += '<div style="font-size:10px;color:var(--text3);margin-top:3px;">N:' + w.nights + ' · FDS:' + w.weekends + ' · Consec:' + w.maxConsec + ' · ' + w.hours + 'h</div>';
+    html += '<div style="font-size:10px;color:#16a34a;font-weight:700;margin-top:3px;">Puntuación: ' + w.fairness + '/100</div></div>';
+  });
+  html += '</div></div></div>';
+  container.innerHTML = html;
+}
+
+// ── FEATURE 3: Optimizador Inteligente de Planilla ──
+function renderScheduleOptimizer() {
+  const container = document.getElementById('scheduleOptimizer');
+  if (!container) return;
+  if (workers.length === 0) { container.innerHTML = ''; return; }
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const key = year + '-' + month;
+  const sch = scheduleData[key] || genSchedule(year, month);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthNamesOpt = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  const gaps = [];
+  for (let d = 0; d < daysInMonth; d++) {
+    PLANTAS.forEach(planta => {
+      ['M','T','N'].forEach(shift => {
+        const needed = (PLANT_COVERAGE[planta.id] || {})[shift]?.min || 0;
+        if (needed === 0) return;
+        let onShift = 0;
+        workers.filter(w => w.planta === planta.id).forEach(w => {
+          const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+          const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+          if (eff === shift) onShift++;
+        });
+        if (onShift < needed) {
+          gaps.push({ dayIdx: d, day: d + 1, shift, plantaId: planta.id, plantaName: planta.name, plantaShort: planta.short, have: onShift, need: needed, deficit: needed - onShift });
+        }
+      });
+    });
+  }
+
+  const wStats = {};
+  workers.forEach(w => {
+    let nights = 0, workDays = 0;
+    const shifts = sch[w.id] || [];
+    shifts.forEach(s => {
+      const st = (s || '').toString().trim();
+      if (st === 'N') nights++;
+      if (st && st !== 'D' && st !== '' && !['VAC','BAJ','FOR','LAC','MTC','HS','CAA','INT'].includes(st)) workDays++;
+    });
+    wStats[w.id] = { nights, workDays };
+  });
+  const avgWorkDays = Object.values(wStats).reduce((a, v) => a + v.workDays, 0) / workers.length || 0;
+
+  const solutions = [];
+  gaps.forEach(gap => {
+    const candidates = [];
+    workers.forEach(w => {
+      const s = sch[w.id] ? (sch[w.id][gap.dayIdx] || '').toString().trim() : '';
+      if (s && s !== 'D' && s !== '') return;
+
+      let score = 50;
+      if (w.planta === gap.plantaId) score += 50;
+      if (w.flotante) score += 30;
+
+      let consec = 0;
+      for (let i = gap.dayIdx - 1; i >= 0; i--) {
+        const prev = sch[w.id] ? (sch[w.id][i] || '').toString().trim() : '';
+        if (prev && prev !== 'D' && prev !== '' && !['VAC','BAJ'].includes(prev)) consec++;
+        else break;
+      }
+      if (consec > 4) score -= 20;
+      if (consec > 6) score -= 20;
+
+      if (gap.shift === 'N' && wStats[w.id].nights > 3) score -= 15;
+      if (wStats[w.id].workDays < avgWorkDays) score += 25;
+
+      if (score > 0) candidates.push({ id: w.id, name: w.name, planta: w.planta, score: Math.max(0, score) });
+    });
+
+    candidates.sort((a, b) => b.score - a.score);
+    solutions.push({ ...gap, candidates: candidates.slice(0, 3) });
+  });
+
+  const totalGaps = gaps.reduce((a, g) => a + g.deficit, 0);
+  const resolvable = solutions.filter(s => s.candidates.length > 0).reduce((a, s) => a + s.deficit, 0);
+  const pct = totalGaps > 0 ? Math.round(resolvable / totalGaps * 100) : 100;
+
+  let html = '<div style="background:var(--surface);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:14px;padding:20px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+  html += '<div><h3 style="font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--primary);margin:0;">Optimizador de Planilla</h3>';
+  html += '<p style="font-size:11px;color:var(--text3);margin-top:2px;">' + totalGaps + ' huecos detectados este mes</p></div>';
+  html += '<span style="font-size:10px;padding:4px 10px;background:rgba(34,197,94,0.1);color:#16a34a;border-radius:6px;font-weight:600;">OPTIMIZACIÓN</span></div>';
+
+  const sumColor = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+  html += '<div style="display:flex;align-items:center;gap:16px;padding:14px;background:' + sumColor + '08;border:1px solid ' + sumColor + '30;border-radius:10px;margin-bottom:16px;">';
+  html += '<div style="font-size:28px;font-weight:800;color:' + sumColor + ';">' + pct + '%</div>';
+  html += '<div><div style="font-size:12px;font-weight:600;color:var(--text1);">Resolución estimada</div>';
+  html += '<div style="font-size:11px;color:var(--text3);">Se pueden cubrir ' + resolvable + ' de ' + totalGaps + ' huecos con personal disponible</div></div></div>';
+
+  const shown = solutions.filter(s => s.candidates.length > 0).slice(0, 10);
+  if (shown.length > 0) {
+    html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+    shown.forEach(sol => {
+      const date = new Date(year, month, sol.day);
+      const dayName = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][date.getDay()];
+      const shiftLabel = sol.shift === 'M' ? 'Mañana' : sol.shift === 'T' ? 'Tarde' : 'Noche';
+      const shiftColor = sol.shift === 'M' ? '#2e8b7a' : sol.shift === 'T' ? '#4a9dd4' : '#c9a84c';
+
+      html += '<div style="padding:12px;background:var(--bg);border-radius:10px;border:1px solid var(--border);">';
+      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">';
+      html += '<span style="font-size:11px;padding:3px 8px;background:' + shiftColor + '15;color:' + shiftColor + ';border-radius:5px;font-weight:700;">' + shiftLabel + '</span>';
+      html += '<span style="font-size:12px;font-weight:600;color:var(--text1);">' + dayName + ' ' + sol.day + ' ' + monthNamesOpt[month] + '</span>';
+      html += '<span style="font-size:10px;color:var(--text3);">' + sol.plantaShort + ' · ' + sol.have + '/' + sol.need + '</span></div>';
+
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+      sol.candidates.forEach((c, idx) => {
+        const cPlant = (PLANTAS.find(p => p.id === c.planta) || {}).short || '?';
+        const badge = idx === 0 ? 'background:var(--primary);color:white;' : 'background:var(--border);color:var(--text2);';
+        html += '<span style="font-size:10px;padding:4px 10px;border-radius:6px;' + badge + 'font-weight:600;">' + (idx + 1) + '. ' + escHtml(c.name) + ' (' + cPlant + ') — ' + c.score + 'pts</span>';
+      });
+      html += '</div></div>';
+    });
+    html += '</div>';
+  } else if (totalGaps === 0) {
+    html += '<div style="text-align:center;padding:20px;color:#16a34a;font-size:13px;font-weight:600;">Sin huecos de cobertura este mes</div>';
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── FEATURE 4: Recomendador Inteligente de Intercambios ──
+function renderSwapRecommender() {
+  const container = document.getElementById('swapRecommender');
+  if (!container) return;
+  if (workers.length === 0) { container.innerHTML = ''; return; }
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const key = year + '-' + month;
+  const sch = scheduleData[key] || genSchedule(year, month);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const metrics = {};
+  let totalNights = 0;
+  workers.forEach(w => {
+    const shifts = sch[w.id] || [];
+    let nights = 0, consec = 0, maxConsec = 0;
+    for (let d = 0; d < daysInMonth; d++) {
+      const s = (shifts[d] || '').toString().trim();
+      if (s === 'N') nights++;
+      const isWork = s && s !== 'D' && s !== '' && !['VAC','BAJ','FOR','LAC','MTC','HS','CAA','INT'].includes(s);
+      if (isWork) { consec++; maxConsec = Math.max(maxConsec, consec); } else { consec = 0; }
+    }
+    metrics[w.id] = { name: w.name, planta: w.planta, type: w.type, nights, maxConsec, shifts };
+    totalNights += nights;
+  });
+  const avgNights = totalNights / workers.length || 0;
+
+  const recs = [];
+  const wIds = Object.keys(metrics);
+
+  for (let i = 0; i < wIds.length; i++) {
+    const w1 = metrics[wIds[i]];
+    if (w1.nights <= avgNights + 1) continue;
+
+    for (let j = 0; j < wIds.length; j++) {
+      if (i === j) continue;
+      const w2 = metrics[wIds[j]];
+      if (w2.nights >= avgNights - 0.5 || w2.type !== w1.type) continue;
+
+      for (let d = 0; d < daysInMonth; d++) {
+        const s1 = (w1.shifts[d] || '').toString().trim();
+        const s2 = (w2.shifts[d] || '').toString().trim();
+        if (s1 === 'N' && (!s2 || s2 === 'D' || s2 === '')) {
+          const before = Math.abs(w1.nights - avgNights) + Math.abs(w2.nights - avgNights);
+          const after = Math.abs(w1.nights - 1 - avgNights) + Math.abs(w2.nights + 1 - avgNights);
+          const impact = Math.round(Math.max(0, before - after) * 20);
+          if (impact > 10) {
+            recs.push({
+              w1Id: wIds[i], w1Name: w1.name, w1Nights: w1.nights,
+              w2Id: wIds[j], w2Name: w2.name, w2Nights: w2.nights,
+              dayIdx: d, day: d + 1, shift: 'N',
+              impact, reason: 'Equilibrar noches (' + w1.nights + ' vs ' + w2.nights + ')'
+            });
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  wIds.forEach(wId => {
+    const w = metrics[wId];
+    if (w.maxConsec <= 5) return;
+    let streak = 0;
+    for (let d = 0; d < daysInMonth; d++) {
+      const s = (w.shifts[d] || '').toString().trim();
+      const isWork = s && s !== 'D' && s !== '' && !['VAC','BAJ','FOR','LAC','MTC','HS','CAA','INT'].includes(s);
+      if (isWork) {
+        streak++;
+        if (streak === 6) {
+          for (let j = 0; j < wIds.length; j++) {
+            if (wIds[j] === wId) continue;
+            const w2 = metrics[wIds[j]];
+            if (w2.type !== w.type) continue;
+            const s2 = (w2.shifts[d] || '').toString().trim();
+            if (!s2 || s2 === 'D' || s2 === '') {
+              recs.push({
+                w1Id: wId, w1Name: w.name, w1Nights: w.nights,
+                w2Id: wIds[j], w2Name: w2.name, w2Nights: w2.nights,
+                dayIdx: d, day: d + 1, shift: s,
+                impact: 75, reason: 'Reducir racha consecutiva (' + w.maxConsec + ' días)'
+              });
+              break;
+            }
+          }
+          break;
+        }
+      } else { streak = 0; }
+    }
+  });
+
+  recs.sort((a, b) => b.impact - a.impact);
+  const top8 = recs.slice(0, 8);
+
+  let html = '<div style="background:var(--surface);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:14px;padding:20px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+  html += '<div><h3 style="font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--primary);margin:0;">Intercambios Inteligentes</h3>';
+  html += '<p style="font-size:11px;color:var(--text3);margin-top:2px;">' + top8.length + ' oportunidades de mejora detectadas</p></div>';
+  html += '<span style="font-size:10px;padding:4px 10px;background:rgba(59,130,246,0.1);color:#3b82f6;border-radius:6px;font-weight:600;">SWAPS</span></div>';
+
+  if (top8.length === 0) {
+    html += '<div style="text-align:center;padding:24px;color:var(--text3);font-size:12px;">Sin intercambios recomendados — la distribución actual es equilibrada.</div>';
+  } else {
+    html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+    const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    top8.forEach(function(rec) {
+      const date = new Date(year, month, rec.day);
+      const dn = dayNames[date.getDay()];
+      const impColor = rec.impact > 60 ? '#16a34a' : rec.impact > 30 ? '#d97706' : '#6b7280';
+
+      html += '<div style="padding:12px;background:var(--bg);border-radius:10px;border:1px solid var(--border);">';
+      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">';
+      html += '<div style="width:28px;height:28px;border-radius:7px;background:' + impColor + ';color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;">' + rec.impact + '</div>';
+      html += '<div style="flex:1;"><div style="font-size:12px;font-weight:600;color:var(--text1);">' + dn + ' ' + rec.day + ' · Turno ' + rec.shift + '</div>';
+      html += '<div style="font-size:10px;color:var(--text3);">' + rec.reason + '</div></div></div>';
+
+      html += '<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;padding-top:8px;border-top:1px solid var(--border);">';
+      html += '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;">Cede turno</div>';
+      html += '<div style="font-size:11px;font-weight:600;color:var(--text1);">' + escHtml(rec.w1Name) + '</div>';
+      html += '<div style="font-size:9px;color:var(--text3);">' + rec.w1Nights + ' noches</div></div>';
+      html += '<div style="color:var(--accent);font-size:16px;">⇄</div>';
+      html += '<div style="text-align:right;"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;">Recibe turno</div>';
+      html += '<div style="font-size:11px;font-weight:600;color:var(--text1);">' + escHtml(rec.w2Name) + '</div>';
+      html += '<div style="font-size:9px;color:var(--text3);">' + rec.w2Nights + ' noches</div></div>';
+      html += '</div></div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── FEATURE 5: Simulador de Escenarios "¿Qué pasaría si...?" ──
+function renderScenarioSimulator() {
+  const container = document.getElementById('scenarioSimulator');
+  if (!container) return;
+  if (workers.length === 0) { container.innerHTML = ''; return; }
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const key = year + '-' + month;
+  const sch = scheduleData[key] || genSchedule(year, month);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  function calcCoveragePct(scheduleOverride) {
+    let covered = 0, total = 0;
+    for (let d = 0; d < daysInMonth; d++) {
+      PLANTAS.forEach(p => {
+        ['M','T','N'].forEach(shift => {
+          const needed = (PLANT_COVERAGE[p.id] || {})[shift]?.min || 0;
+          if (needed === 0) return;
+          total++;
+          let onShift = 0;
+          workers.filter(w => w.planta === p.id).forEach(w => {
+            const s = scheduleOverride[w.id] ? (scheduleOverride[w.id][d] || '').toString().trim() : '';
+            const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+            if (eff === shift) onShift++;
+          });
+          if (onShift >= needed) covered++;
+        });
+      });
+    }
+    return total > 0 ? Math.round(covered / total * 100) : 100;
+  }
+
+  const baseCoverage = calcCoveragePct(sch);
+
+  const workersByShifts = workers.map(w => {
+    const shifts = sch[w.id] || [];
+    const workDays = shifts.filter(s => { const st = (s || '').toString().trim(); return st && st !== 'D' && st !== '' && !['VAC','BAJ'].includes(st); }).length;
+    return { id: w.id, name: w.name, planta: w.planta, workDays };
+  }).sort((a, b) => b.workDays - a.workDays);
+  const keyWorker = workersByShifts[0];
+
+  let scenario1Impact = 0;
+  let scenario1Plants = [];
+  if (keyWorker) {
+    const simSch = {};
+    Object.keys(sch).forEach(wId => { simSch[wId] = [...sch[wId]]; });
+    simSch[keyWorker.id] = new Array(daysInMonth).fill('BAJ');
+    scenario1Impact = baseCoverage - calcCoveragePct(simSch);
+    const pName = (PLANTAS.find(p => p.id === keyWorker.planta) || {}).name || '—';
+    scenario1Plants = [pName + ' (' + keyWorker.workDays + ' turnos afectados)'];
+  }
+
+  const plantWorkerCounts = PLANTAS.map(p => ({
+    name: p.name, id: p.id,
+    count: workers.filter(w => w.planta === p.id && w.type === 'enf').length
+  })).sort((a, b) => a.count - b.count);
+  const neediest = plantWorkerCounts[0];
+  const scenario2Plants = neediest ? [neediest.name + ' (actualmente ' + neediest.count + ' enfermeras)'] : [];
+
+  const totalActive = workers.filter(w => {
+    const shifts = sch[w.id] || [];
+    return shifts.some(s => { const st = (s || '').toString().trim(); return st && st !== 'D' && st !== '' && !['VAC','BAJ'].includes(st); });
+  }).length;
+  const affectedCount = Math.round(totalActive * 0.2);
+
+  let simEpidemic = {};
+  Object.keys(sch).forEach(wId => { simEpidemic[wId] = [...(sch[wId] || [])]; });
+  const shuffled = [...workers].sort(() => Math.random() - 0.5).slice(0, affectedCount);
+  shuffled.forEach(w => { simEpidemic[w.id] = new Array(daysInMonth).fill('BAJ'); });
+  const epidemicCov = calcCoveragePct(simEpidemic);
+  const scenario3Impact = baseCoverage - epidemicCov;
+
+  const scenarios = [
+    {
+      icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="11" x2="23" y2="11"/></svg>',
+      title: 'Baja de ' + escHtml((keyWorker || {}).name || 'un trabajador'),
+      desc: 'Impacto de perder al trabajador con más turnos',
+      impactPct: -scenario1Impact,
+      plants: scenario1Plants,
+      actions: ['Activar equipo flotante', 'Redistribuir turnos', 'Notificar supervisora']
+    },
+    {
+      icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>',
+      title: '+1 enfermera en ' + escHtml((neediest || {}).name || 'planta'),
+      desc: 'Impacto de reforzar la planta con menos personal',
+      impactPct: Math.min(15, Math.round(100 / (PLANTAS.length * 3))),
+      plants: scenario2Plants,
+      actions: ['~5% menos noches por persona', 'Mejora equidad +12%', 'Menos rachas consecutivas']
+    },
+    {
+      icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      title: 'Epidemia (+20% ausencias)',
+      desc: affectedCount + ' trabajadores de baja simultánea',
+      impactPct: -scenario3Impact,
+      plants: PLANTAS.slice(0, 3).map(p => p.name),
+      actions: ['Protocolo de emergencia', 'Personal de refuerzo', 'Priorizar UCIN/URG']
+    }
+  ];
+
+  let html = '<div style="background:var(--surface);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:14px;padding:20px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+  html += '<div><h3 style="font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--primary);margin:0;">Simulador de Escenarios</h3>';
+  html += '<p style="font-size:11px;color:var(--text3);margin-top:2px;">Cobertura base actual: <strong>' + baseCoverage + '%</strong></p></div>';
+  html += '<span style="font-size:10px;padding:4px 10px;background:rgba(168,85,247,0.1);color:#8b5cf6;border-radius:6px;font-weight:600;">SIMULACIÓN</span></div>';
+
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">';
+  scenarios.forEach(sc => {
+    const isPositive = sc.impactPct > 0;
+    const impColor = isPositive ? '#16a34a' : '#dc2626';
+    const sign = isPositive ? '+' : '';
+
+    html += '<div style="padding:16px;border:2px dashed rgba(139,92,246,0.25);border-radius:12px;background:linear-gradient(135deg,rgba(139,92,246,0.04),transparent);">';
+    html += '<div style="margin-bottom:12px;">' + sc.icon + '</div>';
+    html += '<div style="font-size:13px;font-weight:600;color:var(--text1);margin-bottom:4px;">' + sc.title + '</div>';
+    html += '<div style="font-size:10px;color:var(--text3);margin-bottom:14px;">' + sc.desc + '</div>';
+
+    html += '<div style="background:var(--bg);border-radius:8px;padding:10px;margin-bottom:12px;text-align:center;">';
+    html += '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Impacto en cobertura</div>';
+    html += '<div style="font-size:22px;font-weight:800;color:' + impColor + ';">' + sign + sc.impactPct + '%</div></div>';
+
+    html += '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">Plantas afectadas</div>';
+    sc.plants.forEach(p => { html += '<div style="font-size:10px;color:var(--text2);padding:2px 0;">· ' + p + '</div>'; });
+
+    html += '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;margin:10px 0 4px;">Acciones recomendadas</div>';
+    sc.actions.forEach(a => { html += '<div style="font-size:10px;color:var(--text2);padding:2px 0;">· ' + a + '</div>'; });
+    html += '</div>';
+  });
+  html += '</div></div>';
+  container.innerHTML = html;
+}
+
+// ── FEATURE 6: Reconocimiento Avanzado de Patrones ──
+function renderPatternRecognition() {
+  const container = document.getElementById('patternRecognition');
+  if (!container) return;
+  if (workers.length === 0) { container.innerHTML = ''; return; }
+
+  const now = new Date();
+  const dayOfWeekNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const ABSENCE_CODES = ['VAC','VAA','BAJ','LD','LAC','FOR','INT','MTC','CAA','AE','EX','DLA','CJ','FN','VAN','IQF','PM','HF','HS'];
+
+  const dowData = {};
+  for (let i = 0; i < 7; i++) dowData[i] = [];
+
+  const plantMonthly = {};
+  PLANTAS.forEach(p => { plantMonthly[p.id] = []; });
+
+  const shiftDistribution = { M: 0, T: 0, N: 0 };
+  let totalShiftCount = 0;
+
+  const monthAbsenceRates = {};
+  for (let m = 0; m < 12; m++) monthAbsenceRates[m] = { absences: 0, total: 0 };
+
+  Object.keys(scheduleData).forEach(key => {
+    const sch = scheduleData[key];
+    const parts = key.split('-');
+    const y = parseInt(parts[0]), m = parseInt(parts[1]);
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+
+    let plantDayCount = {};
+    PLANTAS.forEach(p => { plantDayCount[p.id] = 0; });
+
+    for (let d = 0; d < daysInMonth; d++) {
+      const date = new Date(y, m, d + 1);
+      if (date.getMonth() !== m) break;
+      const dow = date.getDay();
+
+      let totalWorking = 0;
+      workers.forEach(w => {
+        const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+        const isWork = s && s !== 'D' && s !== '' && !ABSENCE_CODES.includes(s);
+        if (isWork) {
+          totalWorking++;
+          plantDayCount[w.planta] = (plantDayCount[w.planta] || 0) + 1;
+          const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+          if (['M','T','N'].includes(eff)) { shiftDistribution[eff]++; totalShiftCount++; }
+        }
+        if (ABSENCE_CODES.includes(s)) { monthAbsenceRates[m].absences++; }
+        monthAbsenceRates[m].total++;
+      });
+      dowData[dow].push(totalWorking);
+    }
+
+    PLANTAS.forEach(p => {
+      plantMonthly[p.id].push({ y, m, avgStaffing: daysInMonth > 0 ? plantDayCount[p.id] / daysInMonth : 0 });
+    });
+  });
+
+  const dowStats = {};
+  for (let d = 0; d < 7; d++) {
+    const arr = dowData[d];
+    if (arr.length === 0) { dowStats[d] = { avg: 0, std: 0 }; continue; }
+    const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
+    const variance = arr.reduce((a, v) => a + Math.pow(v - avg, 2), 0) / arr.length;
+    dowStats[d] = { avg: Math.round(avg * 10) / 10, std: Math.round(Math.sqrt(variance) * 10) / 10 };
+  }
+
+  const dowEntries = Object.entries(dowStats).filter(([, s]) => s.avg > 0);
+  dowEntries.sort((a, b) => a[1].avg - b[1].avg);
+  const weakestDay = dowEntries[0];
+  const strongestDay = dowEntries[dowEntries.length - 1];
+
+  const mPct = totalShiftCount > 0 ? Math.round(shiftDistribution.M / totalShiftCount * 100) : 33;
+  const tPct = totalShiftCount > 0 ? Math.round(shiftDistribution.T / totalShiftCount * 100) : 33;
+  const nPct = totalShiftCount > 0 ? Math.round(shiftDistribution.N / totalShiftCount * 100) : 34;
+
+  const seasonalScores = [];
+  for (let m = 0; m < 12; m++) {
+    const rate = monthAbsenceRates[m].total > 0 ? Math.round(monthAbsenceRates[m].absences / monthAbsenceRates[m].total * 100) : 0;
+    seasonalScores.push({ month: m, name: monthNames[m], rate });
+  }
+  seasonalScores.sort((a, b) => b.rate - a.rate);
+  const riskiestMonth = seasonalScores[0];
+
+  const plantRisk = PLANTAS.map(p => {
+    const data = plantMonthly[p.id];
+    if (data.length === 0) return { id: p.id, short: p.short, name: p.name, risk: 0 };
+    const avgStaff = data.reduce((a, d) => a + d.avgStaffing, 0) / data.length;
+    const covData = PLANT_COVERAGE[p.id] || {};
+    const totalMinReq = (covData.M?.min || 0) + (covData.T?.min || 0) + (covData.N?.min || 0);
+    const deficit = totalMinReq > 0 ? Math.max(0, Math.round((1 - avgStaff / totalMinReq) * 100)) : 0;
+    return { id: p.id, short: p.short, name: p.name, risk: deficit };
+  }).sort((a, b) => b.risk - a.risk);
+
+  let html = '<div style="background:var(--surface);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:14px;padding:20px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+  html += '<div><h3 style="font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--primary);margin:0;">Reconocimiento de Patrones</h3>';
+  html += '<p style="font-size:11px;color:var(--text3);margin-top:2px;">Análisis de tendencias y anomalías</p></div>';
+  html += '<span style="font-size:10px;padding:4px 10px;background:rgba(245,158,11,0.1);color:#d97706;border-radius:6px;font-weight:600;">PATRONES</span></div>';
+
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-bottom:16px;">';
+
+  if (weakestDay && strongestDay) {
+    html += '<div style="padding:14px;background:var(--bg);border-radius:10px;border:1px solid var(--border);">';
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text1);margin-bottom:8px;">Patrón por día de semana</div>';
+    html += '<div style="display:flex;gap:4px;height:40px;align-items:flex-end;margin-bottom:8px;">';
+    const maxAvg = Math.max(...Object.values(dowStats).map(s => s.avg), 1);
+    for (let d = 0; d < 7; d++) {
+      const h = dowStats[d].avg > 0 ? Math.max(5, Math.round(dowStats[d].avg / maxAvg * 100)) : 5;
+      const clr = d === parseInt(weakestDay[0]) ? '#dc2626' : d === parseInt(strongestDay[0]) ? '#16a34a' : 'var(--accent)';
+      html += '<div style="flex:1;height:' + h + '%;background:' + clr + ';border-radius:3px;opacity:0.7;" title="' + dayOfWeekNames[d] + ': ' + dowStats[d].avg + '"></div>';
+    }
+    html += '</div>';
+    html += '<div style="display:flex;gap:4px;justify-content:space-between;font-size:8px;color:var(--text3);">';
+    for (let d = 0; d < 7; d++) html += '<div style="flex:1;text-align:center;">' + dayOfWeekNames[d] + '</div>';
+    html += '</div>';
+    html += '<div style="font-size:10px;color:var(--text2);margin-top:8px;"><strong style="color:#dc2626;">' + dayOfWeekNames[weakestDay[0]] + '</strong> es el día más débil (' + weakestDay[1].avg + ' trabajadores)</div>';
+    html += '</div>';
+  }
+
+  html += '<div style="padding:14px;background:var(--bg);border-radius:10px;border:1px solid var(--border);">';
+  html += '<div style="font-size:11px;font-weight:700;color:var(--text1);margin-bottom:8px;">Distribución de turnos</div>';
+  html += '<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin-bottom:8px;">';
+  html += '<div style="width:' + mPct + '%;background:#2e8b7a;"></div>';
+  html += '<div style="width:' + tPct + '%;background:#4a9dd4;"></div>';
+  html += '<div style="width:' + nPct + '%;background:#c9a84c;"></div>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:12px;font-size:10px;">';
+  html += '<span style="color:#2e8b7a;font-weight:600;">M ' + mPct + '%</span>';
+  html += '<span style="color:#4a9dd4;font-weight:600;">T ' + tPct + '%</span>';
+  html += '<span style="color:#c9a84c;font-weight:600;">N ' + nPct + '%</span>';
+  html += '</div>';
+  const imbalance = Math.abs(mPct - 33) + Math.abs(tPct - 33) + Math.abs(nPct - 33);
+  html += '<div style="font-size:10px;color:' + (imbalance > 15 ? '#d97706' : '#16a34a') + ';margin-top:6px;">' + (imbalance > 15 ? 'Desequilibrio detectado' : 'Distribución equilibrada') + '</div>';
+  html += '</div>';
+
+  if (riskiestMonth && riskiestMonth.rate > 0) {
+    html += '<div style="padding:14px;background:var(--bg);border-radius:10px;border:1px solid var(--border);">';
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text1);margin-bottom:8px;">Riesgo estacional</div>';
+    html += '<div style="display:flex;gap:2px;height:30px;align-items:flex-end;margin-bottom:6px;">';
+    const maxRate = Math.max(...seasonalScores.map(s => s.rate), 1);
+    for (let m = 0; m < 12; m++) {
+      const sc = seasonalScores.find(s => s.month === m);
+      const rate = sc ? sc.rate : 0;
+      const h = rate > 0 ? Math.max(3, Math.round(rate / maxRate * 100)) : 3;
+      const clr = m === riskiestMonth.month ? '#dc2626' : 'var(--border)';
+      html += '<div style="flex:1;height:' + h + '%;background:' + clr + ';border-radius:2px;"></div>';
+    }
+    html += '</div>';
+    html += '<div style="display:flex;gap:2px;justify-content:space-between;font-size:7px;color:var(--text3);">';
+    for (let m = 0; m < 12; m++) html += '<div style="flex:1;text-align:center;">' + monthNames[m].charAt(0) + '</div>';
+    html += '</div>';
+    html += '<div style="font-size:10px;color:var(--text2);margin-top:8px;"><strong style="color:#dc2626;">' + riskiestMonth.name + '</strong> es el mes más difícil (' + riskiestMonth.rate + '% ausencias)</div>';
+    html += '</div>';
+  }
+
+  html += '</div>';
+
+  const riskyPlants = plantRisk.filter(p => p.risk > 0).slice(0, 4);
+  if (riskyPlants.length > 0) {
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text1);margin-bottom:8px;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;">Plantas con déficit crónico</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+    riskyPlants.forEach(p => {
+      const clr = p.risk > 30 ? '#dc2626' : p.risk > 15 ? '#d97706' : '#6b7280';
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:' + clr + '06;border-radius:8px;">';
+      html += '<span style="font-size:11px;font-weight:600;color:var(--text1);min-width:50px;">' + p.short + '</span>';
+      html += '<div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;"><div style="width:' + p.risk + '%;height:100%;background:' + clr + ';border-radius:3px;"></div></div>';
+      html += '<span style="font-size:10px;font-weight:700;color:' + clr + ';min-width:35px;text-align:right;">' + p.risk + '%</span></div>';
+    });
+    html += '</div>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
 
 // ========== SMART INSIGHTS ENGINE ==========
 function renderSmartInsights() {
