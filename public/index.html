@@ -1557,6 +1557,7 @@ table.schedule td.name-cell:hover {
 .shift-DLA { background: rgba(74, 122, 176, 0.14); color: #2a4a8f; font-size: 8px; }
 .shift-VAN { background: rgba(139, 53, 53, 0.14); color: #8b2020; font-size: 8px; }
 .shift-IQF { background: rgba(122, 80, 128, 0.14); color: #5a2a6a; font-size: 8px; }
+.shift-SP { background: rgba(255, 165, 0, 0.18); color: #b57200; font-size: 9px; font-style: italic; }
 
 .today-col {
   background: rgba(46, 139, 122, 0.06) !important;
@@ -8773,6 +8774,7 @@ table.schedule tbody tr:hover {
         <div id="swapRecommender" style="margin-top:32px;"></div>
         <div id="scenarioSimulator" style="margin-top:32px;"></div>
         <div id="patternRecognition" style="margin-top:32px;"></div>
+        <div id="spSuggestionsPanel" style="margin-top:32px;"></div>
         <div id="auditLogContainer" style="margin-top:32px;"></div>
       </div>
     </div>
@@ -9962,7 +9964,7 @@ const RULES = {
   MIN_REST_HOURS: 12,
   ANNUAL_HOURS: 1519,
   NIGHT_COMPUTO_HOURS: 2.1,
-  SHIFT_HOURS: { M:7, T:7, N:10, D:0, MR:5.5, VAC:0, LD:0, FOR:0, CAA:0, AE:0, EX:0, BAJ:0, CJ:0, FN:0, LAC:0, MTC:0, INT:0, HF:0, HS:0, VAA:0, DLA:0, M7H:7, M6R:6.5, M55:5, VAN:0, IQF:0, PM:0 },
+  SHIFT_HOURS: { M:7, T:7, N:10, D:0, MR:5.5, VAC:0, LD:0, FOR:0, CAA:0, AE:0, EX:0, BAJ:0, CJ:0, FN:0, LAC:0, MTC:0, INT:0, HF:0, HS:0, VAA:0, DLA:0, M7H:7, M6R:6.5, M55:5, VAN:0, IQF:0, PM:0, SP:0 },
   SHIFT_TIMES: { M:{start:8,end:15}, T:{start:15,end:22}, N:{start:22,end:32}, MR:{start:7.5,end:13.5} },
   COVERAGE: { M:{enf:3,tec:2}, T:{enf:1,tec:1}, N:{enf:1,tec:1} },
   COVERAGE_WEEKEND: { M:{enf:1,tec:1}, T:{enf:1,tec:1}, N:{enf:1,tec:1} },
@@ -10619,6 +10621,9 @@ function renderDashboard() {
   try { renderScenarioSimulator(); } catch(e) { console.warn('[Shiftia] Scenario simulator error:', e); }
   try { renderPatternRecognition(); } catch(e) { console.warn('[Shiftia] Pattern recognition error:', e); }
 
+  // Render SP coverage suggestions
+  try { renderSPSuggestions(); } catch(e) { console.warn('[Shiftia] SP suggestions error:', e); }
+
   // Render audit log
   try {
     const auditContainer = document.getElementById('auditLogContainer');
@@ -11008,6 +11013,173 @@ function renderWeeklyShortageRollup() {
   </div>`;
 
   container.innerHTML = html;
+}
+
+// ========= SP COVERAGE SUGGESTIONS ENGINE =========
+// Scans current month for coverage gaps, finds workers with SP on those days,
+// and renders a suggestion panel. Supervisor confirms each suggestion manually.
+function renderSPSuggestions() {
+  const container = document.getElementById('spSuggestionsPanel');
+  if (!container) return;
+  if (workers.length === 0) { container.innerHTML = ''; return; }
+
+  const m = appState.currentMonth;
+  const year = m.getFullYear();
+  const month = m.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const sch = genSchedule(year, month);
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+  const ABSENCE_CODES = ['VAC','VAA','BAJ','LD','LAC','FOR','INT','MTC','CAA','AE','EX','DLA','CJ','FN','VAN','IQF','PM','HF','HS'];
+  const suggestions = [];
+
+  // For each day, check each plant for coverage gaps
+  for (let d = 0; d < daysInMonth; d++) {
+    PLANTAS.forEach(planta => {
+      if (planta.id === 'refuerzo') return; // Skip refuerzo pool itself
+      const covReq = PLANT_COVERAGE[planta.id] || {};
+
+      ['M','T','N'].forEach(shift => {
+        const needed = (covReq[shift] || {}).min || 0;
+        if (needed === 0) return;
+
+        // Count workers currently on this shift for this plant
+        let onShift = 0;
+        workers.filter(w => w.planta === planta.id).forEach(w => {
+          const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+          const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+          if (eff === shift) onShift++;
+        });
+
+        if (onShift < needed) {
+          // Gap found! Look for workers with SP on this day (any plant, including refuerzo)
+          const spWorkers = workers.filter(w => {
+            const ws = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+            return ws === 'SP';
+          });
+
+          spWorkers.forEach(spW => {
+            // Check this worker isn't already suggested for this day
+            const alreadySuggested = suggestions.some(sg => sg.wId === spW.id && sg.day === d);
+            if (alreadySuggested) return;
+
+            // Basic rule check: no morning/evening after night
+            if (d > 0) {
+              const prevShift = sch[spW.id] ? (sch[spW.id][d-1] || '').toString().trim() : '';
+              if (prevShift === 'N' && (shift === 'M' || shift === 'T')) return;
+            }
+
+            suggestions.push({
+              day: d,
+              dayLabel: (d + 1),
+              planta: planta.name,
+              plantaId: planta.id,
+              shift: shift,
+              shiftLabel: shift === 'M' ? 'Mañana' : shift === 'T' ? 'Tarde' : 'Noche',
+              wId: spW.id,
+              wName: spW.name,
+              wPlanta: spW.planta,
+              gap: needed - onShift
+            });
+          });
+        }
+      });
+    });
+  }
+
+  // Count total SP days in this month
+  let totalSP = 0;
+  workers.forEach(w => {
+    for (let d = 0; d < daysInMonth; d++) {
+      const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+      if (s === 'SP') totalSP++;
+    }
+  });
+
+  // Render
+  const shiftColors = { M: '#2e8b7a', T: '#4a9dd4', N: '#c5a832' };
+
+  let html = '<div style="background:var(--surface);border:1.5px solid var(--glass-border);border-radius:16px;padding:24px;backdrop-filter:blur(var(--glass-blur));">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+  html += '<div>';
+  html += '<div style="font-size:15px;font-weight:700;color:var(--text);">Dias Sin Planificar (SP)</div>';
+  html += '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + monthNames[month] + ' ' + year + ' — ' + totalSP + ' dias SP disponibles entre ' + workers.filter(w => { for(let d=0;d<daysInMonth;d++){const s=sch[w.id]?(sch[w.id][d]||"").toString().trim():"";if(s==="SP")return true;} return false;}).length + ' trabajadores</div>';
+  html += '</div>';
+  html += '<div style="width:40px;height:40px;border-radius:12px;background:rgba(255,165,0,0.12);display:flex;align-items:center;justify-content:center;">';
+  html += '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e89500" stroke-width="2" stroke-linecap="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 7.76 2.83-2.83"/></svg>';
+  html += '</div></div>';
+
+  if (suggestions.length === 0 && totalSP === 0) {
+    html += '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px;">No hay dias SP registrados este mes. Los trabajadores con dias sin planificar apareceran aqui con sugerencias de cobertura.</div>';
+  } else if (suggestions.length === 0) {
+    html += '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px;">Hay ' + totalSP + ' dias SP este mes pero no hay huecos de cobertura que cubrir. Todo cubierto.</div>';
+  } else {
+    html += '<div style="font-size:11px;color:var(--text2);margin-bottom:12px;padding:8px 12px;background:rgba(255,165,0,0.08);border-radius:8px;border-left:3px solid #e89500;">' + suggestions.length + ' sugerencia' + (suggestions.length > 1 ? 's' : '') + ' para cubrir huecos con trabajadores SP. Confirma cada una para asignar el turno.</div>';
+    // Group by day
+    const byDay = {};
+    suggestions.forEach(s => {
+      if (!byDay[s.day]) byDay[s.day] = [];
+      byDay[s.day].push(s);
+    });
+
+    Object.keys(byDay).sort((a,b) => a - b).slice(0, 15).forEach(dayKey => {
+      const daySugs = byDay[dayKey];
+      const dayNum = daySugs[0].dayLabel;
+      const dow = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][new Date(year, month, parseInt(dayKey)).getDay()];
+
+      html += '<div style="margin-bottom:10px;padding:10px 12px;background:var(--surface2);border-radius:10px;">';
+      html += '<div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">' + dow + ' ' + dayNum + '/' + (month+1) + '</div>';
+
+      daySugs.forEach(sg => {
+        const sColor = shiftColors[sg.shift] || '#888';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">';
+        html += '<div style="display:flex;align-items:center;gap:8px;">';
+        html += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + sColor + ';"></span>';
+        html += '<span style="font-size:12px;font-weight:600;color:var(--text);">' + escHtml(sg.wName) + '</span>';
+        html += '<span style="font-size:10px;color:var(--text3);">→ ' + escHtml(sg.planta) + ' ' + sg.shiftLabel + '</span>';
+        html += '<span style="font-size:9px;color:#e89500;font-weight:600;">(faltan ' + sg.gap + ')</span>';
+        html += '</div>';
+        html += '<button onclick="acceptSPSuggestion(' + sg.wId + ',' + sg.day + ',\'' + sg.shift + '\',\'' + sg.plantaId + '\')" style="padding:4px 10px;background:' + sColor + ';color:white;border:none;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.opacity=\'0.8\'" onmouseout="this.style.opacity=\'1\'">Asignar</button>';
+        html += '</div>';
+      });
+
+      html += '</div>';
+    });
+
+    if (Object.keys(byDay).length > 15) {
+      html += '<div style="text-align:center;font-size:10px;color:var(--text3);padding:8px;">... y ' + (Object.keys(byDay).length - 15) + ' dias mas con sugerencias</div>';
+    }
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// Accept an SP suggestion: convert SP → assigned shift for that worker/day
+function acceptSPSuggestion(wId, day, shift, plantaId) {
+  const m = appState.currentMonth;
+  const year = m.getFullYear();
+  const month = m.getMonth();
+  const key = year + '-' + month;
+  const sch = genSchedule(year, month);
+
+  if (!scheduleData[key]) scheduleData[key] = {};
+  if (!scheduleData[key][wId]) scheduleData[key][wId] = [...(sch[wId] || [])];
+
+  const oldShift = scheduleData[key][wId][day] || 'SP';
+  scheduleData[key][wId][day] = shift;
+
+  // Optionally move worker to that plant temporarily if from refuerzo
+  const w = workers.find(x => x.id === wId);
+  // Log the change
+  if (typeof logShiftChange === 'function') {
+    logShiftChange(wId, day, month, year, oldShift, shift, 'SP-sugerencia');
+  }
+
+  saveToStorage();
+  showToast(escHtml((w ? w.name : 'Trabajador')) + ' asignado a ' + (shift === 'M' ? 'Mañana' : shift === 'T' ? 'Tarde' : 'Noche') + ' en ' + (PLANTAS.find(p => p.id === plantaId) || {}).name, 'success');
+  renderSchedule();
+  renderDashboard();
 }
 
 // ========= AUDIT LOG VIEWER =========
@@ -12471,7 +12643,8 @@ const shiftNames = {
   'M55': 'Mañana 5h',
   'VAN': 'Vacaciones Año Anterior',
   'IQF': 'Intervención Quirúrgica',
-  'PM': 'Permiso Matrimonio'
+  'PM': 'Permiso Matrimonio',
+  'SP': 'Sin Planificar'
 };
 
 // Render Schedule
@@ -13956,7 +14129,7 @@ if (typeof pdfjsLib !== 'undefined') {
 }
 
 const MONTH_NAMES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const VALID_SHIFTS = ['M','T','N','D','MR','VAC','LD','FOR','CAA','AE','EX','BAJ','CJ','FN','LAC','MTC','INT','HF','HS','VAA','DLA','M7H','M6R','M55','VAN','IQF','PM'];
+const VALID_SHIFTS = ['M','T','N','D','MR','VAC','LD','FOR','CAA','AE','EX','BAJ','CJ','FN','LAC','MTC','INT','HF','HS','VAA','DLA','M7H','M6R','M55','VAN','IQF','PM','SP'];
 
 // Match worker from PDF header name (e.g. "CIBORRO GONZALEZ, DIEGO")
 function matchWorkerFromPDFName(pdfName) {
@@ -15163,6 +15336,7 @@ const SHIFT_OPTIONS = [
   { code: 'VAN', label: 'Vac. Año Ant.', time: '', color: '#8b3535' },
   { code: 'IQF', label: 'Int. Quirúrgica', time: '', color: '#7a5080' },
   { code: 'PM', label: 'Permiso Matrim.', time: '', color: '#c06080' },
+  { code: 'SP', label: 'Sin Planificar', time: '', color: '#e89500' },
 ];
 
 let editorState = { wId: null, day: null, selectedShift: null, originalShift: null };
@@ -15840,7 +16014,7 @@ function openBulkEdit() {
     workerOpts += `<option value="${w.id}">${escHtml(w.name)} (${t})</option>`;
   });
 
-  const shiftCodes = ['M','T','N','D','VAC','BAJ','LD','FOR','CAA','AE','EX','LAC','MTC','INT','HF','HS','VAA','DLA','CJ','FN','VAN','IQF','PM'];
+  const shiftCodes = ['M','T','N','D','SP','VAC','BAJ','LD','FOR','CAA','AE','EX','LAC','MTC','INT','HF','HS','VAA','DLA','CJ','FN','VAN','IQF','PM'];
   let shiftGrid = '';
   shiftCodes.forEach(s => {
     shiftGrid += `<button class="bulk-shift-option" data-shift="${s}" onclick="selectBulkShift('${s}', this)">${s}</button>`;
@@ -26406,7 +26580,7 @@ function performGlobalSearch(query) {
   });
 
   // Search shifts
-  const shiftCodes = ['M','MR','M7H','M6R','M55','T','N','BAJ','VAC','D','HS','FOR','LAC','CAA','MTC'];
+  const shiftCodes = ['M','MR','M7H','M6R','M55','T','N','SP','BAJ','VAC','D','HS','FOR','LAC','CAA','MTC'];
   const shiftResults = shiftCodes.filter(s => s.toLowerCase().includes(q)).slice(0, 3).map(s => {
     const count = workers.filter(w => sch[w.id] && sch[w.id][todayIdx] === s).length;
     return {
