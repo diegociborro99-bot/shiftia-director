@@ -9260,7 +9260,8 @@ const appState = {
         appState.theme = e.matches ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : '');
         if (document.getElementById('themeToggle')) {
-          document.getElementById('themeToggle').innerHTML = appState.theme === 'dark' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+          const _thEl = document.getElementById('themeToggle');
+  if (_thEl) _thEl.innerHTML = appState.theme === 'dark' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
         }
       }
     });
@@ -10238,7 +10239,9 @@ function optimizeMultiAbsenceCoverage(absentWorkerIds, days, month, year) {
 }
 function calcMonthHours(wId, schedule, days) {
   let h = 0;
-  for (let d = 0; d < days; d++) h += RULES.SHIFT_HOURS[schedule[wId][d]] || 0;
+  const wSch = schedule[wId];
+  if (!wSch) return 0;
+  for (let d = 0; d < days; d++) h += RULES.SHIFT_HOURS[wSch[d]] || 0;
   return h;
 }
 
@@ -10293,7 +10296,7 @@ function debounce(fn, delay) {
 function generateSparklineSVG(data, width = 60, height = 20, color = '#5c7a6f') {
   if (!data || data.length === 0) return '';
 
-  const max = Math.max(...data, 1);
+  const max = Math.max(...data) || 1;
   const min = 0;
   const range = max - min;
   const pointWidth = width / (data.length - 1 || 1);
@@ -10320,7 +10323,8 @@ function toggleTheme() {
   appState.theme = appState.theme === 'light' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', appState.theme === 'dark' ? 'dark' : '');
   localStorage.setItem('shiftia_theme_preference', appState.theme);
-  document.getElementById('themeToggle').innerHTML = appState.theme === 'dark' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+  const _thEl = document.getElementById('themeToggle');
+  if (_thEl) _thEl.innerHTML = appState.theme === 'dark' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
 }
 
 // View Switching
@@ -16309,22 +16313,25 @@ async function loadFromStorage() {
     if (!data) {
       const stored = localStorage.getItem('shiftia_data');
       if (stored) {
-        data = JSON.parse(stored);
-      } else {
+        try { data = JSON.parse(stored); } catch(e) { console.warn('[Shiftia] Corrupted shiftia_data in localStorage:', e); data = null; }
+      }
+      if (!data) {
         // Legacy format migration
         const sd = localStorage.getItem('shiftia_scheduleData');
         const imp = localStorage.getItem('shiftia_importedFiles');
         const inc = localStorage.getItem('shiftia_incidents');
         const wm = localStorage.getItem('shiftia_workerMeta');
         if (sd) {
-          data = {
-            scheduleData: JSON.parse(sd),
-            importedFiles: imp ? JSON.parse(imp) : [],
-            incidents: inc ? JSON.parse(inc) : [],
-            shiftHistory: [],
-            workerMeta: wm ? JSON.parse(wm) : []
-          };
-          localStorage.setItem('shiftia_data', JSON.stringify(data));
+          try {
+            data = {
+              scheduleData: JSON.parse(sd),
+              importedFiles: imp ? JSON.parse(imp) : [],
+              incidents: inc ? JSON.parse(inc) : [],
+              shiftHistory: [],
+              workerMeta: wm ? JSON.parse(wm) : []
+            };
+            localStorage.setItem('shiftia_data', JSON.stringify(data));
+          } catch(e) { console.warn('[Shiftia] Legacy migration parse error:', e); data = null; }
           localStorage.removeItem('shiftia_scheduleData');
           localStorage.removeItem('shiftia_importedFiles');
           localStorage.removeItem('shiftia_incidents');
@@ -18313,7 +18320,7 @@ function guardiaCallIn(wId, shift, dayIdx, year, month) {
   const sch = genSchedule(year, month);
   if (!sch[wId]) return;
   const prev = (sch[wId][dayIdx] || '').toString().trim();
-  if (prev !== 'D' && prev !== '' && !prev) return;
+  if (prev !== 'D' && prev !== '') return;
   // Assign worker to current shift
   const key = year + '-' + month;
   if (!scheduleData[key]) scheduleData[key] = {};
@@ -26349,7 +26356,8 @@ function closeGlobalSearch() {
 function renderGlobalSearchEmpty() {
   const container = document.getElementById('globalSearchResults');
   // Show recent + suggestions
-  const recent = JSON.parse(localStorage.getItem('shiftia_recent_searches') || '[]').slice(0, 3);
+  let recent = [];
+  try { recent = JSON.parse(localStorage.getItem('shiftia_recent_searches') || '[]').slice(0, 3); } catch(e) { recent = []; }
   let html = '';
   if (recent.length > 0) {
     html += '<div class="gs-group"><div class="gs-group-title">Recientes</div>';
@@ -26483,7 +26491,8 @@ function gsExecuteResult(idx) {
     // Save to recent
     const q = document.getElementById('globalSearchInput').value.trim();
     if (q) {
-      let recent = JSON.parse(localStorage.getItem('shiftia_recent_searches') || '[]');
+      let recent = [];
+      try { recent = JSON.parse(localStorage.getItem('shiftia_recent_searches') || '[]'); } catch(e) { recent = []; }
       recent = [q, ...recent.filter(r => r !== q)].slice(0, 5);
       localStorage.setItem('shiftia_recent_searches', JSON.stringify(recent));
     }
