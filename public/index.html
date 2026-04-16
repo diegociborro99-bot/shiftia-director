@@ -8759,6 +8759,35 @@ table.schedule tbody tr:hover {
               color: var(--accent);
             "><span id="unplannedDaysCount">0</span> días sin planificar</div>
           </div>
+
+          <!-- Card 5: Gestor SP -->
+          <div onclick="openSPManager()" style="
+            cursor: pointer;
+            background: rgba(255,255,255,0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 16px;
+            padding: 32px 24px;
+            transition: var(--transition);
+            text-align: center;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+            animation: cardSlideIn 0.3s ease forwards;
+            animation-delay: 240ms;
+            opacity: 0;
+          " onmouseover="this.style.borderColor='rgba(255,255,255,0.5)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.3)';this.style.boxShadow='0 4px 24px rgba(0,0,0,0.04)';this.style.transform='translateY(0)'">
+            <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">GESTOR SP</h2>
+            <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Asigna turnos a personal sin planificar respetando convenio</p>
+            <div style="
+              background: rgba(201, 168, 76, 0.1);
+              border-radius: 10px;
+              padding: 12px;
+              font-size: 14px;
+              font-weight: 600;
+              color: var(--accent);
+            " id="spCardCount">Abrir gestor</div>
+          </div>
         </div>
 
         <!-- Weekly Dashboard Summary -->
@@ -10596,6 +10625,19 @@ function renderDashboard() {
   });
   const absEl = document.getElementById('activeAbsencesCount');
   if (absEl) absEl.textContent = activeAbsences;
+
+  // SP card count
+  const spCardEl = document.getElementById('spCardCount');
+  if (spCardEl) {
+    try {
+      let spCount = 0;
+      workers.forEach(w => {
+        const ws = sch[w.id];
+        if (ws) ws.forEach(s => { if (s === 'SP') spCount++; });
+      });
+      spCardEl.textContent = spCount > 0 ? spCount + ' días SP este mes' : 'Abrir gestor';
+    } catch(e) { spCardEl.textContent = 'Abrir gestor'; }
+  }
 
   // Render alerts panel
   // Alerts panel removed
