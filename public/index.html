@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#5c7a6f">
 <title>Shiftia Director</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%231a365d'/><stop offset='100%25' stop-color='%23c9a84c'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23g)'/><text x='16' y='23' text-anchor='middle' font-family='system-ui' font-weight='800' font-size='20' fill='white'>S</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800;900&family=Fraunces:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* Splash Screen */
@@ -466,7 +467,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   background: var(--accent);
   color: white;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 12px rgba(99, 102, 241, 0.35);
+  animation: tabSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .nav-tab::after {
@@ -547,9 +549,7 @@ button:active, .nav-btn:active, .btn:active {
 
 .view-panel.active {
   display: block;
-  opacity: 1;
-  transform: translateY(0);
-  animation: viewFadeIn 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+  animation: viewEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes viewFadeIn {
@@ -601,6 +601,140 @@ button:active, .nav-btn:active, .btn:active {
   to { transform: rotate(360deg); }
 }
 
+/* ═══ Premium Animation System ═══ */
+
+/* Staggered entrance for child elements */
+.stagger-children > * {
+  opacity: 0;
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 360ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 420ms; }
+.stagger-children > *:nth-child(9) { animation-delay: 480ms; }
+.stagger-children > *:nth-child(10) { animation-delay: 540ms; }
+
+/* Hover lift effect for cards */
+.hover-lift {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.05);
+}
+.hover-lift:active {
+  transform: translateY(-1px) scale(0.99);
+  transition-duration: 0.1s;
+}
+
+/* Number count-up animation */
+@keyframes countPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); color: var(--accent); }
+  100% { transform: scale(1); }
+}
+.count-animate {
+  animation: countPulse 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Smooth reveal on scroll */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.scroll-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Ripple effect for buttons */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), rgba(255,255,255,0.35) 0%, transparent 60%);
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.5s, opacity 0.3s;
+}
+.btn-ripple:active::after {
+  transform: scale(2.5);
+  opacity: 1;
+  transition: transform 0s, opacity 0s;
+}
+
+/* Glow pulse for important badges */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+}
+.glow-pulse {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+/* Smooth accordion expand */
+@keyframes expandIn {
+  from { max-height: 0; opacity: 0; }
+  to { max-height: 1000px; opacity: 1; }
+}
+
+/* Tab indicator slide */
+@keyframes tabSlide {
+  from { transform: scaleX(0.3); opacity: 0.5; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+
+/* Floating animation for decorative elements */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Progress bar fill */
+@keyframes progressFill {
+  from { width: 0; }
+}
+
+/* View transition - enhanced */
+@keyframes viewEnter {
+  from { opacity: 0; transform: translateY(16px) scale(0.99); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+/* Skeleton loading shimmer - enhanced */
+@keyframes skeletonShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-loading {
+  background: linear-gradient(90deg, var(--surface2) 25%, rgba(255,255,255,0.4) 50%, var(--surface2) 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease infinite;
+  border-radius: 8px;
+}
+
+/* Interactive tooltip with smooth entrance */
+@keyframes tooltipBounce {
+  0% { opacity: 0; transform: translateY(4px) scale(0.96); }
+  60% { transform: translateY(-2px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
 
 /* Dashboard */
 .dashboard-title {
@@ -7973,7 +8107,7 @@ table.schedule tbody tr:hover {
   .mobile-more-sheet { animation: none !important; transform: none !important; }
   .gestor-fab { animation: none !important; opacity: 1 !important; transform: none !important; }
   .briefing-card { animation: none !important; opacity: 1 !important; transform: none !important; }
-  .view-panel.active { animation: none !important; }
+  .view-panel.active { animation: none !important; display: block; }
 
   /* Subtle transitions only (under 200ms) */
   .nav-tab, .toolbar-action-btn, .schedule-filter-btn,
@@ -8646,7 +8780,7 @@ table.schedule tbody tr:hover {
         <!-- 4 Action Cards Grid -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 48px;">
           <!-- Card 1: Importar Planillas -->
-          <div onclick="switchView('import')" style="
+          <div onclick="switchView('import')" class="hover-lift" style="
             cursor: pointer;
             background: rgba(255,255,255,0.65);
             backdrop-filter: blur(16px);
@@ -8661,7 +8795,7 @@ table.schedule tbody tr:hover {
             animation: cardSlideIn 0.3s ease forwards;
             animation-delay: 0ms;
             opacity: 0;
-          " onmouseover="this.style.borderColor='rgba(255,255,255,0.5)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.3)';this.style.boxShadow='0 4px 24px rgba(0,0,0,0.04)';this.style.transform='translateY(0)'">
+          ">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">IMPORTAR PLANILLAS</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Sube PDFs de planificación. Indica planta y rol de cada trabajador.</p>
@@ -8676,7 +8810,7 @@ table.schedule tbody tr:hover {
           </div>
 
           <!-- Card 2: Mapa de Cobertura -->
-          <div onclick="switchView('mapa-cobertura')" style="
+          <div onclick="switchView('mapa-cobertura')" class="hover-lift" style="
             cursor: pointer;
             background: rgba(255,255,255,0.65);
             backdrop-filter: blur(16px);
@@ -8690,7 +8824,7 @@ table.schedule tbody tr:hover {
             animation: cardSlideIn 0.3s ease forwards;
             animation-delay: 60ms;
             opacity: 0;
-          " onmouseover="this.style.borderColor='rgba(255,255,255,0.5)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.3)';this.style.boxShadow='0 4px 24px rgba(0,0,0,0.04)';this.style.transform='translateY(0)'">
+          ">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">MAPA DE COBERTURA</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Visión global de cobertura por planta y turno</p>
@@ -8705,7 +8839,7 @@ table.schedule tbody tr:hover {
           </div>
 
           <!-- Card 3: Gestor de Ausencias -->
-          <div onclick="switchView('gestor-ausencias')" style="
+          <div onclick="switchView('gestor-ausencias')" class="hover-lift" style="
             cursor: pointer;
             background: rgba(255,255,255,0.65);
             backdrop-filter: blur(16px);
@@ -8719,7 +8853,7 @@ table.schedule tbody tr:hover {
             animation: cardSlideIn 0.3s ease forwards;
             animation-delay: 120ms;
             opacity: 0;
-          " onmouseover="this.style.borderColor='rgba(255,255,255,0.5)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.3)';this.style.boxShadow='0 4px 24px rgba(0,0,0,0.04)';this.style.transform='translateY(0)'">
+          ">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 11v6"/><path d="M9 14h6"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">GESTOR DE AUSENCIAS</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Gestiona bajas, vacaciones y ausencias con IA</p>
@@ -8734,7 +8868,7 @@ table.schedule tbody tr:hover {
           </div>
 
           <!-- Card 4: Gestor de Cobertura -->
-          <div onclick="switchView('gestor-cobertura')" style="
+          <div onclick="switchView('gestor-cobertura')" class="hover-lift" style="
             cursor: pointer;
             background: rgba(255,255,255,0.65);
             backdrop-filter: blur(16px);
@@ -8748,7 +8882,7 @@ table.schedule tbody tr:hover {
             animation: cardSlideIn 0.3s ease forwards;
             animation-delay: 180ms;
             opacity: 0;
-          " onmouseover="this.style.borderColor='rgba(255,255,255,0.5)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.3)';this.style.boxShadow='0 4px 24px rgba(0,0,0,0.04)';this.style.transform='translateY(0)'">
+          ">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/><circle cx="9" cy="15" r="1"/><circle cx="15" cy="15" r="1"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">GESTOR DE COBERTURA</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Asigna días sin planificar para cubrir huecos</p>
@@ -8763,7 +8897,7 @@ table.schedule tbody tr:hover {
           </div>
 
           <!-- Card 5: Gestor SP -->
-          <div onclick="switchView('gestor-sp')" style="
+          <div onclick="switchView('gestor-sp')" class="hover-lift" style="
             cursor: pointer;
             background: rgba(255,255,255,0.65);
             backdrop-filter: blur(16px);
@@ -8777,7 +8911,7 @@ table.schedule tbody tr:hover {
             animation: cardSlideIn 0.3s ease forwards;
             animation-delay: 240ms;
             opacity: 0;
-          " onmouseover="this.style.borderColor='rgba(255,255,255,0.5)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.3)';this.style.boxShadow='0 4px 24px rgba(0,0,0,0.04)';this.style.transform='translateY(0)'">
+          ">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">GESTOR SP</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Asigna turnos a personal sin planificar respetando convenio</p>
@@ -8792,7 +8926,7 @@ table.schedule tbody tr:hover {
           </div>
 
           <!-- Card 6: Equipo -->
-          <div onclick="switchView('equipo')" style="
+          <div onclick="switchView('equipo')" class="hover-lift" style="
             cursor: pointer;
             background: rgba(255,255,255,0.65);
             backdrop-filter: blur(16px);
@@ -8806,7 +8940,7 @@ table.schedule tbody tr:hover {
             animation: cardSlideIn 0.3s ease forwards;
             animation-delay: 300ms;
             opacity: 0;
-          " onmouseover="this.style.borderColor='rgba(255,255,255,0.5)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.3)';this.style.boxShadow='0 4px 24px rgba(0,0,0,0.04)';this.style.transform='translateY(0)'">
+          ">
             <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
             <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">EQUIPO</h2>
             <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Plantilla por unidad, horas, vacaciones y notas</p>
@@ -8822,21 +8956,21 @@ table.schedule tbody tr:hover {
         </div>
 
         <!-- Weekly Dashboard Summary -->
-        <div id="weeklyDashboard" style="margin-top:32px;"></div>
-        <div id="smartInsights" style="margin-top:32px;"></div>
-        <div id="plantComparison" style="margin-top:32px;"></div>
-        <div id="coverageRiskGauge" style="margin-top:32px;"></div>
-        <div id="weeklyShortageRollup" style="margin-top:32px;"></div>
-        <div id="fatigueRecommendations" style="margin-top:12px;"></div>
-        <div id="predictiveAbsenceEngine" style="margin-top:32px;"></div>
-        <div id="equityDashboard" style="margin-top:32px;"></div>
-        <div id="scheduleOptimizer" style="margin-top:32px;"></div>
-        <div id="swapRecommender" style="margin-top:32px;"></div>
-        <div id="scenarioSimulator" style="margin-top:32px;"></div>
-        <div id="patternRecognition" style="margin-top:32px;"></div>
-        <div id="equipoPlantaPanel" style="margin-top:32px;"></div>
-        <div id="spSuggestionsPanel" style="margin-top:32px;"></div>
-        <div id="auditLogContainer" style="margin-top:32px;"></div>
+        <div id="weeklyDashboard" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="smartInsights" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="plantComparison" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="coverageRiskGauge" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="weeklyShortageRollup" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="fatigueRecommendations" class="scroll-reveal" style="margin-top:12px;"></div>
+        <div id="predictiveAbsenceEngine" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="equityDashboard" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="scheduleOptimizer" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="swapRecommender" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="scenarioSimulator" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="patternRecognition" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="equipoPlantaPanel" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="spSuggestionsPanel" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="auditLogContainer" class="scroll-reveal" style="margin-top:32px;"></div>
       </div>
     </div>
 
@@ -10459,9 +10593,12 @@ function switchView(view) {
     const panel = document.getElementById(panelId);
     if (panel) {
       panel.classList.add('active');
-      // Reset to initial state for fade in
-      panel.style.opacity = '1';
-      panel.style.transform = 'translateY(0)';
+      panel.style.opacity = '';
+      panel.style.transform = '';
+      // Trigger entrance animation
+      panel.style.animation = 'none';
+      panel.offsetHeight; // force reflow
+      panel.style.animation = '';
     }
 
     document.querySelectorAll('.nav-tab').forEach(t => {
@@ -10648,16 +10785,16 @@ function renderDashboard() {
 
   // Update card counts (safe — check element exists before writing)
   const importedEl = document.getElementById('importedWorkerCount');
-  if (importedEl) importedEl.textContent = workers.length;
+  if (importedEl) animateNumber('importedWorkerCount', workers.length, 500);
 
   const unplannedEl = document.getElementById('unplannedDaysCount');
   if (unplannedEl) {
-    try { unplannedEl.textContent = getUnplannedDays(now.getFullYear(), now.getMonth()).length; } catch(e) { unplannedEl.textContent = '0'; }
+    try { animateNumber('unplannedDaysCount', getUnplannedDays(now.getFullYear(), now.getMonth()).length, 500); } catch(e) { unplannedEl.textContent = '0'; }
   }
 
   const gapsEl = document.getElementById('gapsDetectedCount');
   if (gapsEl) {
-    try { gapsEl.textContent = getCoverageGaps(now.getFullYear(), now.getMonth()).length; } catch(e) { gapsEl.textContent = '0'; }
+    try { animateNumber('gapsDetectedCount', getCoverageGaps(now.getFullYear(), now.getMonth()).length, 500); } catch(e) { gapsEl.textContent = '0'; }
   }
 
   // Active absences count
@@ -10669,7 +10806,7 @@ function renderDashboard() {
     if (['BAJ','VAC','FOR','LAC','MTC','HS','CAA','INT'].includes(s)) activeAbsences++;
   });
   const absEl = document.getElementById('activeAbsencesCount');
-  if (absEl) absEl.textContent = activeAbsences;
+  if (absEl) animateNumber('activeAbsencesCount', activeAbsences, 500);
 
   // SP card count
   const spCardEl = document.getElementById('spCardCount');
@@ -12389,7 +12526,7 @@ function renderGestorSPView() {
     html += '</div>';
   } else {
     html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Trabajadores disponibles (' + spPool.length + ')</div>';
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;">';
+    html += '<div class="stagger-children" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;">';
 
     spPool.forEach(sp => {
       const eqColor = sp.equityScore >= 70 ? '#27ae60' : sp.equityScore >= 40 ? '#e89500' : '#dc2626';
@@ -28389,6 +28526,61 @@ function toggleShortcutsHelp() {
 
   panel.innerHTML = html;
   document.body.appendChild(panel);
+}
+
+// ═══ Scroll Reveal Observer ═══
+(function initScrollReveal() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('revealed');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  function observeNewElements() {
+    document.querySelectorAll('.scroll-reveal:not(.revealed)').forEach(el => observer.observe(el));
+  }
+
+  // Re-observe after view switches
+  const origSwitchView = window.switchView;
+  if (origSwitchView) {
+    window.switchView = function(view) {
+      origSwitchView(view);
+      setTimeout(observeNewElements, 200);
+    };
+  }
+
+  // Initial observe
+  setTimeout(observeNewElements, 500);
+
+  // Also observe when content is dynamically rendered
+  const bodyObserver = new MutationObserver(() => {
+    setTimeout(observeNewElements, 100);
+  });
+  bodyObserver.observe(document.body, { childList: true, subtree: true });
+})();
+
+// ═══ Animated Number Counter ═══
+function animateNumber(elementId, targetValue, duration) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const start = parseInt(el.textContent) || 0;
+  const diff = targetValue - start;
+  if (diff === 0) return;
+  const startTime = performance.now();
+  duration = duration || 600;
+
+  function tick(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    el.textContent = Math.round(start + diff * eased);
+    if (progress < 1) requestAnimationFrame(tick);
+    else el.classList.add('count-animate');
+  }
+  requestAnimationFrame(tick);
 }
 </script>
 
