@@ -8774,6 +8774,7 @@ table.schedule tbody tr:hover {
         <div id="swapRecommender" style="margin-top:32px;"></div>
         <div id="scenarioSimulator" style="margin-top:32px;"></div>
         <div id="patternRecognition" style="margin-top:32px;"></div>
+        <div id="equipoPlantaPanel" style="margin-top:32px;"></div>
         <div id="spSuggestionsPanel" style="margin-top:32px;"></div>
         <div id="auditLogContainer" style="margin-top:32px;"></div>
       </div>
@@ -10626,6 +10627,7 @@ function renderDashboard() {
   try { renderPatternRecognition(); } catch(e) { console.warn('[Shiftia] Pattern recognition error:', e); }
 
   // Render SP coverage suggestions
+  try { renderEquipoPlanta(); } catch(e) { console.warn('[Shiftia] Equipo planta error:', e); }
   try { renderSPSuggestions(); } catch(e) { console.warn('[Shiftia] SP suggestions error:', e); }
 
   // Render audit log
@@ -11017,6 +11019,284 @@ function renderWeeklyShortageRollup() {
   </div>`;
 
   container.innerHTML = html;
+}
+
+// ========= EQUIPO POR PLANTA =========
+// Dashboard section: shows team roster per plant with schedule summary,
+// hours, vacations, structured subjective fields + free notes.
+// Subjective data persists in workerMemory and feeds AI analysis.
+
+let equipoSelectedPlanta = null; // null = use selectedPlanta or first plant
+
+function renderEquipoPlanta() {
+  const container = document.getElementById('equipoPlantaPanel');
+  if (!container) return;
+  if (workers.length === 0) { container.innerHTML = ''; return; }
+
+  const m = appState.currentMonth;
+  const year = m.getFullYear();
+  const month = m.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const sch = genSchedule(year, month);
+  const key = year + '-' + month;
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const shiftColors = { M: '#2e8b7a', T: '#4a9dd4', N: '#c5a832', D: '#d94444', SP: '#e89500' };
+
+  // Determine selected plant
+  const selP = equipoSelectedPlanta || selectedPlanta || PLANTAS[0].id;
+  if (selP === 'all' && !equipoSelectedPlanta) equipoSelectedPlanta = PLANTAS[0].id;
+  const plantaId = equipoSelectedPlanta || selP;
+  const planta = PLANTAS.find(p => p.id === plantaId);
+  const supervisor = PLANT_SUPERVISORS[plantaId];
+
+  // Get team members for this plant
+  const team = workers.filter(w => w.planta === plantaId);
+
+  // ── Structured subjective fields definition ──
+  const SUBJECTIVE_FIELDS = [
+    { key: 'actitud', label: 'Actitud', type: 'rating', max: 5, icon: '★' },
+    { key: 'fiabilidad', label: 'Fiabilidad', type: 'rating', max: 5, icon: '◆' },
+    { key: 'trabajo_equipo', label: 'Trabajo en equipo', type: 'rating', max: 5, icon: '●' },
+    { key: 'iniciativa', label: 'Iniciativa', type: 'rating', max: 5, icon: '▲' },
+    { key: 'tags', label: 'Etiquetas', type: 'tags', options: ['Lider natural','Conflictivo/a','Adaptable','Necesita seguimiento','Formador/a','Junior','Senior','Conciliacion','Restriccion medica'] }
+  ];
+
+  // ══════════════ RENDER ══════════════
+  let html = '<div style="background:var(--surface);border:1.5px solid var(--glass-border);border-radius:16px;padding:24px;backdrop-filter:blur(var(--glass-blur));">';
+
+  // Header
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">';
+  html += '<div>';
+  html += '<div style="font-size:16px;font-weight:700;color:var(--text);letter-spacing:-0.3px;">Equipo</div>';
+  html += '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + (planta ? escHtml(planta.name) : '') + ' — ' + monthNames[month] + ' ' + year + ' · ' + team.length + ' integrantes</div>';
+  html += '</div>';
+  html += '<div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,rgba(46,139,122,0.12),rgba(74,157,212,0.08));display:flex;align-items:center;justify-content:center;">';
+  html += '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  html += '</div></div>';
+
+  // Plant selector tabs
+  html += '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:18px;">';
+  PLANTAS.forEach(p => {
+    if (p.id === 'refuerzo') return;
+    const isSel = p.id === plantaId;
+    html += '<button onclick="equipoSelectedPlanta=\'' + p.id + '\';renderEquipoPlanta();" style="padding:5px 11px;border-radius:7px;border:1.5px solid ' + (isSel ? 'var(--primary)' : 'var(--border)') + ';background:' + (isSel ? 'var(--primary)' : 'var(--surface)') + ';color:' + (isSel ? 'white' : 'var(--text2)') + ';font-size:10px;font-weight:600;cursor:pointer;transition:all 0.2s;">' + escHtml(p.short) + '</button>';
+  });
+  html += '</div>';
+
+  // Supervisor
+  if (supervisor && supervisor.name) {
+    html += '<div style="padding:10px 14px;background:linear-gradient(135deg,rgba(201,168,76,0.08),rgba(26,54,93,0.04));border:1px solid rgba(201,168,76,0.2);border-radius:10px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">';
+    html += '<div style="width:36px;height:36px;border-radius:50%;background:rgba(201,168,76,0.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#c9a84c;">' + escHtml(supervisor.name.charAt(0)) + '</div>';
+    html += '<div><div style="font-size:12px;font-weight:700;color:var(--text);">' + escHtml(supervisor.name) + '</div>';
+    html += '<div style="font-size:10px;color:var(--text3);">' + escHtml(supervisor.role || 'Supervisora') + '</div></div></div>';
+  }
+
+  // Team members
+  if (team.length === 0) {
+    html += '<div style="text-align:center;padding:24px;color:var(--text3);font-size:12px;">No hay trabajadores importados en esta planta.</div>';
+  } else {
+    team.forEach(w => {
+      const stats = getWorkerStats(w.id, [key]);
+      const wMem = workerMemory[w.id] || {};
+      const subj = wMem.subjective || {};
+      const typeLabel = w.type === 'enf' ? 'Enfermeria' : (w.area === 'micro' ? 'Micro' : 'Tecnico');
+      const typeColor = w.type === 'enf' ? '#cc4444' : (w.area === 'micro' ? '#9a6abf' : '#4a9dd4');
+
+      // Vacation balance
+      let vacUsed = 0;
+      Object.keys(scheduleData).forEach(k => {
+        const s = scheduleData[k];
+        if (s[w.id]) s[w.id].forEach(sh => { if (sh === 'VAC' || sh === 'VAA') vacUsed++; });
+      });
+      const vacTotal = 22;
+      const vacRemaining = Math.max(0, vacTotal - vacUsed);
+
+      // Mini schedule strip (current month)
+      let stripHtml = '';
+      for (let d = 0; d < daysInMonth; d++) {
+        const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+        const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+        const c = shiftColors[eff] || (s === '' ? 'var(--surface2)' : 'var(--text3)');
+        const bg = s ? c + '30' : 'var(--surface2)';
+        stripHtml += '<div style="width:100%;height:14px;background:' + bg + ';border-radius:1px;" title="Dia ' + (d+1) + ': ' + (s || '-') + '"></div>';
+      }
+
+      // SP count
+      let spDays = 0;
+      for (let d = 0; d < daysInMonth; d++) {
+        const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+        if (s === 'SP') spDays++;
+      }
+
+      const cardId = 'equipo-card-' + w.id;
+
+      html += '<div id="' + cardId + '" style="margin-bottom:12px;padding:14px;background:var(--surface2);border-radius:12px;border:1px solid var(--border);transition:all 0.2s;">';
+
+      // Worker header row
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
+      html += '<div style="display:flex;align-items:center;gap:10px;">';
+      html += '<div style="width:38px;height:38px;border-radius:50%;background:' + typeColor + '18;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:' + typeColor + ';">' + escHtml(w.name.charAt(0)) + '</div>';
+      html += '<div>';
+      html += '<div style="font-size:13px;font-weight:700;color:var(--text);">' + escHtml(w.name) + '</div>';
+      html += '<div style="font-size:10px;color:var(--text3);">' + typeLabel + (w.area ? ' · ' + w.area : '') + '</div>';
+      html += '</div></div>';
+      html += '<button onclick="toggleEquipoSubjective(' + w.id + ')" style="padding:4px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:9px;font-weight:600;color:var(--text2);cursor:pointer;transition:all 0.2s;" title="Datos subjetivos / notas IA">';
+      html += (Object.keys(subj).length > 0 ? '✎ Editado' : '+ Notas IA') + '</button>';
+      html += '</div>';
+
+      // Stats row
+      html += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:10px;">';
+      const statItems = [
+        { val: stats.m, label: 'M', color: '#2e8b7a' },
+        { val: stats.t, label: 'T', color: '#4a9dd4' },
+        { val: stats.n, label: 'N', color: '#c5a832' },
+        { val: stats.h + 'h', label: 'Horas', color: 'var(--text)' },
+        { val: vacRemaining, label: 'Vac. rest.', color: vacRemaining <= 3 ? '#dc2626' : '#27ae60' },
+        { val: spDays, label: 'SP', color: '#e89500' }
+      ];
+      statItems.forEach(si => {
+        html += '<div style="text-align:center;padding:4px;background:var(--surface);border-radius:6px;">';
+        html += '<div style="font-size:14px;font-weight:800;color:' + si.color + ';">' + si.val + '</div>';
+        html += '<div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:0.3px;">' + si.label + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+
+      // Mini schedule strip
+      html += '<div style="margin-bottom:8px;">';
+      html += '<div style="font-size:9px;color:var(--text3);margin-bottom:3px;">Cartelera ' + monthNames[month] + '</div>';
+      html += '<div style="display:grid;grid-template-columns:repeat(' + daysInMonth + ',1fr);gap:1px;height:14px;">' + stripHtml + '</div>';
+      html += '</div>';
+
+      // Subjective tags preview (if any)
+      if (subj.tags && subj.tags.length > 0) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
+        subj.tags.forEach(tag => {
+          const tagColors = {
+            'Lider natural': '#27ae60', 'Conflictivo/a': '#dc2626', 'Adaptable': '#4a9dd4',
+            'Necesita seguimiento': '#e89500', 'Formador/a': '#9a6abf', 'Junior': '#6a7a9a',
+            'Senior': '#1a6b5a', 'Conciliacion': '#c06090', 'Restriccion medica': '#b04050'
+          };
+          const tc = tagColors[tag] || '#888';
+          html += '<span style="font-size:8px;font-weight:600;padding:2px 6px;border-radius:4px;background:' + tc + '15;color:' + tc + ';border:1px solid ' + tc + '30;">' + escHtml(tag) + '</span>';
+        });
+        html += '</div>';
+      }
+
+      // Ratings preview (inline)
+      const ratingFields = SUBJECTIVE_FIELDS.filter(f => f.type === 'rating' && subj[f.key]);
+      if (ratingFields.length > 0) {
+        html += '<div style="display:flex;gap:10px;margin-bottom:4px;">';
+        ratingFields.forEach(f => {
+          const val = subj[f.key] || 0;
+          let dots = '';
+          for (let i = 1; i <= f.max; i++) {
+            dots += '<span style="color:' + (i <= val ? '#c9a84c' : 'var(--border)') + ';font-size:9px;">' + f.icon + '</span>';
+          }
+          html += '<span style="font-size:8px;color:var(--text3);">' + f.label + ': ' + dots + '</span>';
+        });
+        html += '</div>';
+      }
+
+      // Notes preview
+      if (subj.notes) {
+        html += '<div style="font-size:10px;color:var(--text2);font-style:italic;padding:4px 8px;background:rgba(201,168,76,0.06);border-radius:4px;border-left:2px solid #c9a84c;margin-top:4px;max-height:36px;overflow:hidden;text-overflow:ellipsis;">' + escHtml(subj.notes.substring(0, 120)) + (subj.notes.length > 120 ? '...' : '') + '</div>';
+      }
+
+      // Subjective edit panel (hidden by default, toggled)
+      html += '<div id="equipo-subj-' + w.id + '" style="display:none;margin-top:12px;padding:14px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:10px;">';
+      html += '<div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px;">';
+      html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="2" stroke-linecap="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/><circle cx="9" cy="15" r="1"/><circle cx="15" cy="15" r="1"/></svg>';
+      html += 'Datos subjetivos — seran interpretados por la IA</div>';
+
+      // Rating fields
+      SUBJECTIVE_FIELDS.filter(f => f.type === 'rating').forEach(f => {
+        const curVal = subj[f.key] || 0;
+        html += '<div style="margin-bottom:8px;">';
+        html += '<div style="font-size:10px;font-weight:600;color:var(--text2);margin-bottom:4px;">' + f.label + '</div>';
+        html += '<div style="display:flex;gap:4px;">';
+        for (let i = 1; i <= f.max; i++) {
+          const active = i <= curVal;
+          html += '<button onclick="setEquipoRating(' + w.id + ',\'' + f.key + '\',' + i + ')" style="width:24px;height:24px;border-radius:4px;border:1px solid ' + (active ? '#c9a84c' : 'var(--border)') + ';background:' + (active ? '#c9a84c' : 'var(--surface2)') + ';color:' + (active ? 'white' : 'var(--text3)') + ';font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;">' + i + '</button>';
+        }
+        if (curVal > 0) html += '<button onclick="setEquipoRating(' + w.id + ',\'' + f.key + '\',0)" style="margin-left:4px;padding:2px 6px;border:none;background:none;color:var(--text3);font-size:9px;cursor:pointer;">Borrar</button>';
+        html += '</div></div>';
+      });
+
+      // Tags field
+      const tagField = SUBJECTIVE_FIELDS.find(f => f.type === 'tags');
+      if (tagField) {
+        const curTags = subj.tags || [];
+        html += '<div style="margin-bottom:8px;">';
+        html += '<div style="font-size:10px;font-weight:600;color:var(--text2);margin-bottom:4px;">' + tagField.label + '</div>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
+        tagField.options.forEach(opt => {
+          const active = curTags.includes(opt);
+          html += '<button onclick="toggleEquipoTag(' + w.id + ',\'' + escHtml(opt) + '\')" style="padding:3px 8px;border-radius:5px;border:1px solid ' + (active ? 'var(--primary)' : 'var(--border)') + ';background:' + (active ? 'var(--primary)' : 'var(--surface2)') + ';color:' + (active ? 'white' : 'var(--text2)') + ';font-size:9px;font-weight:600;cursor:pointer;transition:all 0.15s;">' + escHtml(opt) + '</button>';
+        });
+        html += '</div></div>';
+      }
+
+      // Free text notes
+      html += '<div style="margin-bottom:6px;">';
+      html += '<div style="font-size:10px;font-weight:600;color:var(--text2);margin-bottom:4px;">Notas libres (contexto para la IA)</div>';
+      html += '<textarea id="equipo-notes-' + w.id + '" style="width:100%;min-height:60px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;color:var(--text);background:var(--surface2);resize:vertical;" placeholder="Ej: Tiene problemas de espalda, prefiere no cargar peso. Buen trato con pacientes. Llega tarde con frecuencia..." oninput="saveEquipoNotes(' + w.id + ')">' + escHtml(subj.notes || '') + '</textarea>';
+      html += '</div>';
+
+      html += '<div style="font-size:8px;color:var(--text3);font-style:italic;">Los datos subjetivos se guardan automaticamente y alimentan el analisis IA de conflictos y sugerencias.</div>';
+      html += '</div>'; // end subjective panel
+
+      html += '</div>'; // end card
+    });
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// Toggle subjective panel visibility
+function toggleEquipoSubjective(wId) {
+  const el = document.getElementById('equipo-subj-' + wId);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// Set a rating value
+function setEquipoRating(wId, fieldKey, value) {
+  if (!workerMemory[wId]) workerMemory[wId] = {};
+  if (!workerMemory[wId].subjective) workerMemory[wId].subjective = {};
+  workerMemory[wId].subjective[fieldKey] = value;
+  workerMemory[wId].lastModified = new Date().toISOString();
+  saveToStorage();
+  renderEquipoPlanta();
+}
+
+// Toggle a tag
+function toggleEquipoTag(wId, tag) {
+  if (!workerMemory[wId]) workerMemory[wId] = {};
+  if (!workerMemory[wId].subjective) workerMemory[wId].subjective = {};
+  if (!workerMemory[wId].subjective.tags) workerMemory[wId].subjective.tags = [];
+  const tags = workerMemory[wId].subjective.tags;
+  const idx = tags.indexOf(tag);
+  if (idx >= 0) tags.splice(idx, 1);
+  else tags.push(tag);
+  workerMemory[wId].lastModified = new Date().toISOString();
+  saveToStorage();
+  renderEquipoPlanta();
+}
+
+// Save free-text notes (debounced via oninput)
+let _equipoNotesTimer = {};
+function saveEquipoNotes(wId) {
+  clearTimeout(_equipoNotesTimer[wId]);
+  _equipoNotesTimer[wId] = setTimeout(() => {
+    const el = document.getElementById('equipo-notes-' + wId);
+    if (!el) return;
+    if (!workerMemory[wId]) workerMemory[wId] = {};
+    if (!workerMemory[wId].subjective) workerMemory[wId].subjective = {};
+    workerMemory[wId].subjective.notes = el.value;
+    workerMemory[wId].lastModified = new Date().toISOString();
+    saveToStorage();
+  }, 800);
 }
 
 // ========= SP INTELLIGENCE ENGINE v2 =========
