@@ -10867,7 +10867,7 @@ function renderDashboard() {
   try { renderPatternRecognition(); } catch(e) { console.warn('[Shiftia] Pattern recognition error:', e); }
 
   // Render SP coverage suggestions
-  try { renderEquipoPlanta(); } catch(e) { console.warn('[Shiftia] Equipo planta error:', e); }
+  try { renderEquipoPlanta('equipoPlantaPanel'); } catch(e) { console.warn('[Shiftia] Equipo planta error:', e); }
   try { renderSPSuggestions(); } catch(e) { console.warn('[Shiftia] SP suggestions error:', e); }
 
   // Render audit log
@@ -11267,13 +11267,16 @@ function renderWeeklyShortageRollup() {
 // Subjective data persists in workerMemory and feeds AI analysis.
 
 let equipoSelectedPlanta = null; // null = use selectedPlanta or first plant
+let equipoActiveContainer = 'equipoPlantaPanel'; // track which container is active
 
 function renderEquipoView() {
+  equipoActiveContainer = 'equipoViewContent';
   renderEquipoPlanta('equipoViewContent');
 }
 
 function renderEquipoPlanta(targetId) {
-  const container = document.getElementById(targetId || 'equipoPlantaPanel');
+  if (targetId) equipoActiveContainer = targetId;
+  const container = document.getElementById(targetId || equipoActiveContainer || 'equipoPlantaPanel');
   if (!container) return;
   if (workers.length === 0) {
     container.innerHTML = '<div style="text-align:center;padding:64px 24px;">' +
@@ -11331,7 +11334,7 @@ function renderEquipoPlanta(targetId) {
   PLANTAS.forEach(p => {
     if (p.id === 'refuerzo') return;
     const isSel = p.id === plantaId;
-    html += '<button onclick="equipoSelectedPlanta=\'' + p.id + '\';renderEquipoPlanta();" style="padding:5px 11px;border-radius:7px;border:1.5px solid ' + (isSel ? 'var(--primary)' : 'var(--border)') + ';background:' + (isSel ? 'var(--primary)' : 'var(--surface)') + ';color:' + (isSel ? 'white' : 'var(--text2)') + ';font-size:10px;font-weight:600;cursor:pointer;transition:all 0.2s;">' + escHtml(p.short) + '</button>';
+    html += '<button onclick="equipoSelectedPlanta=\'' + p.id + '\';renderEquipoPlanta(equipoActiveContainer);" style="padding:5px 11px;border-radius:7px;border:1.5px solid ' + (isSel ? 'var(--primary)' : 'var(--border)') + ';background:' + (isSel ? 'var(--primary)' : 'var(--surface)') + ';color:' + (isSel ? 'white' : 'var(--text2)') + ';font-size:10px;font-weight:600;cursor:pointer;transition:all 0.2s;">' + escHtml(p.short) + '</button>';
   });
   html += '</div>';
 
@@ -11519,7 +11522,7 @@ function setEquipoRating(wId, fieldKey, value) {
   workerMemory[wId].subjective[fieldKey] = value;
   workerMemory[wId].lastModified = new Date().toISOString();
   saveToStorage();
-  renderEquipoPlanta();
+  renderEquipoPlanta(equipoActiveContainer);
 }
 
 // Toggle a tag
@@ -11533,7 +11536,7 @@ function toggleEquipoTag(wId, tag) {
   else tags.push(tag);
   workerMemory[wId].lastModified = new Date().toISOString();
   saveToStorage();
-  renderEquipoPlanta();
+  renderEquipoPlanta(equipoActiveContainer);
 }
 
 // Save free-text notes (debounced via oninput)
