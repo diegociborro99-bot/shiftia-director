@@ -8584,6 +8584,8 @@ table.schedule tbody tr:hover {
       <button class="nav-tab" data-view="mapa-cobertura" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span> Mapa de Cobertura</button>
       <button class="nav-tab" data-view="gestor-ausencias" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 11v6"/><path d="M9 14h6"/></svg></span> Gestor de Ausencias</button>
       <button class="nav-tab" data-view="gestor-cobertura" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/><circle cx="9" cy="15" r="1"/><circle cx="15" cy="15" r="1"/></svg></span> Gestor de Cobertura</button>
+      <button class="nav-tab" data-view="equipo" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Equipo</button>
+      <button class="nav-tab" data-view="gestor-sp" role="tab" aria-selected="false"><span class="tab-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Gestor SP</button>
     </nav>
     <!-- Mobile More Menu -->
     <div class="mobile-more-menu" id="mobileMoreMenu" style="display:none;">
@@ -8761,7 +8763,7 @@ table.schedule tbody tr:hover {
           </div>
 
           <!-- Card 5: Gestor SP -->
-          <div onclick="openSPManager()" style="
+          <div onclick="switchView('gestor-sp')" style="
             cursor: pointer;
             background: rgba(255,255,255,0.65);
             backdrop-filter: blur(16px);
@@ -8790,7 +8792,7 @@ table.schedule tbody tr:hover {
           </div>
 
           <!-- Card 6: Equipo -->
-          <div onclick="document.getElementById('equipoPlantaPanel').scrollIntoView({behavior:'smooth',block:'start'})" style="
+          <div onclick="switchView('equipo')" style="
             cursor: pointer;
             background: rgba(255,255,255,0.65);
             backdrop-filter: blur(16px);
@@ -9089,6 +9091,16 @@ table.schedule tbody tr:hover {
     <!-- Gestor de Ausencias -->
     <div class="view-panel" id="gestorAusenciasPanel">
       <div id="gestorAusenciasContent"></div>
+    </div>
+
+    <!-- Equipo por Planta -->
+    <div class="view-panel" id="equipoPanel">
+      <div id="equipoViewContent"></div>
+    </div>
+
+    <!-- Gestor SP -->
+    <div class="view-panel" id="gestorSPPanel">
+      <div id="gestorSPViewContent"></div>
     </div>
 
     <!-- Gestor de Cobertura (formerly coberturaPanel) -->
@@ -10400,6 +10412,8 @@ function renderCurrentView() {
   else if (currentView === 'mapa-cobertura') renderMapaCobertura();
   else if (currentView === 'gestor-ausencias') renderGestorAusencias();
   else if (currentView === 'gestor-cobertura') renderCoberturaIA();
+  else if (currentView === 'equipo') renderEquipoView();
+  else if (currentView === 'gestor-sp') renderGestorSPView();
   // Legacy views
   else if (currentView === 'schedule') renderSchedule();
   else if (currentView === 'workers') renderWorkers();
@@ -10419,6 +10433,8 @@ function switchView(view) {
     'mapa-cobertura': 'mapaPanel',
     'gestor-ausencias': 'gestorAusenciasPanel',
     'gestor-cobertura': 'gestorCoberturaPanel',
+    'equipo': 'equipoPanel',
+    'gestor-sp': 'gestorSPPanel',
     // Legacy views (kept for backward compatibility)
     'schedule': 'schedulePanel',
     'workers': 'workersPanel',
@@ -11105,8 +11121,12 @@ function renderWeeklyShortageRollup() {
 
 let equipoSelectedPlanta = null; // null = use selectedPlanta or first plant
 
-function renderEquipoPlanta() {
-  const container = document.getElementById('equipoPlantaPanel');
+function renderEquipoView() {
+  renderEquipoPlanta('equipoViewContent');
+}
+
+function renderEquipoPlanta(targetId) {
+  const container = document.getElementById(targetId || 'equipoPlantaPanel');
   if (!container) return;
   if (workers.length === 0) { container.innerHTML = ''; return; }
 
@@ -12067,6 +12087,411 @@ function assignSPFromManager(wId, day, shift, plantaId) {
   // Re-render the manager panel with updated data
   renderSPManagerContent();
   // Also refresh background views
+  try { renderSchedule(); } catch(e) {}
+  try { renderDashboard(); } catch(e) {}
+}
+
+// ═════════════════ GESTOR SP FULL-PAGE VIEW ═════════════════
+
+function renderGestorSPView() {
+  const container = document.getElementById('gestorSPViewContent');
+  if (!container) return;
+
+  const m = appState.currentMonth;
+  const year = m.getFullYear();
+  const month = m.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const sch = genSchedule(year, month);
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const shiftColors = { M: '#2e8b7a', T: '#4a9dd4', N: '#c5a832' };
+  const shiftLabels = { M: 'Mañana', T: 'Tarde', N: 'Noche' };
+  const selectedP = spManagerState.selectedPlanta || PLANTAS[0].id;
+  spManagerState.selectedPlanta = selectedP;
+  const planta = PLANTAS.find(p => p.id === selectedP);
+
+  // ── Reuse all the same helper functions ──
+  function countNightsThisMonth(wId) {
+    let n = 0;
+    for (let d = 0; d < daysInMonth; d++) {
+      const s = sch[wId] ? (sch[wId][d] || '').toString().trim() : '';
+      if (s === 'N') n++;
+    }
+    return n;
+  }
+
+  function consecutiveDaysIfAssigned(wId, dayIdx) {
+    let count = 1;
+    const WORK = ['M','T','N','MR','M7H','M6R','M55'];
+    for (let d = dayIdx - 1; d >= 0; d--) {
+      const s = sch[wId] ? (sch[wId][d] || '').toString().trim() : '';
+      if (WORK.includes(s)) count++; else break;
+    }
+    for (let d = dayIdx + 1; d < daysInMonth; d++) {
+      const s = sch[wId] ? (sch[wId][d] || '').toString().trim() : '';
+      if (WORK.includes(s)) count++; else break;
+    }
+    return count;
+  }
+
+  function hasWeeklyRest(wId, dayIdx) {
+    const WORK = ['M','T','N','MR','M7H','M6R','M55'];
+    const windowStart = Math.max(0, dayIdx - 6);
+    let worked = 0;
+    for (let d = windowStart; d <= dayIdx; d++) {
+      const s = sch[wId] ? (sch[wId][d] || '').toString().trim() : '';
+      if (d === dayIdx || WORK.includes(s)) worked++;
+    }
+    return worked < 7;
+  }
+
+  function getValidShiftsLocal(wId, dayIdx) {
+    const valid = [];
+    const reasons = {};
+    const prevShift = dayIdx > 0 && sch[wId] ? (sch[wId][dayIdx - 1] || '').toString().trim() : '';
+    const nextShift = dayIdx < daysInMonth - 1 && sch[wId] ? (sch[wId][dayIdx + 1] || '').toString().trim() : '';
+    const nextEff = ['MR','M7H','M6R','M55'].includes(nextShift) ? 'M' : nextShift;
+    const prevEff = ['MR','M7H','M6R','M55'].includes(prevShift) ? 'M' : prevShift;
+    const nightsNow = countNightsThisMonth(wId);
+    const consecIfWork = consecutiveDaysIfAssigned(wId, dayIdx);
+    const weeklyOk = hasWeeklyRest(wId, dayIdx);
+
+    if (consecIfWork > SP_RULES.maxConsecutiveDays) {
+      reasons._blocked = 'Supera ' + SP_RULES.maxConsecutiveDays + ' dias consecutivos';
+      return { valid: [], reasons };
+    }
+    if (!weeklyOk) {
+      reasons._blocked = 'Sin descanso semanal';
+      return { valid: [], reasons };
+    }
+
+    ['M','T','N'].forEach(shift => {
+      let ok = true, reason = '';
+      if (prevEff === 'N' && (shift === 'M' || shift === 'T')) { ok = false; reason = 'Dia anterior es Noche'; }
+      if (shift === 'N' && (nextEff === 'M' || nextEff === 'T')) { ok = false; reason = 'Dia siguiente es ' + (nextEff === 'M' ? 'Mañana' : 'Tarde'); }
+      if (shift === 'N' && nightsNow >= SP_RULES.maxNightsPerMonth) { ok = false; reason = 'Max ' + nightsNow + '/' + SP_RULES.maxNightsPerMonth + ' noches'; }
+      if (ok) valid.push(shift); else reasons[shift] = reason;
+    });
+    return { valid, reasons };
+  }
+
+  // ── Build SP pool ──
+  const spPool = [];
+  workers.forEach(w => {
+    const spDays = [];
+    for (let d = 0; d < daysInMonth; d++) {
+      const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+      if (s === 'SP') {
+        const { valid, reasons } = getValidShiftsLocal(w.id, d);
+        spDays.push({ day: d, dayLabel: d + 1, validShifts: valid, reasons });
+      }
+    }
+    if (spDays.length > 0) {
+      let equityScore = 100;
+      try {
+        const eq = typeof getMultiMonthEquity === 'function' ? getMultiMonthEquity(w.id, month, year) : null;
+        if (eq && eq.nightsDelta > 2) equityScore -= 15;
+        if (eq && eq.hoursDelta > 15) equityScore -= 10;
+      } catch(e) {}
+      try {
+        const fat = typeof getAccumulatedFatigue === 'function' ? getAccumulatedFatigue(w.id, 0, month, year) : 0;
+        equityScore -= (fat || 0) * 0.3;
+      } catch(e) {}
+      let spExtras = 0;
+      try { shiftHistory.forEach(h => { if (h.wId === w.id && h.source === 'SP-sugerencia') spExtras++; }); } catch(e) {}
+      equityScore -= spExtras * 5;
+      equityScore = Math.max(0, Math.round(equityScore));
+
+      spPool.push({
+        w, spDays,
+        totalSP: spDays.length,
+        assignableDays: spDays.filter(d => d.validShifts.length > 0).length,
+        equityScore,
+        nightsThisMonth: countNightsThisMonth(w.id)
+      });
+    }
+  });
+  spPool.sort((a, b) => b.equityScore - a.equityScore);
+
+  // ── Coverage gaps for selected plant ──
+  const plantGaps = [];
+  if (planta) {
+    const covReq = PLANT_COVERAGE[planta.id] || {};
+    for (let d = 0; d < daysInMonth; d++) {
+      ['M','T','N'].forEach(shift => {
+        const needed = (covReq[shift] || {}).min || 0;
+        if (needed === 0) return;
+        let onShift = 0;
+        workers.filter(ww => ww.planta === planta.id).forEach(ww => {
+          const s = sch[ww.id] ? (sch[ww.id][d] || '').toString().trim() : '';
+          const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+          if (eff === shift) onShift++;
+        });
+        if (onShift < needed) plantGaps.push({ day: d, shift, gap: needed - onShift });
+      });
+    }
+  }
+
+  // ── Stats ──
+  const totalSPDays = spPool.reduce((s, x) => s + x.totalSP, 0);
+  const totalAssignable = spPool.reduce((s, x) => s + x.assignableDays, 0);
+  const totalBlocked = totalSPDays - totalAssignable;
+  const dayNames = ['Do','Lu','Ma','Mi','Ju','Vi','Sa'];
+
+  // ═══════════════ RENDER ═══════════════
+  let html = '';
+
+  // ── HEADER ──
+  html += '<div style="margin-bottom:28px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;">';
+  html += '<div>';
+  html += '<h1 style="font-size:24px;font-weight:800;color:var(--text);letter-spacing:-0.5px;margin:0 0 6px;">Gestor Sin Planificar</h1>';
+  html += '<p style="font-size:13px;color:var(--text3);margin:0;">' + monthNames[month] + ' ' + year + ' — Asigna turnos a trabajadores disponibles respetando convenio</p>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:8px;align-items:center;">';
+  html += '<div style="text-align:center;padding:10px 16px;background:var(--surface);border:1.5px solid var(--glass-border);border-radius:12px;backdrop-filter:blur(16px);">';
+  html += '<div style="font-size:22px;font-weight:800;color:var(--accent);">' + spPool.length + '</div>';
+  html += '<div style="font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;">Trabajadores</div>';
+  html += '</div>';
+  html += '<div style="text-align:center;padding:10px 16px;background:var(--surface);border:1.5px solid var(--glass-border);border-radius:12px;backdrop-filter:blur(16px);">';
+  html += '<div style="font-size:22px;font-weight:800;color:#2e8b7a;">' + totalAssignable + '</div>';
+  html += '<div style="font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;">Asignables</div>';
+  html += '</div>';
+  html += '<div style="text-align:center;padding:10px 16px;background:var(--surface);border:1.5px solid var(--glass-border);border-radius:12px;backdrop-filter:blur(16px);">';
+  html += '<div style="font-size:22px;font-weight:800;color:#dc2626;">' + plantGaps.length + '</div>';
+  html += '<div style="font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;">Huecos</div>';
+  html += '</div>';
+  html += '</div></div></div>';
+
+  // ── PLANT SELECTOR (big visual tabs) ──
+  html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;">';
+  PLANTAS.forEach(p => {
+    if (p.id === 'refuerzo') return;
+    const isSel = p.id === selectedP;
+    // Count gaps for this plant
+    let gapCount = 0;
+    const covReq = PLANT_COVERAGE[p.id] || {};
+    for (let d = 0; d < daysInMonth; d++) {
+      ['M','T','N'].forEach(shift => {
+        const needed = (covReq[shift] || {}).min || 0;
+        if (needed === 0) return;
+        let onShift = 0;
+        workers.filter(ww => ww.planta === p.id).forEach(ww => {
+          const s = sch[ww.id] ? (sch[ww.id][d] || '').toString().trim() : '';
+          const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+          if (eff === shift) onShift++;
+        });
+        if (onShift < needed) gapCount++;
+      });
+    }
+    const badgeColor = gapCount > 0 ? '#dc2626' : '#27ae60';
+    html += '<button onclick="spManagerState.selectedPlanta=\'' + p.id + '\';renderGestorSPView();" style="padding:10px 18px;border-radius:12px;border:2px solid ' + (isSel ? 'var(--primary)' : 'var(--border)') + ';background:' + (isSel ? 'var(--primary)' : 'var(--surface)') + ';color:' + (isSel ? 'white' : 'var(--text)') + ';font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;position:relative;min-width:80px;">' + escHtml(p.short);
+    if (gapCount > 0) {
+      html += ' <span style="display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;background:' + (isSel ? 'rgba(255,255,255,0.3)' : badgeColor) + ';color:' + (isSel ? 'white' : 'white') + ';font-size:9px;font-weight:800;border-radius:9px;padding:0 4px;">' + gapCount + '</span>';
+    }
+    html += '</button>';
+  });
+  html += '</div>';
+
+  // ── COVERAGE CALENDAR HEATMAP ──
+  if (planta) {
+    html += '<div style="background:var(--surface);border:1.5px solid var(--glass-border);border-radius:16px;padding:20px;margin-bottom:24px;backdrop-filter:blur(16px);">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+    html += '<div><div style="font-size:15px;font-weight:700;color:var(--text);">' + escHtml(planta.name) + ' — Calendario de cobertura</div>';
+    html += '<div style="font-size:11px;color:var(--text3);margin-top:2px;">Verde = cubierto · Rojo = falta personal · Naranja = SP disponible sin asignar</div></div>';
+    html += '<div style="display:flex;gap:12px;font-size:10px;color:var(--text3);">';
+    html += '<span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:3px;background:#27ae60;"></span> OK</span>';
+    html += '<span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:3px;background:#dc2626;"></span> Hueco</span>';
+    html += '<span style="display:flex;align-items:center;gap:4px;"><span style="width:12px;height:12px;border-radius:3px;background:#e89500;"></span> SP libre</span>';
+    html += '</div></div>';
+
+    // Calendar grid: days as columns, shifts as rows
+    html += '<div style="overflow-x:auto;">';
+    html += '<table style="width:100%;border-collapse:separate;border-spacing:3px;min-width:' + (daysInMonth * 38 + 60) + 'px;">';
+
+    // Header row: day numbers
+    html += '<tr><td style="width:55px;"></td>';
+    for (let d = 0; d < daysInMonth; d++) {
+      const dow = dayNames[new Date(year, month, d).getDay()];
+      const isWeekend = new Date(year, month, d).getDay() === 0 || new Date(year, month, d).getDay() === 6;
+      html += '<td style="text-align:center;font-size:9px;font-weight:700;color:' + (isWeekend ? 'var(--accent)' : 'var(--text3)') + ';padding:2px 0;">' + dow + '<br>' + (d+1) + '</td>';
+    }
+    html += '</tr>';
+
+    // One row per shift (M, T, N)
+    ['M','T','N'].forEach(shift => {
+      const covReq = PLANT_COVERAGE[planta.id] || {};
+      const needed = (covReq[shift] || {}).min || 0;
+      if (needed === 0) return;
+
+      html += '<tr><td style="font-size:11px;font-weight:700;color:' + shiftColors[shift] + ';padding:4px 6px;white-space:nowrap;">' + shiftLabels[shift] + ' <span style="font-size:9px;color:var(--text3);font-weight:500;">(min ' + needed + ')</span></td>';
+
+      for (let d = 0; d < daysInMonth; d++) {
+        let onShift = 0;
+        let spAvailable = 0;
+        workers.filter(ww => ww.planta === planta.id).forEach(ww => {
+          const s = sch[ww.id] ? (sch[ww.id][d] || '').toString().trim() : '';
+          const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+          if (eff === shift) onShift++;
+        });
+        // Count SP workers that COULD cover this shift on this day
+        spPool.forEach(sp => {
+          const spDay = sp.spDays.find(sd => sd.day === d);
+          if (spDay && spDay.validShifts.includes(shift)) spAvailable++;
+        });
+
+        let bg, fg, content;
+        if (onShift >= needed) {
+          bg = 'rgba(39,174,96,0.12)';
+          fg = '#27ae60';
+          content = onShift;
+        } else if (spAvailable > 0) {
+          bg = 'rgba(232,149,0,0.15)';
+          fg = '#e89500';
+          content = onShift + '<span style="font-size:7px;vertical-align:super;">+' + spAvailable + '</span>';
+        } else {
+          bg = 'rgba(220,38,38,0.12)';
+          fg = '#dc2626';
+          content = onShift;
+        }
+
+        html += '<td style="text-align:center;background:' + bg + ';border-radius:6px;padding:6px 2px;min-width:32px;">';
+        html += '<span style="font-size:12px;font-weight:800;color:' + fg + ';">' + content + '</span>';
+        html += '</td>';
+      }
+      html += '</tr>';
+    });
+    html += '</table></div></div>';
+  }
+
+  // ── CONVENTION RULES BAR ──
+  html += '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px;">';
+  const rules = [
+    { icon: '🌙', label: 'Max ' + SP_RULES.maxNightsPerMonth + ' noches/mes', sub: SP_RULES.maxNightsEmergency + ' en emergencia' },
+    { icon: '📅', label: 'Max ' + SP_RULES.maxConsecutiveDays + ' días seguidos', sub: 'Consecutivos trabajados' },
+    { icon: '🛌', label: 'Min 1 libre/semana', sub: 'Descanso obligatorio' },
+    { icon: '🚫', label: 'No M/T tras Noche', sub: 'Ni Noche antes de M/T' }
+  ];
+  rules.forEach(r => {
+    html += '<div style="flex:1;min-width:140px;padding:12px 14px;background:var(--surface);border:1.5px solid var(--glass-border);border-radius:12px;backdrop-filter:blur(16px);">';
+    html += '<div style="font-size:18px;margin-bottom:4px;">' + r.icon + '</div>';
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text);">' + r.label + '</div>';
+    html += '<div style="font-size:9px;color:var(--text3);">' + r.sub + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // ── WORKER CARDS (visual, expanded) ──
+  if (spPool.length === 0) {
+    html += '<div style="text-align:center;padding:48px;background:var(--surface);border:1.5px solid var(--glass-border);border-radius:16px;">';
+    html += '<div style="font-size:48px;margin-bottom:12px;">📋</div>';
+    html += '<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">No hay trabajadores con días SP</div>';
+    html += '<div style="font-size:12px;color:var(--text3);">Importa planillas con días Sin Planificar para usar este gestor</div>';
+    html += '</div>';
+  } else {
+    html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Trabajadores disponibles (' + spPool.length + ')</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;">';
+
+    spPool.forEach(sp => {
+      const eqColor = sp.equityScore >= 70 ? '#27ae60' : sp.equityScore >= 40 ? '#e89500' : '#dc2626';
+      const eqBg = sp.equityScore >= 70 ? 'rgba(39,174,96,0.08)' : sp.equityScore >= 40 ? 'rgba(232,149,0,0.08)' : 'rgba(220,38,38,0.08)';
+      const wType = sp.w.type === 'enf' ? 'Enfermería' : (sp.w.area === 'micro' ? 'Micro' : 'Técnico');
+      const wPlanta = PLANTAS.find(p => p.id === sp.w.planta);
+
+      html += '<div style="background:var(--surface);border:1.5px solid var(--glass-border);border-radius:14px;padding:18px;backdrop-filter:blur(16px);transition:all 0.2s;" onmouseover="this.style.borderColor=\'rgba(255,255,255,0.5)\';this.style.boxShadow=\'0 8px 32px rgba(0,0,0,0.06)\'" onmouseout="this.style.borderColor=\'var(--glass-border)\';this.style.boxShadow=\'none\'">';
+
+      // Worker header
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">';
+      html += '<div style="display:flex;align-items:center;gap:10px;">';
+      html += '<div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,rgba(232,149,0,0.15),rgba(201,168,76,0.1));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#e89500;">' + escHtml(sp.w.name.charAt(0)) + '</div>';
+      html += '<div>';
+      html += '<div style="font-size:14px;font-weight:700;color:var(--text);">' + escHtml(sp.w.name) + '</div>';
+      html += '<div style="font-size:10px;color:var(--text3);">' + wType + (wPlanta ? ' · ' + wPlanta.short : '') + ' · ' + sp.nightsThisMonth + ' noches este mes</div>';
+      html += '</div></div>';
+
+      // Equity badge
+      html += '<div style="text-align:center;">';
+      html += '<div style="width:44px;height:44px;border-radius:50%;background:conic-gradient(' + eqColor + ' ' + (sp.equityScore * 3.6) + 'deg, rgba(0,0,0,0.06) 0deg);display:flex;align-items:center;justify-content:center;">';
+      html += '<div style="width:34px;height:34px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:' + eqColor + ';">' + sp.equityScore + '</div>';
+      html += '</div>';
+      html += '<div style="font-size:8px;color:var(--text3);margin-top:2px;">Equidad</div>';
+      html += '</div></div>';
+
+      // Stats row
+      html += '<div style="display:flex;gap:8px;margin-bottom:14px;">';
+      html += '<div style="flex:1;text-align:center;padding:6px;background:rgba(232,149,0,0.08);border-radius:8px;"><div style="font-size:16px;font-weight:800;color:#e89500;">' + sp.totalSP + '</div><div style="font-size:8px;color:var(--text3);">Días SP</div></div>';
+      html += '<div style="flex:1;text-align:center;padding:6px;background:rgba(39,174,96,0.08);border-radius:8px;"><div style="font-size:16px;font-weight:800;color:#27ae60;">' + sp.assignableDays + '</div><div style="font-size:8px;color:var(--text3);">Asignables</div></div>';
+      html += '<div style="flex:1;text-align:center;padding:6px;background:rgba(220,38,38,0.08);border-radius:8px;"><div style="font-size:16px;font-weight:800;color:#dc2626;">' + (sp.totalSP - sp.assignableDays) + '</div><div style="font-size:8px;color:var(--text3);">Bloqueados</div></div>';
+      html += '</div>';
+
+      // Days calendar strip
+      html += '<div style="display:flex;flex-wrap:wrap;gap:5px;">';
+      sp.spDays.forEach(spDay => {
+        const dow = dayNames[new Date(year, month, spDay.day).getDay()];
+        const blocked = spDay.validShifts.length === 0;
+        const blockReason = spDay.reasons._blocked || Object.values(spDay.reasons).join(', ');
+        const fillsAnyGap = spDay.validShifts.some(s => plantGaps.some(g => g.day === spDay.day && g.shift === s));
+
+        if (blocked) {
+          html += '<div style="padding:6px 8px;background:rgba(220,38,38,0.05);border:1.5px solid rgba(220,38,38,0.15);border-radius:10px;opacity:0.5;text-align:center;" title="' + escHtml(blockReason) + '">';
+          html += '<div style="font-size:9px;font-weight:700;color:#dc2626;">' + dow + '</div>';
+          html += '<div style="font-size:13px;font-weight:800;color:#dc2626;">' + spDay.dayLabel + '</div>';
+          html += '<div style="font-size:7px;color:#dc2626;">Bloq.</div>';
+          html += '</div>';
+        } else {
+          const borderColor = fillsAnyGap ? '#e89500' : 'var(--glass-border)';
+          const shadow = fillsAnyGap ? 'box-shadow:0 0 0 1px rgba(232,149,0,0.3);' : '';
+          html += '<div style="padding:6px 8px;background:var(--surface);border:1.5px solid ' + borderColor + ';border-radius:10px;text-align:center;' + shadow + '">';
+          html += '<div style="font-size:9px;font-weight:600;color:var(--text3);">' + dow + '</div>';
+          html += '<div style="font-size:13px;font-weight:800;color:var(--text);margin:1px 0;">' + spDay.dayLabel + '</div>';
+          html += '<div style="display:flex;gap:3px;justify-content:center;">';
+          spDay.validShifts.forEach(shift => {
+            const sColor = shiftColors[shift];
+            const fillsGap = plantGaps.some(g => g.day === spDay.day && g.shift === shift);
+            const btnBg = fillsGap ? sColor : sColor + '20';
+            const btnColor = fillsGap ? 'white' : sColor;
+            html += '<button onclick="assignSPFromView(\'' + sp.w.id + '\',' + spDay.day + ',\'' + shift + '\',\'' + selectedP + '\')" style="padding:3px 8px;background:' + btnBg + ';color:' + btnColor + ';border:1.5px solid ' + sColor + ';border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;transition:all 0.15s;line-height:1.3;" onmouseover="this.style.background=\'' + sColor + '\';this.style.color=\'white\';this.style.transform=\'scale(1.1)\'" onmouseout="this.style.background=\'' + btnBg + '\';this.style.color=\'' + btnColor + '\';this.style.transform=\'scale(1)\'" title="' + (fillsGap ? '⚡ CUBRE HUECO — ' : '') + shiftLabels[shift] + ' día ' + spDay.dayLabel + '">' + shift + (fillsGap ? '!' : '') + '</button>';
+          });
+          // Blocked shifts (greyed out)
+          ['M','T','N'].filter(s => !spDay.validShifts.includes(s)).forEach(shift => {
+            html += '<span style="padding:3px 8px;background:var(--surface2);color:var(--text3);border:1px solid var(--border);border-radius:6px;font-size:10px;opacity:0.35;text-decoration:line-through;" title="' + escHtml(spDay.reasons[shift] || 'No disponible') + '">' + shift + '</span>';
+          });
+          html += '</div></div>';
+        }
+      });
+      html += '</div>';
+
+      html += '</div>'; // close card
+    });
+    html += '</div>'; // close grid
+  }
+
+  container.innerHTML = html;
+}
+
+function assignSPFromView(wId, day, shift, plantaId) {
+  const m = appState.currentMonth;
+  const year = m.getFullYear();
+  const month = m.getMonth();
+  const key = year + '-' + month;
+  const sch = genSchedule(year, month);
+
+  if (!scheduleData[key]) scheduleData[key] = {};
+  if (!scheduleData[key][wId]) scheduleData[key][wId] = [...(sch[wId] || [])];
+
+  const oldShift = scheduleData[key][wId][day] || 'SP';
+  scheduleData[key][wId][day] = shift;
+
+  const w = workers.find(x => x.id == wId);
+  if (typeof logShiftChange === 'function') {
+    logShiftChange(wId, day, month, year, oldShift, shift, 'SP-gestor');
+  }
+
+  saveToStorage();
+  const plantName = (PLANTAS.find(p => p.id === plantaId) || {}).name || plantaId;
+  const shiftLabels = { M: 'Mañana', T: 'Tarde', N: 'Noche' };
+  showToast(escHtml((w ? w.name : 'Trabajador')) + ' → ' + (shiftLabels[shift]||shift) + ' día ' + (day+1) + ' en ' + plantName, 'success');
+
+  renderGestorSPView();
   try { renderSchedule(); } catch(e) {}
   try { renderDashboard(); } catch(e) {}
 }
