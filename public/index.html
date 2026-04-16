@@ -11307,13 +11307,95 @@ function renderEquipoPlanta(targetId) {
   // Get team members for this plant
   const team = workers.filter(w => w.planta === plantaId);
 
-  // ── Structured subjective fields definition ──
-  const SUBJECTIVE_FIELDS = [
-    { key: 'actitud', label: 'Actitud', type: 'rating', max: 5, icon: '★' },
-    { key: 'fiabilidad', label: 'Fiabilidad', type: 'rating', max: 5, icon: '◆' },
-    { key: 'trabajo_equipo', label: 'Trabajo en equipo', type: 'rating', max: 5, icon: '●' },
-    { key: 'iniciativa', label: 'Iniciativa', type: 'rating', max: 5, icon: '▲' },
-    { key: 'tags', label: 'Etiquetas', type: 'tags', options: ['Lider natural','Conflictivo/a','Adaptable','Necesita seguimiento','Formador/a','Junior','Senior','Conciliacion','Restriccion medica'] }
+  // ── Hospital-Specific Subjective Intelligence System ──
+  const SUBJ_CATEGORIES = [
+    {
+      id: 'competencia_clinica',
+      label: 'Competencia clínica',
+      color: '#2e8b7a',
+      icon: shiftiaIcon('hospital', 14, '#2e8b7a'),
+      fields: [
+        { key: 'tecnica', label: 'Técnica asistencial', type: 'rating', max: 5 },
+        { key: 'protocolos', label: 'Cumplimiento de protocolos', type: 'rating', max: 5 },
+        { key: 'emergencias', label: 'Reacción en emergencias', type: 'rating', max: 5 }
+      ],
+      scenarios: [
+        { key: 'sc_pcr', label: 'Sabe actuar en PCR/parada', positive: true },
+        { key: 'sc_via', label: 'Domina vías centrales/periféricas', positive: true },
+        { key: 'sc_meds', label: 'Errores de medicación recientes', positive: false },
+        { key: 'sc_proto_skip', label: 'Salta protocolos bajo presión', positive: false }
+      ]
+    },
+    {
+      id: 'actitud_equipo',
+      label: 'Actitud y equipo',
+      color: '#4a9dd4',
+      icon: shiftiaIcon('team', 14, '#4a9dd4'),
+      fields: [
+        { key: 'colaboracion', label: 'Colaboración con compañeros', type: 'rating', max: 5 },
+        { key: 'comunicacion', label: 'Comunicación clínica', type: 'rating', max: 5 },
+        { key: 'liderazgo', label: 'Capacidad de liderazgo', type: 'rating', max: 5 }
+      ],
+      scenarios: [
+        { key: 'sc_lider', label: 'Referente natural del equipo', positive: true },
+        { key: 'sc_mentor', label: 'Forma a residentes/nuevos', positive: true },
+        { key: 'sc_conflicto', label: 'Genera conflictos frecuentes', positive: false },
+        { key: 'sc_aislado', label: 'Se aísla, no pide ayuda', positive: false },
+        { key: 'sc_relevo', label: 'Buenos relevos de turno', positive: true }
+      ]
+    },
+    {
+      id: 'fiabilidad',
+      label: 'Fiabilidad y compromiso',
+      color: '#c9a84c',
+      icon: shiftiaIcon('calendar', 14, '#c9a84c'),
+      fields: [
+        { key: 'puntualidad', label: 'Puntualidad', type: 'rating', max: 5 },
+        { key: 'disponibilidad', label: 'Disponibilidad extra', type: 'rating', max: 5 },
+        { key: 'carga_trabajo', label: 'Gestión de carga', type: 'rating', max: 5 }
+      ],
+      scenarios: [
+        { key: 'sc_puntual', label: 'Siempre puntual', positive: true },
+        { key: 'sc_tarde', label: 'Llega tarde con frecuencia', positive: false },
+        { key: 'sc_extras', label: 'Acepta extras sin problema', positive: true },
+        { key: 'sc_baja_freq', label: 'Bajas frecuentes/patrón', positive: false },
+        { key: 'sc_dobla', label: 'Dispuesto/a a doblar turno', positive: true }
+      ]
+    },
+    {
+      id: 'paciente',
+      label: 'Trato al paciente',
+      color: '#e06090',
+      icon: shiftiaIcon('user', 14, '#e06090'),
+      fields: [
+        { key: 'empatia', label: 'Empatía y cercanía', type: 'rating', max: 5 },
+        { key: 'familia', label: 'Trato con familias', type: 'rating', max: 5 }
+      ],
+      scenarios: [
+        { key: 'sc_paciente_ok', label: 'Pacientes lo/la piden', positive: true },
+        { key: 'sc_quejas', label: 'Quejas de pacientes/familias', positive: false },
+        { key: 'sc_duelo', label: 'Buen manejo de duelo/malas noticias', positive: true },
+        { key: 'sc_contenciones', label: 'Sabe manejar contenciones', positive: true }
+      ]
+    },
+    {
+      id: 'circunstancias',
+      label: 'Circunstancias especiales',
+      color: '#e89500',
+      icon: shiftiaIcon('warning', 14, '#e89500'),
+      tags: [
+        { key: 'tag_embarazo', label: 'Embarazo', color: '#e06090' },
+        { key: 'tag_lactancia', label: 'Lactancia', color: '#e06090' },
+        { key: 'tag_restriccion', label: 'Restricción médica', color: '#dc2626' },
+        { key: 'tag_conciliacion', label: 'Conciliación familiar', color: '#9a6abf' },
+        { key: 'tag_reduccion', label: 'Reducción de jornada', color: '#e89500' },
+        { key: 'tag_reincorporacion', label: 'Reincorporación reciente', color: '#4a9dd4' },
+        { key: 'tag_formacion', label: 'En formación/rotación', color: '#2e8b7a' },
+        { key: 'tag_burnout', label: 'Riesgo de burnout', color: '#dc2626' },
+        { key: 'tag_nocturno_no', label: 'No puede hacer noches', color: '#c5a832' },
+        { key: 'tag_traslado', label: 'Pendiente de traslado', color: '#6a7a9a' }
+      ]
+    }
   ];
 
   // ══════════════ RENDER ══════════════
@@ -11423,82 +11505,165 @@ function renderEquipoPlanta(targetId) {
       html += '<div style="display:grid;grid-template-columns:repeat(' + daysInMonth + ',1fr);gap:1px;height:14px;">' + stripHtml + '</div>';
       html += '</div>';
 
-      // Subjective tags preview (if any)
-      if (subj.tags && subj.tags.length > 0) {
-        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
-        subj.tags.forEach(tag => {
-          const tagColors = {
-            'Lider natural': '#27ae60', 'Conflictivo/a': '#dc2626', 'Adaptable': '#4a9dd4',
-            'Necesita seguimiento': '#e89500', 'Formador/a': '#9a6abf', 'Junior': '#6a7a9a',
-            'Senior': '#1a6b5a', 'Conciliacion': '#c06090', 'Restriccion medica': '#b04050'
-          };
-          const tc = tagColors[tag] || '#888';
-          html += '<span style="font-size:8px;font-weight:600;padding:2px 6px;border-radius:4px;background:' + tc + '15;color:' + tc + ';border:1px solid ' + tc + '30;">' + escHtml(tag) + '</span>';
-        });
-        html += '</div>';
-      }
+      // ── SMART PREVIEW: show tags, scenarios, and top ratings ──
+      const allActiveTags = [];
+      const allActiveScenarios = [];
+      let totalRatings = 0, ratingSum = 0, ratingCount = 0;
 
-      // Ratings preview (inline)
-      const ratingFields = SUBJECTIVE_FIELDS.filter(f => f.type === 'rating' && subj[f.key]);
-      if (ratingFields.length > 0) {
-        html += '<div style="display:flex;gap:10px;margin-bottom:4px;">';
-        ratingFields.forEach(f => {
-          const val = subj[f.key] || 0;
-          let dots = '';
-          for (let i = 1; i <= f.max; i++) {
-            dots += '<span style="color:' + (i <= val ? '#c9a84c' : 'var(--border)') + ';font-size:9px;">' + f.icon + '</span>';
-          }
-          html += '<span style="font-size:8px;color:var(--text3);">' + f.label + ': ' + dots + '</span>';
-        });
-        html += '</div>';
-      }
-
-      // Notes preview
-      if (subj.notes) {
-        html += '<div style="font-size:10px;color:var(--text2);font-style:italic;padding:4px 8px;background:rgba(201,168,76,0.06);border-radius:4px;border-left:2px solid #c9a84c;margin-top:4px;max-height:36px;overflow:hidden;text-overflow:ellipsis;">' + escHtml(subj.notes.substring(0, 120)) + (subj.notes.length > 120 ? '...' : '') + '</div>';
-      }
-
-      // Subjective edit panel (hidden by default, toggled)
-      html += '<div id="equipo-subj-' + w.id + '" style="display:none;margin-top:12px;padding:14px;background:var(--surface);border:1px solid rgba(201,168,76,0.2);border-radius:10px;">';
-      html += '<div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px;">';
-      html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="2" stroke-linecap="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-1H7a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h3V9.4A4 4 0 0 1 8 6a4 4 0 0 1 4-4z"/><circle cx="9" cy="15" r="1"/><circle cx="15" cy="15" r="1"/></svg>';
-      html += 'Datos subjetivos — seran interpretados por la IA</div>';
-
-      // Rating fields
-      SUBJECTIVE_FIELDS.filter(f => f.type === 'rating').forEach(f => {
-        const curVal = subj[f.key] || 0;
-        html += '<div style="margin-bottom:8px;">';
-        html += '<div style="font-size:10px;font-weight:600;color:var(--text2);margin-bottom:4px;">' + f.label + '</div>';
-        html += '<div style="display:flex;gap:4px;">';
-        for (let i = 1; i <= f.max; i++) {
-          const active = i <= curVal;
-          html += '<button onclick="setEquipoRating(' + w.id + ',\'' + f.key + '\',' + i + ')" style="width:24px;height:24px;border-radius:4px;border:1px solid ' + (active ? '#c9a84c' : 'var(--border)') + ';background:' + (active ? '#c9a84c' : 'var(--surface2)') + ';color:' + (active ? 'white' : 'var(--text3)') + ';font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;">' + i + '</button>';
+      SUBJ_CATEGORIES.forEach(cat => {
+        if (cat.tags) {
+          cat.tags.forEach(t => { if (subj[t.key]) allActiveTags.push(t); });
         }
-        if (curVal > 0) html += '<button onclick="setEquipoRating(' + w.id + ',\'' + f.key + '\',0)" style="margin-left:4px;padding:2px 6px;border:none;background:none;color:var(--text3);font-size:9px;cursor:pointer;">Borrar</button>';
-        html += '</div></div>';
+        if (cat.scenarios) {
+          cat.scenarios.forEach(s => { if (subj[s.key]) allActiveScenarios.push(s); });
+        }
+        if (cat.fields) {
+          cat.fields.forEach(f => { if (subj[f.key]) { ratingSum += subj[f.key]; ratingCount++; } });
+        }
       });
 
-      // Tags field
-      const tagField = SUBJECTIVE_FIELDS.find(f => f.type === 'tags');
-      if (tagField) {
-        const curTags = subj.tags || [];
-        html += '<div style="margin-bottom:8px;">';
-        html += '<div style="font-size:10px;font-weight:600;color:var(--text2);margin-bottom:4px;">' + tagField.label + '</div>';
-        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
-        tagField.options.forEach(opt => {
-          const active = curTags.includes(opt);
-          html += '<button onclick="toggleEquipoTag(' + w.id + ',\'' + escHtml(opt) + '\')" style="padding:3px 8px;border-radius:5px;border:1px solid ' + (active ? 'var(--primary)' : 'var(--border)') + ';background:' + (active ? 'var(--primary)' : 'var(--surface2)') + ';color:' + (active ? 'white' : 'var(--text2)') + ';font-size:9px;font-weight:600;cursor:pointer;transition:all 0.15s;">' + escHtml(opt) + '</button>';
-        });
-        html += '</div></div>';
+      const hasData = allActiveTags.length > 0 || allActiveScenarios.length > 0 || ratingCount > 0 || subj.notes;
+
+      if (hasData) {
+        html += '<div style="margin-top:2px;margin-bottom:6px;">';
+
+        // Circumstance tags
+        if (allActiveTags.length > 0) {
+          html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px;">';
+          allActiveTags.forEach(t => {
+            html += '<span style="font-size:8px;font-weight:600;padding:2px 7px;border-radius:4px;background:' + t.color + '15;color:' + t.color + ';border:1px solid ' + t.color + '30;">' + escHtml(t.label) + '</span>';
+          });
+          html += '</div>';
+        }
+
+        // Active scenarios (green/red pills)
+        if (allActiveScenarios.length > 0) {
+          html += '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px;">';
+          allActiveScenarios.forEach(s => {
+            const sc = s.positive ? '#27ae60' : '#dc2626';
+            const prefix = s.positive ? '+' : '−';
+            html += '<span style="font-size:7px;font-weight:700;padding:1px 6px;border-radius:3px;background:' + sc + '12;color:' + sc + ';">' + prefix + ' ' + escHtml(s.label) + '</span>';
+          });
+          html += '</div>';
+        }
+
+        // Avg rating bar
+        if (ratingCount > 0) {
+          const avg = ratingSum / ratingCount;
+          const pct = Math.round(avg / 5 * 100);
+          const barColor = avg >= 4 ? '#27ae60' : avg >= 3 ? '#c9a84c' : avg >= 2 ? '#e89500' : '#dc2626';
+          html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">';
+          html += '<div style="font-size:8px;color:var(--text3);white-space:nowrap;">Valoración media</div>';
+          html += '<div style="flex:1;height:4px;background:var(--surface);border-radius:2px;overflow:hidden;">';
+          html += '<div style="width:' + pct + '%;height:100%;background:' + barColor + ';border-radius:2px;transition:width 0.4s;"></div>';
+          html += '</div>';
+          html += '<div style="font-size:9px;font-weight:800;color:' + barColor + ';">' + avg.toFixed(1) + '</div>';
+          html += '</div>';
+        }
+
+        // Notes preview
+        if (subj.notes) {
+          html += '<div style="font-size:10px;color:var(--text2);font-style:italic;padding:4px 8px;background:rgba(201,168,76,0.06);border-radius:4px;border-left:2px solid #c9a84c;max-height:32px;overflow:hidden;text-overflow:ellipsis;">' + escHtml(subj.notes.substring(0, 100)) + (subj.notes.length > 100 ? '...' : '') + '</div>';
+        }
+        html += '</div>';
       }
 
-      // Free text notes
-      html += '<div style="margin-bottom:6px;">';
-      html += '<div style="font-size:10px;font-weight:600;color:var(--text2);margin-bottom:4px;">Notas libres (contexto para la IA)</div>';
-      html += '<textarea id="equipo-notes-' + w.id + '" style="width:100%;min-height:60px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;color:var(--text);background:var(--surface2);resize:vertical;" placeholder="Ej: Tiene problemas de espalda, prefiere no cargar peso. Buen trato con pacientes. Llega tarde con frecuencia..." oninput="saveEquipoNotes(' + w.id + ')">' + escHtml(subj.notes || '') + '</textarea>';
+      // ── SUBJECTIVE EDIT PANEL (category tabs, click-based) ──
+      html += '<div id="equipo-subj-' + w.id + '" style="display:none;margin-top:12px;padding:0;background:var(--surface);border:1.5px solid var(--glass-border);border-radius:12px;overflow:hidden;">';
+
+      // Panel header
+      html += '<div style="padding:12px 16px;background:linear-gradient(135deg,rgba(201,168,76,0.06),rgba(26,54,93,0.03));border-bottom:1px solid var(--glass-border);display:flex;align-items:center;justify-content:space-between;">';
+      html += '<div style="display:flex;align-items:center;gap:6px;">';
+      html += shiftiaIcon('clipboard', 14, '#c9a84c');
+      html += '<span style="font-size:12px;font-weight:700;color:var(--text);">Perfil clínico-subjetivo</span>';
+      html += '</div>';
+      html += '<span style="font-size:8px;color:var(--text3);background:var(--surface2);padding:2px 8px;border-radius:4px;">Auto-guardado</span>';
       html += '</div>';
 
-      html += '<div style="font-size:8px;color:var(--text3);font-style:italic;">Los datos subjetivos se guardan automaticamente y alimentan el analisis IA de conflictos y sugerencias.</div>';
+      // Category tabs
+      html += '<div style="display:flex;overflow-x:auto;border-bottom:1px solid var(--glass-border);scrollbar-width:none;" id="equipo-cat-tabs-' + w.id + '">';
+      SUBJ_CATEGORIES.forEach((cat, ci) => {
+        const isFirst = ci === 0;
+        html += '<button onclick="showEquipoCategory(' + w.id + ',\'' + cat.id + '\')" data-cat="' + cat.id + '" style="flex-shrink:0;padding:8px 14px;border:none;border-bottom:2px solid ' + (isFirst ? cat.color : 'transparent') + ';background:' + (isFirst ? cat.color + '08' : 'transparent') + ';color:' + (isFirst ? cat.color : 'var(--text3)') + ';font-size:10px;font-weight:600;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:5px;font-family:inherit;">';
+        html += cat.icon + ' ' + escHtml(cat.label);
+        // Badge with data count
+        let dataCount = 0;
+        if (cat.fields) cat.fields.forEach(f => { if (subj[f.key]) dataCount++; });
+        if (cat.scenarios) cat.scenarios.forEach(s => { if (subj[s.key]) dataCount++; });
+        if (cat.tags) cat.tags.forEach(t => { if (subj[t.key]) dataCount++; });
+        if (dataCount > 0) html += '<span style="min-width:14px;height:14px;line-height:14px;text-align:center;background:' + cat.color + ';color:white;font-size:8px;font-weight:800;border-radius:7px;padding:0 3px;">' + dataCount + '</span>';
+        html += '</button>';
+      });
+      html += '</div>';
+
+      // Category content panels
+      SUBJ_CATEGORIES.forEach((cat, ci) => {
+        const isFirst = ci === 0;
+        html += '<div id="equipo-cat-' + w.id + '-' + cat.id + '" style="display:' + (isFirst ? 'block' : 'none') + ';padding:14px 16px;">';
+
+        // Rating fields (click-based visual bars)
+        if (cat.fields) {
+          cat.fields.forEach(f => {
+            const curVal = subj[f.key] || 0;
+            html += '<div style="margin-bottom:12px;">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">';
+            html += '<span style="font-size:10px;font-weight:600;color:var(--text2);">' + escHtml(f.label) + '</span>';
+            if (curVal > 0) html += '<span style="font-size:9px;font-weight:800;color:' + cat.color + ';">' + curVal + '/5</span>';
+            html += '</div>';
+            html += '<div style="display:flex;gap:4px;align-items:center;">';
+            for (let i = 1; i <= 5; i++) {
+              const active = i <= curVal;
+              html += '<button onclick="setEquipoRating(' + w.id + ',\'' + f.key + '\',' + i + ')" style="flex:1;height:28px;border-radius:6px;border:1.5px solid ' + (active ? cat.color : 'var(--border)') + ';background:' + (active ? cat.color + (i <= 2 ? '25' : i <= 4 ? '50' : '') : 'var(--surface2)') + ';color:' + (active ? (i >= 4 ? 'white' : cat.color) : 'var(--text3)') + ';font-size:10px;font-weight:700;cursor:pointer;transition:all 0.2s;position:relative;" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">' + i + '</button>';
+            }
+            if (curVal > 0) html += '<button onclick="setEquipoRating(' + w.id + ',\'' + f.key + '\',0)" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text3);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Borrar">×</button>';
+            html += '</div></div>';
+          });
+        }
+
+        // Scenarios (click toggles — green for positive, red for negative)
+        if (cat.scenarios) {
+          html += '<div style="margin-top:4px;">';
+          html += '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Escenarios observados (click para marcar)</div>';
+          html += '<div style="display:flex;flex-direction:column;gap:4px;">';
+          cat.scenarios.forEach(s => {
+            const active = !!subj[s.key];
+            const sc = s.positive ? '#27ae60' : '#dc2626';
+            const prefix = s.positive ? '+' : '−';
+            html += '<button onclick="toggleEquipoTag(' + w.id + ',\'' + s.key + '\')" style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:8px;border:1.5px solid ' + (active ? sc : 'var(--border)') + ';background:' + (active ? sc + '10' : 'var(--surface2)') + ';cursor:pointer;transition:all 0.2s;text-align:left;font-family:inherit;">';
+            html += '<span style="width:20px;height:20px;border-radius:5px;border:1.5px solid ' + (active ? sc : 'var(--border)') + ';background:' + (active ? sc : 'transparent') + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;">';
+            if (active) html += '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+            html += '</span>';
+            html += '<span style="font-size:10px;font-weight:' + (active ? '700' : '500') + ';color:' + (active ? sc : 'var(--text2)') + ';">' + prefix + ' ' + escHtml(s.label) + '</span>';
+            html += '</button>';
+          });
+          html += '</div></div>';
+        }
+
+        // Circumstance tags (the special category)
+        if (cat.tags) {
+          html += '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Circunstancias activas (click para activar/desactivar)</div>';
+          html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;">';
+          cat.tags.forEach(t => {
+            const active = !!subj[t.key];
+            html += '<button onclick="toggleEquipoTag(' + w.id + ',\'' + t.key + '\')" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1.5px solid ' + (active ? t.color : 'var(--border)') + ';background:' + (active ? t.color + '12' : 'var(--surface2)') + ';cursor:pointer;transition:all 0.2s;text-align:left;font-family:inherit;">';
+            html += '<span style="width:22px;height:22px;border-radius:6px;border:1.5px solid ' + (active ? t.color : 'var(--border)') + ';background:' + (active ? t.color : 'transparent') + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;">';
+            if (active) html += '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+            html += '</span>';
+            html += '<span style="font-size:10px;font-weight:' + (active ? '700' : '500') + ';color:' + (active ? t.color : 'var(--text2)') + ';">' + escHtml(t.label) + '</span>';
+            html += '</button>';
+          });
+          html += '</div>';
+        }
+
+        html += '</div>'; // end category panel
+      });
+
+      // Notes section (always visible at bottom)
+      html += '<div style="padding:12px 16px;border-top:1px solid var(--glass-border);">';
+      html += '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Notas clínicas libres</div>';
+      html += '<textarea id="equipo-notes-' + w.id + '" style="width:100%;min-height:50px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:11px;font-family:inherit;color:var(--text);background:var(--surface2);resize:vertical;transition:border-color 0.2s;" onfocus="this.style.borderColor=\'#c9a84c\'" onblur="this.style.borderColor=\'var(--border)\'" placeholder="Observaciones clínicas, preferencias de turno, situaciones relevantes..." oninput="saveEquipoNotes(' + w.id + ')">' + escHtml(subj.notes || '') + '</textarea>';
+      html += '</div>';
+
       html += '</div>'; // end subjective panel
 
       html += '</div>'; // end card
@@ -11515,25 +11680,41 @@ function toggleEquipoSubjective(wId) {
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
-// Set a rating value
+// Switch between category tabs inside the subjective panel
+function showEquipoCategory(wId, catId) {
+  // Hide all category panels for this worker
+  document.querySelectorAll('[id^="equipo-cat-' + wId + '-"]').forEach(p => p.style.display = 'none');
+  // Show selected
+  const panel = document.getElementById('equipo-cat-' + wId + '-' + catId);
+  if (panel) panel.style.display = 'block';
+  // Update tab styles
+  const tabContainer = document.getElementById('equipo-cat-tabs-' + wId);
+  if (tabContainer) {
+    tabContainer.querySelectorAll('button').forEach(btn => {
+      const isSel = btn.getAttribute('data-cat') === catId;
+      btn.style.borderBottomColor = isSel ? btn.style.color : 'transparent';
+      btn.style.background = isSel ? 'rgba(0,0,0,0.02)' : 'transparent';
+    });
+  }
+}
+
+// Set a rating value (works for any key: tecnica, protocolos, etc.)
 function setEquipoRating(wId, fieldKey, value) {
   if (!workerMemory[wId]) workerMemory[wId] = {};
   if (!workerMemory[wId].subjective) workerMemory[wId].subjective = {};
-  workerMemory[wId].subjective[fieldKey] = value;
+  if (value === 0) delete workerMemory[wId].subjective[fieldKey];
+  else workerMemory[wId].subjective[fieldKey] = value;
   workerMemory[wId].lastModified = new Date().toISOString();
   saveToStorage();
   renderEquipoPlanta(equipoActiveContainer);
 }
 
-// Toggle a tag
-function toggleEquipoTag(wId, tag) {
+// Toggle a scenario or circumstance tag (boolean key like sc_pcr, tag_embarazo)
+function toggleEquipoTag(wId, key) {
   if (!workerMemory[wId]) workerMemory[wId] = {};
   if (!workerMemory[wId].subjective) workerMemory[wId].subjective = {};
-  if (!workerMemory[wId].subjective.tags) workerMemory[wId].subjective.tags = [];
-  const tags = workerMemory[wId].subjective.tags;
-  const idx = tags.indexOf(tag);
-  if (idx >= 0) tags.splice(idx, 1);
-  else tags.push(tag);
+  if (workerMemory[wId].subjective[key]) delete workerMemory[wId].subjective[key];
+  else workerMemory[wId].subjective[key] = true;
   workerMemory[wId].lastModified = new Date().toISOString();
   saveToStorage();
   renderEquipoPlanta(equipoActiveContainer);
