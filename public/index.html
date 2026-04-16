@@ -2217,7 +2217,7 @@ table.schedule.focus-mode tbody tr.schedule-type-separator {
 
 .worker-side-panel {
   position: fixed;
-  right: -420px;
+  right: -520px;
   top: 0;
   bottom: 0;
   width: 400px;
@@ -2233,7 +2233,7 @@ table.schedule.focus-mode tbody tr.schedule-type-separator {
   padding: 28px;
 }
 
-.worker-side-panel.open { right: 0; }
+.worker-side-panel.open { right: 0 !important; }
 
 .wp-close {
   position: absolute;
@@ -8788,6 +8788,35 @@ table.schedule tbody tr:hover {
               color: var(--accent);
             " id="spCardCount">Abrir gestor</div>
           </div>
+
+          <!-- Card 6: Equipo -->
+          <div onclick="document.getElementById('equipoPlantaPanel').scrollIntoView({behavior:'smooth',block:'start'})" style="
+            cursor: pointer;
+            background: rgba(255,255,255,0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 16px;
+            padding: 32px 24px;
+            transition: var(--transition);
+            text-align: center;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+            animation: cardSlideIn 0.3s ease forwards;
+            animation-delay: 300ms;
+            opacity: 0;
+          " onmouseover="this.style.borderColor='rgba(255,255,255,0.5)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.3)';this.style.boxShadow='0 4px 24px rgba(0,0,0,0.04)';this.style.transform='translateY(0)'">
+            <div style="margin-bottom: 16px; display: flex; justify-content: center;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <h2 style="font-size: 18px; font-weight: 600; color: var(--primary); margin-bottom: 8px;">EQUIPO</h2>
+            <p style="color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 16px;">Plantilla por unidad, horas, vacaciones y notas</p>
+            <div style="
+              background: rgba(201, 168, 76, 0.1);
+              border-radius: 10px;
+              padding: 12px;
+              font-size: 14px;
+              font-weight: 600;
+              color: var(--accent);
+            " id="equipoCardCount">Ver equipo</div>
+          </div>
         </div>
 
         <!-- Weekly Dashboard Summary -->
@@ -9206,7 +9235,7 @@ table.schedule tbody tr:hover {
 
   <!-- SP Coverage Manager Panel -->
   <div class="worker-panel-overlay" id="spManagerOverlay" onclick="closeSPManager()"></div>
-  <div class="worker-side-panel" id="spManagerPanel" style="width:480px;max-width:96vw;right:-500px;"></div>
+  <div class="worker-side-panel" id="spManagerPanel" style="width:480px;max-width:96vw;"></div>
 
   <!-- Shift Editor Container -->
   <div id="shiftEditorContainer"></div>
@@ -10637,6 +10666,12 @@ function renderDashboard() {
       });
       spCardEl.textContent = spCount > 0 ? spCount + ' días SP este mes' : 'Abrir gestor';
     } catch(e) { spCardEl.textContent = 'Abrir gestor'; }
+  }
+
+  // Equipo card count
+  const equipoCardEl = document.getElementById('equipoCardCount');
+  if (equipoCardEl) {
+    equipoCardEl.textContent = workers.length > 0 ? workers.length + ' trabajadores' : 'Ver equipo';
   }
 
   // Render alerts panel
