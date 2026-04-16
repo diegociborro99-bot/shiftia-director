@@ -11015,9 +11015,14 @@ function renderWeeklyShortageRollup() {
   container.innerHTML = html;
 }
 
-// ========= SP COVERAGE SUGGESTIONS ENGINE =========
-// Scans current month for coverage gaps, finds workers with SP on those days,
-// and renders a suggestion panel. Supervisor confirms each suggestion manually.
+// ========= SP INTELLIGENCE ENGINE v2 =========
+// 5 integrated intelligence layers:
+// 1. Equity-Aware Optimizer: ranks SP candidates by fairness (fatigue, extras, nights balance)
+// 2. Availability Heatmap: visual calendar of SP density per day
+// 3. Critical Gap Alerts: days with gaps but zero SP available
+// 4. SP Forecast: estimates SP needs for next month based on historical patterns
+// 5. Smart Suggestions: merged output with equity scores and one-click assign
+
 function renderSPSuggestions() {
   const container = document.getElementById('spSuggestionsPanel');
   if (!container) return;
@@ -11028,127 +11033,290 @@ function renderSPSuggestions() {
   const month = m.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const sch = genSchedule(year, month);
-  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const monthNamesFull = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const shiftColors = { M: '#2e8b7a', T: '#4a9dd4', N: '#c5a832' };
+  const shiftLabels = { M: 'Mañana', T: 'Tarde', N: 'Noche' };
 
-  const ABSENCE_CODES = ['VAC','VAA','BAJ','LD','LAC','FOR','INT','MTC','CAA','AE','EX','DLA','CJ','FN','VAN','IQF','PM','HF','HS'];
-  const suggestions = [];
+  // ── 1. Collect SP data per worker and per day ──
+  const spByDay = new Array(daysInMonth).fill(0);
+  const spWorkerDays = {}; // {wId: [dayIndexes]}
+  let totalSP = 0;
+  workers.forEach(w => {
+    spWorkerDays[w.id] = [];
+    for (let d = 0; d < daysInMonth; d++) {
+      const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+      if (s === 'SP') {
+        spByDay[d]++;
+        spWorkerDays[w.id].push(d);
+        totalSP++;
+      }
+    }
+  });
+  const spWorkerCount = workers.filter(w => spWorkerDays[w.id].length > 0).length;
 
-  // For each day, check each plant for coverage gaps
+  // ── 2. Detect all coverage gaps ──
+  const allGaps = []; // {day, planta, plantaId, shift, gap}
+  const criticalGaps = []; // gaps with zero SP available
   for (let d = 0; d < daysInMonth; d++) {
     PLANTAS.forEach(planta => {
-      if (planta.id === 'refuerzo') return; // Skip refuerzo pool itself
+      if (planta.id === 'refuerzo') return;
       const covReq = PLANT_COVERAGE[planta.id] || {};
-
       ['M','T','N'].forEach(shift => {
         const needed = (covReq[shift] || {}).min || 0;
         if (needed === 0) return;
-
-        // Count workers currently on this shift for this plant
         let onShift = 0;
         workers.filter(w => w.planta === planta.id).forEach(w => {
           const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
           const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
           if (eff === shift) onShift++;
         });
-
         if (onShift < needed) {
-          // Gap found! Look for workers with SP on this day (any plant, including refuerzo)
-          const spWorkers = workers.filter(w => {
-            const ws = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
-            return ws === 'SP';
-          });
-
-          spWorkers.forEach(spW => {
-            // Check this worker isn't already suggested for this day
-            const alreadySuggested = suggestions.some(sg => sg.wId === spW.id && sg.day === d);
-            if (alreadySuggested) return;
-
-            // Basic rule check: no morning/evening after night
-            if (d > 0) {
-              const prevShift = sch[spW.id] ? (sch[spW.id][d-1] || '').toString().trim() : '';
-              if (prevShift === 'N' && (shift === 'M' || shift === 'T')) return;
-            }
-
-            suggestions.push({
-              day: d,
-              dayLabel: (d + 1),
-              planta: planta.name,
-              plantaId: planta.id,
-              shift: shift,
-              shiftLabel: shift === 'M' ? 'Mañana' : shift === 'T' ? 'Tarde' : 'Noche',
-              wId: spW.id,
-              wName: spW.name,
-              wPlanta: spW.planta,
-              gap: needed - onShift
-            });
-          });
+          const gapSize = needed - onShift;
+          allGaps.push({ day: d, planta: planta.name, plantaId: planta.id, shift, gap: gapSize });
+          if (spByDay[d] === 0) {
+            criticalGaps.push({ day: d, planta: planta.name, plantaId: planta.id, shift, gap: gapSize });
+          }
         }
       });
     });
   }
 
-  // Count total SP days in this month
-  let totalSP = 0;
-  workers.forEach(w => {
-    for (let d = 0; d < daysInMonth; d++) {
-      const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
-      if (s === 'SP') totalSP++;
+  // ── 3. Equity-Aware Candidate Scoring ──
+  function scoreSPCandidate(wId, day, shift) {
+    let score = 100;
+    const w = workers.find(x => x.id === wId);
+    if (!w) return 0;
+
+    // Fatigue penalty (0-100 scale, higher = more tired = lower score)
+    try {
+      const fatigue = typeof getAccumulatedFatigue === 'function' ? getAccumulatedFatigue(wId, day, month, year) : 0;
+      score -= (fatigue || 0) * 0.4;
+    } catch(e) {}
+
+    // Multi-month equity: penalize overloaded workers
+    try {
+      const eq = typeof getMultiMonthEquity === 'function' ? getMultiMonthEquity(wId, month, year) : null;
+      if (eq && eq.nightsDelta > 2) score -= 15;
+      if (eq && eq.hoursDelta > 15) score -= 10;
+    } catch(e) {}
+
+    // Extras history: penalize those already covering a lot
+    try {
+      let extrasCovered = 0;
+      shiftHistory.forEach(h => { if (h.wId === wId && h.source === 'SP-sugerencia') extrasCovered++; });
+      score -= extrasCovered * 5;
+    } catch(e) {}
+
+    // Night shift penalty if worker prefers mornings
+    if (shift === 'N') {
+      if (w.rules && w.rules.noNights) return -1; // Disqualified
+      if (w.rules && w.rules.preferredShift === 'M') score -= 10;
+    }
+
+    // Consecutive days penalty
+    let consec = 0;
+    for (let dd = day - 1; dd >= 0; dd--) {
+      const ds = sch[wId] ? (sch[wId][dd] || '').toString().trim() : '';
+      if (['M','T','N','MR','M7H','M6R','M55'].includes(ds)) consec++;
+      else break;
+    }
+    if (consec >= 5) score -= 20;
+    else if (consec >= 3) score -= 8;
+
+    // Rest rule: no M/T after N
+    if (day > 0) {
+      const prev = sch[wId] ? (sch[wId][day-1] || '').toString().trim() : '';
+      if (prev === 'N' && (shift === 'M' || shift === 'T')) return -1; // Disqualified
+    }
+
+    // Same-plant bonus (knows the team, fewer handoff issues)
+    if (w.planta && allGaps.find(g => g.day === day && g.plantaId === w.planta)) score += 8;
+
+    return Math.max(0, Math.round(score));
+  }
+
+  // ── 4. Build ranked suggestions ──
+  const suggestions = [];
+  const assignedThisRound = new Set(); // track wId+day combos to avoid double-booking
+  allGaps.forEach(gap => {
+    if (spByDay[gap.day] === 0) return; // No SP available
+    const candidates = workers.filter(w => {
+      const ws = sch[w.id] ? (sch[w.id][gap.day] || '').toString().trim() : '';
+      return ws === 'SP' && !assignedThisRound.has(w.id + '-' + gap.day);
+    });
+    // Score and rank
+    const scored = candidates.map(w => ({
+      wId: w.id, wName: w.name, wPlanta: w.planta,
+      score: scoreSPCandidate(w.id, gap.day, gap.shift)
+    })).filter(c => c.score >= 0).sort((a, b) => b.score - a.score);
+
+    if (scored.length > 0) {
+      const best = scored[0];
+      assignedThisRound.add(best.wId + '-' + gap.day);
+      suggestions.push({
+        day: gap.day, dayLabel: gap.day + 1,
+        planta: gap.planta, plantaId: gap.plantaId,
+        shift: gap.shift, shiftLabel: shiftLabels[gap.shift],
+        wId: best.wId, wName: best.wName, wPlanta: best.wPlanta,
+        gap: gap.gap, equityScore: best.score,
+        alternativeCount: scored.length - 1
+      });
     }
   });
 
-  // Render
-  const shiftColors = { M: '#2e8b7a', T: '#4a9dd4', N: '#c5a832' };
+  // ── 5. SP Forecast (next month projection) ──
+  let forecastNeeded = 0;
+  let forecastText = '';
+  try {
+    const nextMonth = month === 11 ? 0 : month + 1;
+    const nextYear = month === 11 ? year + 1 : year;
+    const nextDays = new Date(nextYear, nextMonth + 1, 0).getDate();
+    // Estimate gaps based on current month's gap rate
+    const gapRate = daysInMonth > 0 ? allGaps.length / daysInMonth : 0;
+    forecastNeeded = Math.ceil(gapRate * nextDays * 1.1); // 10% safety margin
+    // Look at absence history to adjust
+    let absThisMonth = 0;
+    const ABS = ['VAC','VAA','BAJ','LD','LAC','FOR','INT','MTC','CAA','AE','EX','DLA','CJ','FN','VAN','IQF','PM','HF','HS'];
+    workers.forEach(w => {
+      for (let d = 0; d < daysInMonth; d++) {
+        const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+        if (ABS.includes(s)) absThisMonth++;
+      }
+    });
+    const absRate = workers.length > 0 ? absThisMonth / (daysInMonth * workers.length) : 0;
+    if (absRate > 0.15) {
+      forecastNeeded = Math.ceil(forecastNeeded * 1.25);
+      forecastText = 'Tasa de ausencias alta (' + Math.round(absRate * 100) + '%) — se recomienda mas SP el proximo mes.';
+    } else if (absRate > 0.08) {
+      forecastText = 'Tasa de ausencias moderada (' + Math.round(absRate * 100) + '%).';
+    } else {
+      forecastText = 'Tasa de ausencias baja (' + Math.round(absRate * 100) + '%).';
+    }
+  } catch(e) { forecastText = ''; }
 
+  // ══════════════ RENDER ══════════════
   let html = '<div style="background:var(--surface);border:1.5px solid var(--glass-border);border-radius:16px;padding:24px;backdrop-filter:blur(var(--glass-blur));">';
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+
+  // Header
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">';
   html += '<div>';
-  html += '<div style="font-size:15px;font-weight:700;color:var(--text);">Dias Sin Planificar (SP)</div>';
-  html += '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + monthNames[month] + ' ' + year + ' — ' + totalSP + ' dias SP disponibles entre ' + workers.filter(w => { for(let d=0;d<daysInMonth;d++){const s=sch[w.id]?(sch[w.id][d]||"").toString().trim():"";if(s==="SP")return true;} return false;}).length + ' trabajadores</div>';
+  html += '<div style="font-size:16px;font-weight:700;color:var(--text);letter-spacing:-0.3px;">Centro de Inteligencia SP</div>';
+  html += '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + monthNamesFull[month] + ' ' + year + ' — ' + totalSP + ' dias SP · ' + spWorkerCount + ' trabajadores · ' + allGaps.length + ' huecos detectados</div>';
   html += '</div>';
-  html += '<div style="width:40px;height:40px;border-radius:12px;background:rgba(255,165,0,0.12);display:flex;align-items:center;justify-content:center;">';
-  html += '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e89500" stroke-width="2" stroke-linecap="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 7.76 2.83-2.83"/></svg>';
+  html += '<div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,rgba(255,165,0,0.15),rgba(232,149,0,0.08));display:flex;align-items:center;justify-content:center;">';
+  html += '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e89500" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
   html += '</div></div>';
 
-  if (suggestions.length === 0 && totalSP === 0) {
-    html += '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px;">No hay dias SP registrados este mes. Los trabajadores con dias sin planificar apareceran aqui con sugerencias de cobertura.</div>';
-  } else if (suggestions.length === 0) {
-    html += '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px;">Hay ' + totalSP + ' dias SP este mes pero no hay huecos de cobertura que cubrir. Todo cubierto.</div>';
-  } else {
-    html += '<div style="font-size:11px;color:var(--text2);margin-bottom:12px;padding:8px 12px;background:rgba(255,165,0,0.08);border-radius:8px;border-left:3px solid #e89500;">' + suggestions.length + ' sugerencia' + (suggestions.length > 1 ? 's' : '') + ' para cubrir huecos con trabajadores SP. Confirma cada una para asignar el turno.</div>';
-    // Group by day
-    const byDay = {};
-    suggestions.forEach(s => {
-      if (!byDay[s.day]) byDay[s.day] = [];
-      byDay[s.day].push(s);
-    });
+  // ── Section A: Heatmap (availability calendar) ──
+  html += '<div style="margin-bottom:18px;">';
+  html += '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Mapa de disponibilidad SP</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-size:9px;">';
+  ['L','M','X','J','V','S','D'].forEach(d => {
+    html += '<div style="text-align:center;font-weight:600;color:var(--text3);padding:2px 0;">' + d + '</div>';
+  });
+  const firstDow = (new Date(year, month, 1).getDay() + 6) % 7;
+  for (let i = 0; i < firstDow; i++) html += '<div></div>';
+  for (let d = 0; d < daysInMonth; d++) {
+    const spCount = spByDay[d];
+    const hasGap = allGaps.some(g => g.day === d);
+    const isCritical = criticalGaps.some(g => g.day === d);
+    let bg = 'var(--surface2)';
+    let color = 'var(--text3)';
+    let border = 'transparent';
+    if (spCount >= 3) { bg = 'rgba(39,174,96,0.2)'; color = '#1a8a50'; }
+    else if (spCount >= 1) { bg = 'rgba(255,165,0,0.18)'; color = '#b57200'; }
+    if (isCritical) { border = '#dc2626'; bg = 'rgba(220,38,38,0.12)'; color = '#dc2626'; }
+    else if (hasGap && spCount > 0) { border = '#e89500'; }
+    html += '<div style="text-align:center;padding:4px 2px;background:' + bg + ';border-radius:4px;font-weight:600;color:' + color + ';border:1.5px solid ' + border + ';position:relative;" title="Dia ' + (d+1) + ': ' + spCount + ' SP, ' + allGaps.filter(g=>g.day===d).length + ' huecos">';
+    html += (d + 1);
+    if (spCount > 0) html += '<span style="position:absolute;top:-2px;right:-2px;width:6px;height:6px;border-radius:50%;background:#e89500;"></span>';
+    html += '</div>';
+  }
+  html += '</div>';
+  html += '<div style="display:flex;gap:12px;margin-top:6px;font-size:9px;color:var(--text3);">';
+  html += '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:rgba(39,174,96,0.2);border:1px solid #1a8a50;vertical-align:middle;"></span> 3+ SP</span>';
+  html += '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:rgba(255,165,0,0.18);border:1px solid #b57200;vertical-align:middle;"></span> 1-2 SP</span>';
+  html += '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:rgba(220,38,38,0.12);border:1px solid #dc2626;vertical-align:middle;"></span> Gap sin SP</span>';
+  html += '</div></div>';
 
-    Object.keys(byDay).sort((a,b) => a - b).slice(0, 15).forEach(dayKey => {
+  // ── Section B: Critical Gaps (no SP coverage possible) ──
+  if (criticalGaps.length > 0) {
+    const critByDay = {};
+    criticalGaps.forEach(g => {
+      if (!critByDay[g.day]) critByDay[g.day] = [];
+      critByDay[g.day].push(g);
+    });
+    html += '<div style="margin-bottom:18px;padding:12px;background:rgba(220,38,38,0.06);border:1.5px solid rgba(220,38,38,0.2);border-radius:10px;">';
+    html += '<div style="font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">';
+    html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+    html += criticalGaps.length + ' hueco' + (criticalGaps.length > 1 ? 's' : '') + ' sin cobertura SP posible</div>';
+    Object.keys(critByDay).sort((a,b)=>a-b).slice(0,8).forEach(dk => {
+      const dayNum = parseInt(dk) + 1;
+      const dow = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'][new Date(year, month, parseInt(dk)).getDay()];
+      const gaps = critByDay[dk];
+      html += '<div style="font-size:11px;color:var(--text);padding:3px 0;">';
+      html += '<strong>' + dow + ' ' + dayNum + '/' + (month+1) + ':</strong> ';
+      html += gaps.map(g => escHtml(g.planta) + ' ' + shiftLabels[g.shift] + ' (−' + g.gap + ')').join(', ');
+      html += '</div>';
+    });
+    html += '<div style="font-size:10px;color:#dc2626;margin-top:6px;font-style:italic;">Accion necesaria: asignar SP a estos dias o buscar refuerzos externos.</div>';
+    html += '</div>';
+  }
+
+  // ── Section C: Smart Suggestions with Equity Scores ──
+  if (suggestions.length > 0) {
+    html += '<div style="margin-bottom:18px;">';
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Sugerencias inteligentes (' + suggestions.length + ')</div>';
+    html += '<div style="font-size:10px;color:var(--text3);margin-bottom:10px;padding:6px 10px;background:rgba(255,165,0,0.06);border-radius:6px;">Ordenadas por equidad: fatiga, noches acumuladas, extras previos y reglas de descanso.</div>';
+
+    const byDay = {};
+    suggestions.forEach(s => { if (!byDay[s.day]) byDay[s.day] = []; byDay[s.day].push(s); });
+
+    Object.keys(byDay).sort((a,b)=>a-b).slice(0,20).forEach(dayKey => {
       const daySugs = byDay[dayKey];
       const dayNum = daySugs[0].dayLabel;
-      const dow = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][new Date(year, month, parseInt(dayKey)).getDay()];
+      const dow = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'][new Date(year, month, parseInt(dayKey)).getDay()];
 
-      html += '<div style="margin-bottom:10px;padding:10px 12px;background:var(--surface2);border-radius:10px;">';
+      html += '<div style="margin-bottom:8px;padding:10px 12px;background:var(--surface2);border-radius:10px;">';
       html += '<div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;">' + dow + ' ' + dayNum + '/' + (month+1) + '</div>';
 
       daySugs.forEach(sg => {
         const sColor = shiftColors[sg.shift] || '#888';
+        const eqColor = sg.equityScore >= 70 ? '#27ae60' : sg.equityScore >= 40 ? '#e89500' : '#dc2626';
         html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">';
-        html += '<div style="display:flex;align-items:center;gap:8px;">';
-        html += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + sColor + ';"></span>';
-        html += '<span style="font-size:12px;font-weight:600;color:var(--text);">' + escHtml(sg.wName) + '</span>';
-        html += '<span style="font-size:10px;color:var(--text3);">→ ' + escHtml(sg.planta) + ' ' + sg.shiftLabel + '</span>';
-        html += '<span style="font-size:9px;color:#e89500;font-weight:600;">(faltan ' + sg.gap + ')</span>';
+        html += '<div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">';
+        html += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + sColor + ';flex-shrink:0;"></span>';
+        html += '<span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(sg.wName) + '</span>';
+        html += '<span style="font-size:10px;color:var(--text3);white-space:nowrap;">→ ' + escHtml(sg.planta) + ' ' + sg.shiftLabel + '</span>';
+        html += '<span style="font-size:9px;font-weight:700;color:' + eqColor + ';background:' + eqColor + '15;padding:1px 5px;border-radius:4px;white-space:nowrap;">' + sg.equityScore + '%</span>';
+        if (sg.alternativeCount > 0) html += '<span style="font-size:8px;color:var(--text3);white-space:nowrap;">+' + sg.alternativeCount + ' alt.</span>';
         html += '</div>';
-        html += '<button onclick="acceptSPSuggestion(' + sg.wId + ',' + sg.day + ',\'' + sg.shift + '\',\'' + sg.plantaId + '\')" style="padding:4px 10px;background:' + sColor + ';color:white;border:none;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.opacity=\'0.8\'" onmouseout="this.style.opacity=\'1\'">Asignar</button>';
+        html += '<button onclick="acceptSPSuggestion(' + sg.wId + ',' + sg.day + ',\'' + sg.shift + '\',\'' + sg.plantaId + '\')" style="padding:4px 12px;background:' + sColor + ';color:white;border:none;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;transition:all 0.2s;flex-shrink:0;margin-left:8px;" onmouseover="this.style.opacity=\'0.8\'" onmouseout="this.style.opacity=\'1\'">Asignar</button>';
         html += '</div>';
       });
-
       html += '</div>';
     });
-
-    if (Object.keys(byDay).length > 15) {
-      html += '<div style="text-align:center;font-size:10px;color:var(--text3);padding:8px;">... y ' + (Object.keys(byDay).length - 15) + ' dias mas con sugerencias</div>';
+    if (Object.keys(byDay).length > 20) {
+      html += '<div style="text-align:center;font-size:10px;color:var(--text3);padding:6px;">... y ' + (Object.keys(byDay).length - 20) + ' dias mas</div>';
     }
+    html += '</div>';
+  } else if (totalSP > 0 && allGaps.length === 0) {
+    html += '<div style="text-align:center;padding:16px;color:var(--text3);font-size:12px;margin-bottom:18px;background:rgba(39,174,96,0.06);border-radius:10px;border:1px solid rgba(39,174,96,0.15);">Cobertura completa — los ' + totalSP + ' dias SP quedan como reserva.</div>';
+  } else if (totalSP === 0) {
+    html += '<div style="text-align:center;padding:16px;color:var(--text3);font-size:12px;margin-bottom:18px;">No hay dias SP registrados. Los trabajadores con dias sin planificar apareceran aqui.</div>';
+  }
+
+  // ── Section D: Forecast next month ──
+  if (forecastNeeded > 0 || forecastText) {
+    const nextMonthName = monthNamesFull[month === 11 ? 0 : month + 1];
+    html += '<div style="padding:12px;background:linear-gradient(135deg,rgba(74,157,212,0.06),rgba(46,139,122,0.06));border:1px solid rgba(74,157,212,0.15);border-radius:10px;">';
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px;">';
+    html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a9dd4" stroke-width="2" stroke-linecap="round"><path d="M12 20V10"/><path d="m18 20-6-6-6 6"/><path d="M12 4v2"/></svg>';
+    html += 'Prevision ' + nextMonthName + '</div>';
+    html += '<div style="font-size:12px;color:var(--text);margin-bottom:4px;">Se estiman <strong>' + forecastNeeded + ' dias SP necesarios</strong> para cubrir huecos proyectados.</div>';
+    html += '<div style="font-size:10px;color:var(--text3);">' + forecastText + '</div>';
+    html += '</div>';
   }
 
   html += '</div>';
@@ -11169,18 +11337,18 @@ function acceptSPSuggestion(wId, day, shift, plantaId) {
   const oldShift = scheduleData[key][wId][day] || 'SP';
   scheduleData[key][wId][day] = shift;
 
-  // Optionally move worker to that plant temporarily if from refuerzo
   const w = workers.find(x => x.id === wId);
-  // Log the change
   if (typeof logShiftChange === 'function') {
     logShiftChange(wId, day, month, year, oldShift, shift, 'SP-sugerencia');
   }
 
   saveToStorage();
-  showToast(escHtml((w ? w.name : 'Trabajador')) + ' asignado a ' + (shift === 'M' ? 'Mañana' : shift === 'T' ? 'Tarde' : 'Noche') + ' en ' + (PLANTAS.find(p => p.id === plantaId) || {}).name, 'success');
+  const plantName = (PLANTAS.find(p => p.id === plantaId) || {}).name || plantaId;
+  showToast(escHtml((w ? w.name : 'Trabajador')) + ' asignado a ' + (shiftLabels_sp[shift] || shift) + ' en ' + plantName, 'success');
   renderSchedule();
   renderDashboard();
 }
+const shiftLabels_sp = { M: 'Mañana', T: 'Tarde', N: 'Noche' };
 
 // ========= AUDIT LOG VIEWER =========
 function renderAuditLog(container, maxEntries) {
