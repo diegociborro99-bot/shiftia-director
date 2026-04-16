@@ -9279,7 +9279,8 @@ const PLANTAS = [
   { id: 'endo', name: 'Endoscopias', short: 'END' },
   { id: 'ucin', name: 'UCIN', short: 'UCIN' },
   { id: 'urg', name: 'Urgencias', short: 'URG' },
-  { id: 'quir', name: 'Quirófano', short: 'QUI' }
+  { id: 'quir', name: 'Quirófano', short: 'QUI' },
+  { id: 'refuerzo', name: 'Plantilla Refuerzo', short: 'REF' }
 ];
 let selectedPlanta = 'all'; // current filter
 
@@ -9292,19 +9293,23 @@ let PLANT_SUPERVISORS = {
   'endo': { name: 'Elena Suárez', role: 'Supervisora' },
   'ucin': { name: 'Patricia Álvarez', role: 'Supervisora' },
   'urg': { name: 'Isabel Pérez', role: 'Supervisora' },
-  'quir': { name: 'Beatriz Rodríguez', role: 'Supervisora' }
+  'quir': { name: 'Beatriz Rodríguez', role: 'Supervisora' },
+  'refuerzo': { name: '', role: 'Supervisora' }
 };
 
+// Regla general: mínimo 2 enfermeras por turno + la supervisora (que no se cuenta en el mín.)
+// Excepciones: Endo y Quirófano sin noche; UCIN y Urgencias requieren 3 por su carga.
 const PLANT_COVERAGE = {
-  'p1n': { M: { min: 2 }, T: { min: 2 }, N: { min: 1 } },
-  'p2n': { M: { min: 2 }, T: { min: 2 }, N: { min: 1 } },
-  'p3n': { M: { min: 2 }, T: { min: 2 }, N: { min: 1 } },
-  'p2e': { M: { min: 2 }, T: { min: 2 }, N: { min: 1 } },
-  'p3e': { M: { min: 2 }, T: { min: 2 }, N: { min: 1 } },
-  'endo': { M: { min: 2 }, T: { min: 1 }, N: { min: 0 } },
+  'p1n': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
+  'p2n': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
+  'p3n': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
+  'p2e': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
+  'p3e': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
+  'endo': { M: { min: 2 }, T: { min: 2 }, N: { min: 0 } },
   'ucin': { M: { min: 3 }, T: { min: 3 }, N: { min: 2 } },
   'urg': { M: { min: 3 }, T: { min: 3 }, N: { min: 2 } },
-  'quir': { M: { min: 2 }, T: { min: 2 }, N: { min: 0 } }
+  'quir': { M: { min: 2 }, T: { min: 2 }, N: { min: 0 } },
+  'refuerzo': { M: { min: 0 }, T: { min: 0 }, N: { min: 0 } }
 };
 
 // Persistent worker memory — survives schedule deletion and reimport
@@ -11410,7 +11415,7 @@ function renderPlantMap() {
     [PLANTAS.find(p=>p.id==='p2n'), PLANTAS.find(p=>p.id==='p2e')],
     [PLANTAS.find(p=>p.id==='p1n'), null],
   ];
-  const servicePlants = PLANTAS.filter(p => ['endo','ucin','urg','quir'].includes(p.id));
+  const servicePlants = PLANTAS.filter(p => ['endo','ucin','urg','quir','refuerzo'].includes(p.id));
 
   let html = `<div class="plant-map-panel" onclick="event.stopPropagation()">
     <div class="plant-map-header">
