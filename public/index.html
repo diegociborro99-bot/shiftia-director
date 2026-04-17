@@ -8741,7 +8741,7 @@ table.schedule tbody tr:hover {
       <div style="position:relative;display:inline-flex;">
         <button id="notifBellBtn" onclick="toggleNotifPanel()" style="background:none;border:none;cursor:pointer;padding:8px;border-radius:10px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;position:relative;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='none'">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;background:#dc2626;color:white;font-size:9px;font-weight:800;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg);"></span>
+          <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;background:#dc2626;color:white;font-size:9px;font-weight:800;border-radius:8px;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg);"></span>
         </button>
         <div id="notifPanel" style="display:none;position:absolute;top:100%;right:0;width:360px;max-height:400px;overflow-y:auto;background:rgba(255,255,255,0.85);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.3);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.08);z-index:9999;margin-top:4px;"></div>
       </div>
@@ -10684,6 +10684,7 @@ function updateNotifPanel() {
     const daySch = genSchedule(dy, dm);
 
     PLANTAS.forEach(planta => {
+      if (planta.id === 'refuerzo') return;
       const covData = PLANT_COVERAGE[planta.id] || {};
       const pw = workers.filter(w => w.planta === planta.id);
       ['M','T','N'].forEach(shift => {
@@ -11197,7 +11198,7 @@ function renderWeeklyShortageRollup() {
 
       // Get coverage requirements
       const covRules = getCoverageRules(dayYear, dayMonth, date.getDate());
-      const needed = covRules[shift]?.enf + covRules[shift]?.tec || 0;
+      const needed = (covRules[shift]?.enf || 0) + (covRules[shift]?.tec || 0);
       const deficit = Math.max(0, needed - onShift);
       shortage[shift].push(deficit);
       if (deficit > 0) totalShortages++;
@@ -11590,7 +11591,7 @@ function renderEquipoPlanta(targetId) {
       html += '<div style="display:flex;overflow-x:auto;border-bottom:1px solid var(--glass-border);scrollbar-width:none;" id="equipo-cat-tabs-' + w.id + '">';
       SUBJ_CATEGORIES.forEach((cat, ci) => {
         const isFirst = ci === 0;
-        html += '<button onclick="showEquipoCategory(' + w.id + ',\'' + cat.id + '\')" data-cat="' + cat.id + '" style="flex-shrink:0;padding:8px 14px;border:none;border-bottom:2px solid ' + (isFirst ? cat.color : 'transparent') + ';background:' + (isFirst ? cat.color + '08' : 'transparent') + ';color:' + (isFirst ? cat.color : 'var(--text3)') + ';font-size:10px;font-weight:600;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:5px;font-family:inherit;">';
+        html += '<button onclick="showEquipoCategory(' + w.id + ',\'' + cat.id + '\')" data-cat="' + cat.id + '" data-color="' + cat.color + '" style="flex-shrink:0;padding:8px 14px;border:none;border-bottom:2px solid ' + (isFirst ? cat.color : 'transparent') + ';background:' + (isFirst ? cat.color + '08' : 'transparent') + ';color:' + (isFirst ? cat.color : 'var(--text3)') + ';font-size:10px;font-weight:600;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:5px;font-family:inherit;">';
         html += cat.icon + ' ' + escHtml(cat.label);
         // Badge with data count
         let dataCount = 0;
@@ -11698,8 +11699,10 @@ function showEquipoCategory(wId, catId) {
   if (tabContainer) {
     tabContainer.querySelectorAll('button').forEach(btn => {
       const isSel = btn.getAttribute('data-cat') === catId;
-      btn.style.borderBottomColor = isSel ? btn.style.color : 'transparent';
-      btn.style.background = isSel ? 'rgba(0,0,0,0.02)' : 'transparent';
+      const catColor = btn.getAttribute('data-color') || 'var(--primary)';
+      btn.style.borderBottomColor = isSel ? catColor : 'transparent';
+      btn.style.color = isSel ? catColor : 'var(--text3)';
+      btn.style.background = isSel ? catColor + '08' : 'transparent';
     });
   }
 }
@@ -11816,8 +11819,8 @@ function renderSPSuggestions() {
 
     // Fatigue penalty (0-100 scale, higher = more tired = lower score)
     try {
-      const fatigue = typeof getAccumulatedFatigue === 'function' ? getAccumulatedFatigue(wId, day, month, year) : 0;
-      score -= (fatigue || 0) * 0.4;
+      const fatigueObj = typeof getAccumulatedFatigue === 'function' ? getAccumulatedFatigue(wId, day, month, year) : { fatigueScore: 0 };
+      score -= (fatigueObj.fatigueScore || 0) * 0.4;
     } catch(e) {}
 
     // Multi-month equity: penalize overloaded workers
@@ -12240,8 +12243,8 @@ function renderSPManagerContent() {
         if (eq && eq.hoursDelta > 15) equityScore -= 10;
       } catch(e) {}
       try {
-        const fat = typeof getAccumulatedFatigue === 'function' ? getAccumulatedFatigue(w.id, 0, month, year) : 0;
-        equityScore -= (fat || 0) * 0.3;
+        const fatObj = typeof getAccumulatedFatigue === 'function' ? getAccumulatedFatigue(w.id, 0, month, year) : { fatigueScore: 0 };
+        equityScore -= (fatObj.fatigueScore || 0) * 0.3;
       } catch(e) {}
       let spExtras = 0;
       try { shiftHistory.forEach(h => { if (h.wId === w.id && h.source === 'SP-sugerencia') spExtras++; }); } catch(e) {}
@@ -12573,8 +12576,8 @@ function renderGestorSPView() {
         if (eq && eq.hoursDelta > 15) equityScore -= 10;
       } catch(e) {}
       try {
-        const fat = typeof getAccumulatedFatigue === 'function' ? getAccumulatedFatigue(w.id, 0, month, year) : 0;
-        equityScore -= (fat || 0) * 0.3;
+        const fatObj = typeof getAccumulatedFatigue === 'function' ? getAccumulatedFatigue(w.id, 0, month, year) : { fatigueScore: 0 };
+        equityScore -= (fatObj.fatigueScore || 0) * 0.3;
       } catch(e) {}
       let spExtras = 0;
       try { shiftHistory.forEach(h => { if (h.wId === w.id && h.source === 'SP-sugerencia') spExtras++; }); } catch(e) {}
@@ -21994,8 +21997,13 @@ function renderPatternRecognition() {
 }
 
 // ========== BURNOUT RISK ENGINE ==========
+var _burnoutCache = {};
+var _burnoutCacheTs = 0;
 function computeBurnoutRisk(wId) {
   var now = new Date();
+  var ts = Math.floor(now.getTime() / 60000); // cache per minute
+  if (ts !== _burnoutCacheTs) { _burnoutCache = {}; _burnoutCacheTs = ts; }
+  if (_burnoutCache[wId]) return _burnoutCache[wId];
   var fatigue = getAccumulatedFatigue(wId, now.getDate(), now.getMonth(), now.getFullYear());
   var equity = getMultiMonthEquity(wId, now.getMonth(), now.getFullYear());
   var subj = ((workerMemory[wId] || {}).subjective || {});
@@ -22034,7 +22042,9 @@ function computeBurnoutRisk(wId) {
   score = Math.max(0, Math.min(100, Math.round(score)));
   var level = score < 30 ? 'bajo' : score < 55 ? 'medio' : score < 75 ? 'alto' : 'critico';
 
-  return { score: score, level: level, factors: factors, mitigators: mitigators };
+  var result = { score: score, level: level, factors: factors, mitigators: mitigators };
+  _burnoutCache[wId] = result;
+  return result;
 }
 
 // ========== BURNOUT DETECTOR PANEL ==========
@@ -22150,20 +22160,18 @@ function renderCrossPlantSwapEngine() {
   if (workers.length === 0) { container.innerHTML = ''; return; }
 
   var now = new Date();
-  var year = now.getFullYear();
-  var month = now.getMonth();
-  var key = year + '-' + month;
-  var sch = scheduleData[key] || genSchedule(year, month);
-  var daysInMonth = new Date(year, month + 1, 0).getDate();
-  var today = now.getDate();
   var shiftTypes = ['M', 'T', 'N'];
 
   var suggestions = [];
 
-  // Scan next 14 days for coverage gaps
+  // Scan next 14 days for coverage gaps (cross-month aware)
   for (var dayOffset = 0; dayOffset < 14; dayOffset++) {
-    var dayIdx = today + dayOffset - 1;
-    if (dayIdx >= daysInMonth) break;
+    var scanDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset);
+    var sYear = scanDate.getFullYear();
+    var sMonth = scanDate.getMonth();
+    var dayIdx = scanDate.getDate() - 1;
+    var sKey = sYear + '-' + sMonth;
+    var sch = scheduleData[sKey] || genSchedule(sYear, sMonth);
 
     PLANTAS.forEach(function(planta) {
       var covReq = PLANT_COVERAGE[planta.id] || {};
@@ -22176,7 +22184,9 @@ function renderCrossPlantSwapEngine() {
         workers.forEach(function(w) {
           if (w.planta !== planta.id) return;
           var ws = (sch[w.id] || [])[dayIdx];
-          if (ws && ws.toString().trim() === shift) assigned++;
+          var wsEff = ws ? ws.toString().trim() : '';
+          if (['MR','M7H','M6R','M55'].indexOf(wsEff) >= 0) wsEff = 'M';
+          if (wsEff === shift) assigned++;
         });
 
         var gap = minNeeded - assigned;
@@ -22204,7 +22214,7 @@ function renderCrossPlantSwapEngine() {
           if (cwCode !== 'D' && cwCode !== '' && cwCode !== 'LD') return;
 
           // Check equity — not overloaded
-          var eq = getMultiMonthEquity(cw.id, month, year);
+          var eq = getMultiMonthEquity(cw.id, sMonth, sYear);
           if (eq.isChronicallyOverloaded) return;
 
           // Score candidate
@@ -22216,7 +22226,7 @@ function renderCrossPlantSwapEngine() {
           if (cw.flotante) candScore += 20;
           if (eq.isChronicallyUnderloaded) candScore += 10;
           // Penalize fatigue
-          var fatigue = getAccumulatedFatigue(cw.id, dayIdx + 1, month, year);
+          var fatigue = getAccumulatedFatigue(cw.id, dayIdx + 1, sMonth, sYear);
           if (fatigue.fatigueScore > 60) candScore -= 20;
           else if (fatigue.fatigueScore > 40) candScore -= 10;
 
@@ -22233,6 +22243,8 @@ function renderCrossPlantSwapEngine() {
         topCand.forEach(function(c) {
           suggestions.push({
             day: dayIdx + 1,
+            month: sMonth,
+            year: sYear,
             toPlanta: planta.id,
             shift: shift,
             gap: gap,
@@ -22247,7 +22259,7 @@ function renderCrossPlantSwapEngine() {
   var topSuggestions = suggestions.slice(0, 10);
 
   var shiftLabels = { M: 'Mañana', T: 'Tarde', N: 'Noche' };
-  var shiftColors = { M: '#f59e0b', T: '#8b5cf6', N: '#3b82f6' };
+  var shiftColors = { M: '#2e8b7a', T: '#4a9dd4', N: '#c5a832' };
 
   var html = '<div style="background:var(--surface);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:14px;padding:20px;">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
