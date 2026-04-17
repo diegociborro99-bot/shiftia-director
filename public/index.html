@@ -8976,6 +8976,9 @@ table.schedule tbody tr:hover {
         <div id="swapRecommender" class="scroll-reveal" style="margin-top:32px;"></div>
         <div id="scenarioSimulator" class="scroll-reveal" style="margin-top:32px;"></div>
         <div id="patternRecognition" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="intelligenciaPanel" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="burnoutDetector" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="crossPlantSwapEngine" class="scroll-reveal" style="margin-top:32px;"></div>
         <div id="equipoPlantaPanel" class="scroll-reveal" style="margin-top:32px;"></div>
         <div id="spSuggestionsPanel" class="scroll-reveal" style="margin-top:32px;"></div>
         <div id="auditLogContainer" class="scroll-reveal" style="margin-top:32px;"></div>
@@ -10865,6 +10868,9 @@ function renderDashboard() {
   try { renderSwapRecommender(); } catch(e) { console.warn('[Shiftia] Swap recommender error:', e); }
   try { renderScenarioSimulator(); } catch(e) { console.warn('[Shiftia] Scenario simulator error:', e); }
   try { renderPatternRecognition(); } catch(e) { console.warn('[Shiftia] Pattern recognition error:', e); }
+  try { renderIntelligenciaShiftia(); } catch(e) { console.warn('[Shiftia] Inteligencia panel error:', e); }
+  try { renderBurnoutDetector(); } catch(e) { console.warn('[Shiftia] Burnout detector error:', e); }
+  try { renderCrossPlantSwapEngine(); } catch(e) { console.warn('[Shiftia] Cross-plant swap error:', e); }
 
   // Render SP coverage suggestions
   try { renderEquipoPlanta('equipoPlantaPanel'); } catch(e) { console.warn('[Shiftia] Equipo planta error:', e); }
@@ -21223,6 +21229,17 @@ function renderPredictiveAbsenceEngine() {
       weekRisk += (pat.byDow[day.dow] || 0) / divisor;
     });
 
+    // Subjective data boosts
+    var _subj = ((workerMemory[w.id] || {}).subjective || {});
+    var _subjBoost = 1.0;
+    if (_subj.tag_restriccion) _subjBoost += 0.20;
+    if (_subj.sc_baja_freq) _subjBoost += 0.15;
+    if (_subj.tag_burnout) _subjBoost += 0.10;
+    else if (typeof computeBurnoutRisk === 'function') {
+      try { if (computeBurnoutRisk(w.id).score > 60) _subjBoost += 0.10; } catch(_e) {}
+    }
+    weekRisk *= _subjBoost;
+
     const prob = Math.min(95, Math.round((weekRisk / 7) * 100));
     if (prob < 3) return;
 
@@ -21969,6 +21986,428 @@ function renderPatternRecognition() {
       html += '<div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;"><div style="width:' + p.risk + '%;height:100%;background:' + clr + ';border-radius:3px;"></div></div>';
       html += '<span style="font-size:10px;font-weight:700;color:' + clr + ';min-width:35px;text-align:right;">' + p.risk + '%</span></div>';
     });
+    html += '</div>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ========== BURNOUT RISK ENGINE ==========
+function computeBurnoutRisk(wId) {
+  var now = new Date();
+  var fatigue = getAccumulatedFatigue(wId, now.getDate(), now.getMonth(), now.getFullYear());
+  var equity = getMultiMonthEquity(wId, now.getMonth(), now.getFullYear());
+  var subj = ((workerMemory[wId] || {}).subjective || {});
+
+  var score = 0;
+  var factors = [];
+  var mitigators = [];
+
+  // Fatigue component (30%)
+  score += (fatigue.fatigueScore || 0) * 0.30;
+  if (fatigue.fatigueScore > 50) factors.push('Fatiga acumulada alta (' + Math.round(fatigue.fatigueScore) + ')');
+
+  // Subjective negative signals
+  if (subj.tag_burnout) { score += 25; factors.push('Marcado burnout manualmente'); }
+  if (subj.sc_conflicto) { score += 10; factors.push('Conflicto reportado'); }
+  if (subj.sc_aislado) { score += 12; factors.push('Aislamiento social'); }
+  if (subj.sc_baja_freq) { score += 8; factors.push('Baja frecuencia participación'); }
+  if (subj.sc_tarde) { score += 6; factors.push('Llegadas tarde frecuentes'); }
+  if (subj.sc_proto_skip) { score += 5; factors.push('Saltos de protocolo'); }
+
+  // Low ratings penalty
+  if (subj.colaboracion && subj.colaboracion < 3) { score += 8; factors.push('Colaboración baja (' + subj.colaboracion + '/5)'); }
+  if (subj.puntualidad && subj.puntualidad < 3) { score += 6; factors.push('Puntualidad baja (' + subj.puntualidad + '/5)'); }
+
+  // Night density
+  if ((fatigue.nightsPerWeek || 0) > 1.5) { score += 10; factors.push('Densidad nocturna alta (' + (fatigue.nightsPerWeek || 0).toFixed(1) + '/sem)'); }
+
+  // Equity
+  if (equity.isChronicallyOverloaded) { score += 15; factors.push('Sobrecarga crónica detectada'); }
+
+  // Positive mitigators
+  if (subj.sc_lider) { score -= 8; mitigators.push('Perfil de liderazgo'); }
+  if (subj.sc_extras) { score -= 5; mitigators.push('Voluntario para extras'); }
+  if (subj.sc_puntual) { score -= 5; mitigators.push('Puntualidad destacada'); }
+
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  var level = score < 30 ? 'bajo' : score < 55 ? 'medio' : score < 75 ? 'alto' : 'critico';
+
+  return { score: score, level: level, factors: factors, mitigators: mitigators };
+}
+
+// ========== BURNOUT DETECTOR PANEL ==========
+function renderBurnoutDetector() {
+  var container = document.getElementById('burnoutDetector');
+  if (!container) return;
+  if (workers.length === 0) { container.innerHTML = ''; return; }
+
+  var results = [];
+  workers.forEach(function(w) {
+    var r = computeBurnoutRisk(w.id);
+    r.wId = w.id;
+    r.name = w.name;
+    r.planta = w.planta;
+    results.push(r);
+  });
+  results.sort(function(a, b) { return b.score - a.score; });
+
+  var atRisk = results.filter(function(r) { return r.score >= 30; }).length;
+  var critical = results.filter(function(r) { return r.level === 'critico'; }).length;
+  var top8 = results.slice(0, 8);
+
+  var levelColors = { bajo: '#16a34a', medio: '#eab308', alto: '#f59e0b', critico: '#dc2626' };
+  var levelLabels = { bajo: 'Bajo', medio: 'Medio', alto: 'Alto', critico: 'Crítico' };
+  var levelBg = { bajo: 'rgba(22,163,74,0.08)', medio: 'rgba(234,179,8,0.08)', alto: 'rgba(245,158,11,0.08)', critico: 'rgba(220,38,38,0.08)' };
+
+  function circleRing(score, color, size) {
+    var r = (size - 6) / 2;
+    var circ = 2 * Math.PI * r;
+    var offset = circ - (score / 100) * circ;
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '">' +
+      '<circle cx="' + (size/2) + '" cy="' + (size/2) + '" r="' + r + '" fill="none" stroke="var(--border)" stroke-width="4"/>' +
+      '<circle cx="' + (size/2) + '" cy="' + (size/2) + '" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="4" stroke-linecap="round" stroke-dasharray="' + circ + '" stroke-dashoffset="' + offset + '" transform="rotate(-90 ' + (size/2) + ' ' + (size/2) + ')"/>' +
+      '<text x="' + (size/2) + '" y="' + (size/2 + 4) + '" text-anchor="middle" font-size="12" font-weight="800" fill="' + color + '">' + score + '</text></svg>';
+  }
+
+  function getRecommendation(level) {
+    if (level === 'critico') return 'Intervención inmediata: reunión con supervisión, redistribuir carga, considerar descanso compensatorio';
+    if (level === 'alto') return 'Reducir noches consecutivas, asignar turnos preferidos, seguimiento semanal';
+    if (level === 'medio') return 'Monitorizar evolución, evitar sobrecarga adicional';
+    return 'Sin acción requerida';
+  }
+
+  var html = '<div style="background:var(--surface);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:14px;padding:20px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+  html += '<div><h3 style="font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--primary);margin:0;">' + shiftiaIcon('warning', 18, 'var(--primary)') + ' Detector de Burnout</h3>';
+  html += '<p style="font-size:11px;color:var(--text3);margin-top:2px;">Análisis combinado de fatiga, equidad y señales subjetivas</p></div>';
+  html += '<span style="font-size:10px;padding:4px 10px;background:rgba(220,38,38,0.1);color:#dc2626;border-radius:6px;font-weight:600;">IA BURNOUT</span></div>';
+
+  // Summary stats
+  html += '<div style="display:flex;gap:12px;margin-bottom:18px;">';
+  html += '<div style="flex:1;padding:10px 14px;background:rgba(245,158,11,0.06);border-radius:10px;text-align:center;">';
+  html += '<div style="font-size:20px;font-weight:800;color:#f59e0b;">' + atRisk + '</div>';
+  html += '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">En riesgo</div></div>';
+  html += '<div style="flex:1;padding:10px 14px;background:rgba(220,38,38,0.06);border-radius:10px;text-align:center;">';
+  html += '<div style="font-size:20px;font-weight:800;color:#dc2626;">' + critical + '</div>';
+  html += '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Críticos</div></div>';
+  html += '<div style="flex:1;padding:10px 14px;background:rgba(22,163,74,0.06);border-radius:10px;text-align:center;">';
+  html += '<div style="font-size:20px;font-weight:800;color:#16a34a;">' + (workers.length - atRisk) + '</div>';
+  html += '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Saludables</div></div></div>';
+
+  // Worker cards
+  if (top8.length > 0) {
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text1);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Ranking de riesgo</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+    top8.forEach(function(r) {
+      var clr = levelColors[r.level];
+      var bg = levelBg[r.level];
+      var pName = (PLANTAS.find(function(p) { return p.id === r.planta; }) || {}).short || '—';
+      html += '<div style="padding:12px 14px;background:' + bg + ';border-radius:10px;border-left:3px solid ' + clr + ';">';
+      html += '<div style="display:flex;align-items:center;gap:12px;">';
+      html += '<div style="flex-shrink:0;">' + circleRing(r.score, clr, 48) + '</div>';
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">';
+      html += '<span style="font-size:12px;font-weight:600;color:var(--text1);">' + escHtml(r.name) + '</span>';
+      html += '<span style="font-size:9px;color:var(--text3);">' + pName + '</span>';
+      html += '<span style="font-size:9px;padding:2px 6px;background:' + clr + '18;color:' + clr + ';border-radius:4px;font-weight:700;">' + levelLabels[r.level] + '</span></div>';
+
+      // Factor pills
+      if (r.factors.length > 0) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">';
+        r.factors.forEach(function(f) {
+          html += '<span style="font-size:9px;padding:2px 6px;background:rgba(220,38,38,0.08);color:#b91c1c;border-radius:4px;">' + escHtml(f) + '</span>';
+        });
+        html += '</div>';
+      }
+      // Mitigator pills
+      if (r.mitigators.length > 0) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">';
+        r.mitigators.forEach(function(m) {
+          html += '<span style="font-size:9px;padding:2px 6px;background:rgba(22,163,74,0.08);color:#16a34a;border-radius:4px;">' + escHtml(m) + '</span>';
+        });
+        html += '</div>';
+      }
+
+      // Recommendation
+      html += '<div style="font-size:9px;color:var(--text3);margin-top:5px;font-style:italic;">' + shiftiaIcon('lightbulb', 10, 'var(--text3)') + ' ' + getRecommendation(r.level) + '</div>';
+      html += '</div></div></div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="text-align:center;padding:24px;color:var(--text3);font-size:12px;">No hay datos suficientes para analizar</div>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ========== CROSS-PLANT SWAP ENGINE ==========
+function renderCrossPlantSwapEngine() {
+  var container = document.getElementById('crossPlantSwapEngine');
+  if (!container) return;
+  if (workers.length === 0) { container.innerHTML = ''; return; }
+
+  var now = new Date();
+  var year = now.getFullYear();
+  var month = now.getMonth();
+  var key = year + '-' + month;
+  var sch = scheduleData[key] || genSchedule(year, month);
+  var daysInMonth = new Date(year, month + 1, 0).getDate();
+  var today = now.getDate();
+  var shiftTypes = ['M', 'T', 'N'];
+
+  var suggestions = [];
+
+  // Scan next 14 days for coverage gaps
+  for (var dayOffset = 0; dayOffset < 14; dayOffset++) {
+    var dayIdx = today + dayOffset - 1;
+    if (dayIdx >= daysInMonth) break;
+
+    PLANTAS.forEach(function(planta) {
+      var covReq = PLANT_COVERAGE[planta.id] || {};
+      shiftTypes.forEach(function(shift) {
+        var minNeeded = (covReq[shift] || {}).min || 0;
+        if (minNeeded === 0) return;
+
+        // Count current coverage
+        var assigned = 0;
+        workers.forEach(function(w) {
+          if (w.planta !== planta.id) return;
+          var ws = (sch[w.id] || [])[dayIdx];
+          if (ws && ws.toString().trim() === shift) assigned++;
+        });
+
+        var gap = minNeeded - assigned;
+        if (gap <= 0) return;
+
+        // Find candidates from OTHER plants
+        var candidates = [];
+        workers.forEach(function(cw) {
+          if (cw.planta === planta.id) return;
+          // Type match: determine if plant needs enf or tec
+          if (cw.type !== undefined) {
+            var plantWorkers = workers.filter(function(pw) { return pw.planta === planta.id; });
+            var plantMainType = 'enf';
+            if (plantWorkers.length > 0) {
+              var enfCount = plantWorkers.filter(function(pw) { return pw.type === 'enf'; }).length;
+              var tecCount = plantWorkers.filter(function(pw) { return pw.type === 'tec'; }).length;
+              plantMainType = tecCount > enfCount ? 'tec' : 'enf';
+            }
+            if (cw.type !== plantMainType) return;
+          }
+
+          var cwShift = (sch[cw.id] || [])[dayIdx];
+          var cwCode = cwShift ? cwShift.toString().trim() : '';
+          // Must be on rest or unassigned
+          if (cwCode !== 'D' && cwCode !== '' && cwCode !== 'LD') return;
+
+          // Check equity — not overloaded
+          var eq = getMultiMonthEquity(cw.id, month, year);
+          if (eq.isChronicallyOverloaded) return;
+
+          // Score candidate
+          var candScore = 50;
+          var subj = ((workerMemory[cw.id] || {}).subjective || {});
+          if (subj.tecnica && subj.tecnica >= 4) candScore += 15;
+          if (subj.emergencias && subj.emergencias >= 4) candScore += 10;
+          if (subj.colaboracion && subj.colaboracion >= 4) candScore += 10;
+          if (cw.flotante) candScore += 20;
+          if (eq.isChronicallyUnderloaded) candScore += 10;
+          // Penalize fatigue
+          var fatigue = getAccumulatedFatigue(cw.id, dayIdx + 1, month, year);
+          if (fatigue.fatigueScore > 60) candScore -= 20;
+          else if (fatigue.fatigueScore > 40) candScore -= 10;
+
+          candidates.push({
+            wId: cw.id, name: cw.name, fromPlanta: cw.planta,
+            score: Math.max(0, Math.min(100, candScore)),
+            flotante: cw.flotante || false
+          });
+        });
+
+        candidates.sort(function(a, b) { return b.score - a.score; });
+        var topCand = candidates.slice(0, 2);
+
+        topCand.forEach(function(c) {
+          suggestions.push({
+            day: dayIdx + 1,
+            toPlanta: planta.id,
+            shift: shift,
+            gap: gap,
+            worker: c
+          });
+        });
+      });
+    });
+  }
+
+  suggestions.sort(function(a, b) { return b.worker.score - a.worker.score; });
+  var topSuggestions = suggestions.slice(0, 10);
+
+  var shiftLabels = { M: 'Mañana', T: 'Tarde', N: 'Noche' };
+  var shiftColors = { M: '#f59e0b', T: '#8b5cf6', N: '#3b82f6' };
+
+  var html = '<div style="background:var(--surface);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:14px;padding:20px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+  html += '<div><h3 style="font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--primary);margin:0;">' + shiftiaIcon('team', 18, 'var(--primary)') + ' Motor de Swaps entre Plantas</h3>';
+  html += '<p style="font-size:11px;color:var(--text3);margin-top:2px;">Sugerencias de cobertura cruzada basadas en disponibilidad y competencias</p></div>';
+  html += '<span style="font-size:10px;padding:4px 10px;background:rgba(59,130,246,0.1);color:#3b82f6;border-radius:6px;font-weight:600;">IA SWAPS</span></div>';
+
+  if (topSuggestions.length > 0) {
+    html += '<div style="font-size:11px;font-weight:700;color:var(--text1);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">' + topSuggestions.length + ' oportunidades detectadas</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+    topSuggestions.forEach(function(s) {
+      var toName = (PLANTAS.find(function(p) { return p.id === s.toPlanta; }) || {}).short || s.toPlanta;
+      var fromName = (PLANTAS.find(function(p) { return p.id === s.worker.fromPlanta; }) || {}).short || s.worker.fromPlanta;
+      var sClr = shiftColors[s.shift] || '#6b7280';
+
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(59,130,246,0.04);border-radius:10px;border-left:3px solid ' + sClr + ';">';
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div style="font-size:12px;font-weight:600;color:var(--text1);">' + escHtml(s.worker.name);
+      if (s.worker.flotante) html += ' <span style="font-size:8px;padding:1px 4px;background:rgba(139,92,246,0.1);color:#8b5cf6;border-radius:3px;">FLOTANTE</span>';
+      html += '</div>';
+      html += '<div style="font-size:10px;color:var(--text3);margin-top:2px;">';
+      html += escHtml(fromName) + ' ' + shiftiaIcon('arrow_right', 10, 'var(--text3)') + ' <strong style="color:var(--text1);">' + escHtml(toName) + '</strong>';
+      html += ' · Día ' + s.day + ' · ' + shiftLabels[s.shift] + ' · Déficit: ' + s.gap + '</div></div>';
+      html += '<div style="text-align:center;flex-shrink:0;width:44px;height:44px;border-radius:10px;background:' + sClr + '12;border:2px solid ' + sClr + ';display:flex;align-items:center;justify-content:center;flex-direction:column;">';
+      html += '<div style="font-size:14px;font-weight:800;color:' + sClr + ';">' + s.worker.score + '</div>';
+      html += '<div style="font-size:7px;color:var(--text3);">score</div></div></div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="text-align:center;padding:24px;color:var(--text3);font-size:12px;">' + shiftiaIcon('hospital', 16, 'var(--text3)') + ' Sin déficits de cobertura detectados en los próximos 14 días</div>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ========== INTELIGENCIA SHIFTIA HUB PANEL ==========
+function renderIntelligenciaShiftia() {
+  var container = document.getElementById('intelligenciaPanel');
+  if (!container) return;
+  if (workers.length === 0) { container.innerHTML = ''; return; }
+
+  // Compute summary data
+  var burnoutResults = [];
+  workers.forEach(function(w) {
+    try { burnoutResults.push(computeBurnoutRisk(w.id)); } catch(e) {}
+  });
+  var burnoutAtRisk = burnoutResults.filter(function(r) { return r.score >= 30; }).length;
+  var burnoutCritical = burnoutResults.filter(function(r) { return r.level === 'critico'; }).length;
+
+  // Absence high probability count (rough estimate)
+  var absenceHighCount = 0;
+  try {
+    var _now = new Date();
+    var _absenceCodes = ['VAC','VAA','BAJ','LD','LAC','FOR','INT','MTC','CAA','AE','EX','DLA','CJ','FN','VAN','IQF','PM','HF','HS'];
+    var _totalM = 0;
+    var _absPatterns = {};
+    workers.forEach(function(w) { _absPatterns[w.id] = { byDow: new Array(7).fill(0), total: 0 }; });
+    Object.keys(scheduleData).forEach(function(k) {
+      var s = scheduleData[k]; var parts = k.split('-'); var y = parseInt(parts[0]); var m = parseInt(parts[1]); _totalM++;
+      workers.forEach(function(w) { if (!s[w.id]) return; s[w.id].forEach(function(sh, di) { if (!sh) return; var code = sh.toString().trim(); if (_absenceCodes.indexOf(code) >= 0) { var dt = new Date(y, m, di + 1); if (dt.getMonth() === m) { _absPatterns[w.id].byDow[dt.getDay()]++; _absPatterns[w.id].total++; } } }); });
+    });
+    var _div = Math.max(1, _totalM);
+    workers.forEach(function(w) {
+      var p = _absPatterns[w.id]; if (p.total === 0) return;
+      var wr = 0; for (var i = 0; i < 7; i++) { var d2 = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() + i); wr += (p.byDow[d2.getDay()] || 0) / _div; }
+      var prob = Math.min(95, Math.round((wr / 7) * 100));
+      if (prob > 30) absenceHighCount++;
+    });
+  } catch(e) {}
+
+  // Swap opportunities count
+  var swapCount = 0;
+  try {
+    var _now2 = new Date(); var _yr = _now2.getFullYear(); var _mo = _now2.getMonth();
+    var _key = _yr + '-' + _mo; var _sch = scheduleData[_key] || genSchedule(_yr, _mo);
+    var _dim = new Date(_yr, _mo + 1, 0).getDate(); var _td = _now2.getDate();
+    for (var dOff = 0; dOff < 14 && (_td + dOff - 1) < _dim; dOff++) {
+      var dI = _td + dOff - 1;
+      PLANTAS.forEach(function(pl) {
+        var cr = PLANT_COVERAGE[pl.id] || {};
+        ['M','T','N'].forEach(function(sh) {
+          var mn = (cr[sh] || {}).min || 0; if (mn === 0) return;
+          var asgn = 0; workers.forEach(function(w2) { if (w2.planta !== pl.id) return; var ws = (_sch[w2.id] || [])[dI]; if (ws && ws.toString().trim() === sh) asgn++; });
+          if (mn - asgn > 0) swapCount++;
+        });
+      });
+    }
+  } catch(e) {}
+
+  var activeTab = (container._shiftiaTab || 'burnout');
+
+  var html = '<div style="background:var(--surface);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:14px;padding:20px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+  html += '<div><h3 style="font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--primary);margin:0;">' + shiftiaIcon('bolt', 18, 'var(--primary)') + ' Inteligencia Shiftia</h3>';
+  html += '<p style="font-size:11px;color:var(--text3);margin-top:2px;">Centro de control de motores inteligentes</p></div>';
+  html += '<span style="font-size:10px;padding:4px 10px;background:rgba(139,92,246,0.1);color:#8b5cf6;border-radius:6px;font-weight:600;">IA HUB</span></div>';
+
+  // Quick alert summary
+  html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">';
+  if (burnoutCritical > 0) {
+    html += '<div style="display:flex;align-items:center;gap:5px;padding:6px 10px;background:rgba(220,38,38,0.08);border-radius:8px;font-size:10px;color:#dc2626;font-weight:600;">' + shiftiaIcon('warning', 12, '#dc2626') + ' ' + burnoutCritical + ' burnout crítico' + (burnoutCritical > 1 ? 's' : '') + '</div>';
+  }
+  if (burnoutAtRisk > 0) {
+    html += '<div style="display:flex;align-items:center;gap:5px;padding:6px 10px;background:rgba(245,158,11,0.08);border-radius:8px;font-size:10px;color:#f59e0b;font-weight:600;">' + shiftiaIcon('circle_alert', 12, '#f59e0b') + ' ' + burnoutAtRisk + ' en riesgo burnout</div>';
+  }
+  if (absenceHighCount > 0) {
+    html += '<div style="display:flex;align-items:center;gap:5px;padding:6px 10px;background:rgba(139,92,246,0.08);border-radius:8px;font-size:10px;color:#8b5cf6;font-weight:600;">' + shiftiaIcon('calendar', 12, '#8b5cf6') + ' ' + absenceHighCount + ' alta prob. ausencia</div>';
+  }
+  if (swapCount > 0) {
+    html += '<div style="display:flex;align-items:center;gap:5px;padding:6px 10px;background:rgba(59,130,246,0.08);border-radius:8px;font-size:10px;color:#3b82f6;font-weight:600;">' + shiftiaIcon('team', 12, '#3b82f6') + ' ' + swapCount + ' huecos de cobertura</div>';
+  }
+  html += '</div>';
+
+  // Tabs
+  var tabs = [
+    { key: 'burnout', label: 'Burnout', icon: 'warning', color: '#dc2626', count: burnoutAtRisk, targetId: 'burnoutDetector' },
+    { key: 'absentismo', label: 'Absentismo', icon: 'calendar', color: '#8b5cf6', count: absenceHighCount, targetId: 'predictiveAbsenceEngine' },
+    { key: 'swaps', label: 'Swaps', icon: 'team', color: '#3b82f6', count: swapCount, targetId: 'crossPlantSwapEngine' }
+  ];
+
+  html += '<div style="display:flex;gap:8px;margin-bottom:4px;">';
+  tabs.forEach(function(tab) {
+    var isActive = (activeTab === tab.key);
+    html += '<button onclick="(function(){ var c=document.getElementById(\'intelligenciaPanel\'); c._shiftiaTab=\'' + tab.key + '\'; renderIntelligenciaShiftia(); })()" style="flex:1;padding:10px;border:1px solid ' + (isActive ? tab.color + '40' : 'var(--border)') + ';background:' + (isActive ? tab.color + '0a' : 'transparent') + ';border-radius:10px;cursor:pointer;transition:all 0.2s;">';
+    html += '<div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:6px;">';
+    html += shiftiaIcon(tab.icon, 14, isActive ? tab.color : 'var(--text3)');
+    html += '<span style="font-size:11px;font-weight:600;color:' + (isActive ? tab.color : 'var(--text2)') + ';">' + tab.label + '</span>';
+    if (tab.count > 0) html += '<span style="font-size:9px;padding:1px 5px;background:' + tab.color + '14;color:' + tab.color + ';border-radius:4px;font-weight:700;">' + tab.count + '</span>';
+    html += '</div>';
+    html += '</button>';
+  });
+  html += '</div>';
+
+  // Active tab content
+  var activeTabData = tabs.find(function(t) { return t.key === activeTab; });
+  if (activeTabData) {
+    html += '<div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:10px;">';
+    if (activeTab === 'burnout') {
+      var topBurnout = burnoutResults.filter(function(r) { return r.score >= 30; }).sort(function(a,b) { return b.score - a.score; }).slice(0, 3);
+      if (topBurnout.length > 0) {
+        html += '<div style="font-size:10px;color:var(--text3);margin-bottom:6px;">Top trabajadores en riesgo:</div>';
+        topBurnout.forEach(function(r, i) {
+          var w = workers.find(function(wk) { return wk.id === r.wId; });
+          var wName = w ? escHtml(w.name) : 'ID:' + r.wId;
+          var clr = r.level === 'critico' ? '#dc2626' : r.level === 'alto' ? '#f59e0b' : '#eab308';
+          html += '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;' + (i < topBurnout.length - 1 ? 'border-bottom:1px solid var(--border);' : '') + '">';
+          html += '<span style="font-size:11px;font-weight:600;color:var(--text1);flex:1;">' + wName + '</span>';
+          html += '<span style="font-size:10px;font-weight:700;color:' + clr + ';">' + r.score + '%</span></div>';
+        });
+      } else {
+        html += '<div style="font-size:11px;color:var(--text3);text-align:center;">Sin alertas de burnout activas</div>';
+      }
+    } else if (activeTab === 'absentismo') {
+      html += '<div style="font-size:10px;color:var(--text3);">' + absenceHighCount + ' trabajadores con probabilidad de ausencia >30% en los próximos 7 días.</div>';
+    } else if (activeTab === 'swaps') {
+      html += '<div style="font-size:10px;color:var(--text3);">' + swapCount + ' huecos de cobertura detectados en los próximos 14 días que podrían resolverse con swaps entre plantas.</div>';
+    }
+    html += '<div style="margin-top:8px;text-align:right;">';
+    html += '<a href="#" onclick="(function(){ var el=document.getElementById(\'' + activeTabData.targetId + '\'); if(el) el.scrollIntoView({behavior:\'smooth\',block:\'start\'}); return false; })()" style="font-size:10px;color:' + activeTabData.color + ';text-decoration:none;font-weight:600;">Ver detalle ' + shiftiaIcon('arrow_right', 10, activeTabData.color) + '</a></div>';
     html += '</div>';
   }
 
