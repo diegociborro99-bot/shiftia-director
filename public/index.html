@@ -9461,14 +9461,18 @@ function normalizeShift(s) {
 }
 
 // Check if a day is "Sin Planificar" — explicit SP or empty day on imported worker
-function isSP(wId, dayIndex) {
-  const now = new Date();
-  const key = now.getFullYear() + '-' + now.getMonth();
+// Uses appState.currentMonth by default, or accepts explicit year/month
+function isSP(wId, dayIndex, year, month) {
+  if (year === undefined || month === undefined) {
+    var m = appState.currentMonth;
+    year = m.getFullYear();
+    month = m.getMonth();
+  }
+  const key = year + '-' + month;
   const sch = scheduleData[key];
   if (!sch || !sch[wId]) return false;
   const s = (sch[wId][dayIndex] || '').toString().trim();
   if (s === 'SP') return true;
-  // Empty day on an imported worker = sin planificar
   const w = workers.find(function(w) { return w.id === wId; });
   if (w && w.scheduleImported && s === '') return true;
   return false;
@@ -9604,8 +9608,8 @@ function getUnplannedDays(year, month) {
   for (let dayIdx = 0; dayIdx < daysInMonth; dayIdx++) {
     workers.forEach(w => {
       const shift = sch[w.id] ? (sch[w.id][dayIdx] || '').toString().trim() : '';
-      // Unplanned = SP, empty on imported worker, or null
-      if (shift === 'SP' || (shift === '' && w.scheduleImported) || shift === '') {
+      // Unplanned = SP or empty on imported worker
+      if (shift === 'SP' || (shift === '' && w.scheduleImported)) {
         unplanedDays.push({
           day: dayIdx + 1,
           workerId: w.id,
@@ -10479,19 +10483,12 @@ function genSchedule(year, month) {
   const sch = {};
   workers.forEach(w => sch[w.id] = new Array(days).fill(''));
 
-  // If no workers have imported data, return empty
+  // Don't permanently cache empty schedules — only store if there's imported data
+  // to prevent localStorage bloat with empty months
   const importedWorkers = workers.filter(w => w.scheduleImported);
-  if (importedWorkers.length === 0) {
+  if (importedWorkers.length > 0) {
     scheduleData[key] = sch;
-    return sch;
   }
-
-  // For workers with imported schedule data, their data is already in scheduleData
-  // (set by integratePDFData). This function only generates for non-imported workers
-  // or when scheduleData doesn't exist for this month yet.
-  // Since we return early if scheduleData[key] exists, we only reach here for months
-  // that have no data at all. Just store empty.
-  scheduleData[key] = sch;
   return sch;
 }
 
@@ -12103,6 +12100,7 @@ function renderSPSuggestions() {
 }
 
 // Accept an SP suggestion: convert SP → assigned shift for that worker/day
+const shiftLabels_sp = { M: 'Mañana', T: 'Tarde', N: 'Noche' };
 function acceptSPSuggestion(wId, day, shift, plantaId) {
   const m = appState.currentMonth;
   const year = m.getFullYear();
@@ -12122,12 +12120,13 @@ function acceptSPSuggestion(wId, day, shift, plantaId) {
   }
 
   saveToStorage();
+  detectConflicts();
   const plantName = (PLANTAS.find(p => p.id === plantaId) || {}).name || plantaId;
   showToast(escHtml((w ? w.name : 'Trabajador')) + ' asignado a ' + (shiftLabels_sp[shift] || shift) + ' en ' + plantName, 'success');
   renderSchedule();
   renderDashboard();
+  try { renderSPSuggestions(); } catch(e) {}
 }
-const shiftLabels_sp = { M: 'Mañana', T: 'Tarde', N: 'Noche' };
 
 // ========= GESTOR DE COBERTURA SP =========
 // Panel lateral donde el supervisor elige planta → ve pool de trabajadores con SP →
@@ -12215,7 +12214,7 @@ function renderSPManagerContent() {
     let worked = 0;
     for (let d = windowStart; d <= dayIdx; d++) {
       const s = sch[wId] ? (sch[wId][d] || '').toString().trim() : '';
-      if (d === dayIdx || WORK.includes(s)) worked++;
+      if (WORK.includes(s)) worked++;
     }
     return worked < 7; // at least 1 free day
   }
@@ -12568,7 +12567,7 @@ function renderGestorSPView() {
     let worked = 0;
     for (let d = windowStart; d <= dayIdx; d++) {
       const s = sch[wId] ? (sch[wId][d] || '').toString().trim() : '';
-      if (d === dayIdx || WORK.includes(s)) worked++;
+      if (WORK.includes(s)) worked++;
     }
     return worked < 7;
   }
@@ -22747,15 +22746,19 @@ function autoAssignSP() {
     var bestScore = -Infinity;
 
     // Candidate plants: own plant first, then flotante targets
-    var candidatePlants = [spw.w.planta];
+    var candidatePlants = spw.w.planta ? [spw.w.planta] : [];
     if (spw.w.flotante) {
       PLANTAS.forEach(function(p) {
-        if (p.id !== 'refuerzo' && p.id !== spw.w.planta) candidatePlants.push(p.id);
+        if (p.id !== 'refuerzo' && candidatePlants.indexOf(p.id) === -1) candidatePlants.push(p.id);
       });
+    }
+    // If no plants determined, try all non-refuerzo
+    if (candidatePlants.length === 0) {
+      PLANTAS.forEach(function(p) { if (p.id !== 'refuerzo') candidatePlants.push(p.id); });
     }
 
     candidatePlants.forEach(function(pId) {
-      if (pId === 'refuerzo') return;
+      if (!pId || pId === 'refuerzo') return;
       var pObj = PLANTAS.find(function(pp) { return pp.id === pId; });
       if (!pObj) return;
       var covReq = PLANT_COVERAGE[pId] || {};
@@ -22888,14 +22891,21 @@ function applyAutoSPAssignments() {
 
   window._pendingAutoSP = {};
 
+  // Persist to storage
+  saveToStorage();
+  detectConflicts();
+
   // Log audit
   try {
     logAudit('auto-sp', 'Auto-asignación SP: ' + assignments.length + ' turnos asignados automáticamente', null, null);
   } catch(e) {}
 
-  // Re-render
+  // Re-render all affected views
   try { renderGestorSPView(); } catch(e) {}
-  try { renderAll(); } catch(e) {}
+  try { renderSchedule(); } catch(e) {}
+  try { renderDashboard(); } catch(e) {}
+
+  showToast(assignments.length + ' turnos SP asignados correctamente');
 }
 
 // ========== FEATURE: PLANT SCORING ==========
@@ -24116,7 +24126,7 @@ function renderVacacionesGantt() {
           const intensity = mh.total / maxHeat;
           const bg = intensity > 0.7 ? 'rgba(204,68,68,0.2)' : intensity > 0.4 ? 'rgba(230,126,34,0.15)' : intensity > 0.1 ? 'rgba(52,152,219,0.12)' : 'var(--bg)';
           const textColor = intensity > 0.7 ? '#cc4444' : intensity > 0.4 ? '#e67e22' : 'var(--text2)';
-          const impact = monthlyCoverageImpact[mh.month];
+          const impact = monthlyCoverageImpact[mh.month] || { gapShifts: 0 };
           return `
           <div style="text-align:center;padding:8px 2px;background:${bg};border-radius:8px;" title="${monthNames[mh.month]}: ${mh.total} dias-persona en vacaciones, ${impact.gapShifts} turnos sin cubrir">
             <div style="font-size:9px;font-weight:600;color:var(--text3);margin-bottom:2px;">${monthNames[mh.month]}</div>
