@@ -16510,11 +16510,14 @@ function renderImportManagement() {
     list.innerHTML = `<div style="font-size:14px;font-weight:500;margin-bottom:12px;">Planillas importadas <span style="font-size:11px;color:var(--text3);font-weight:400;">(${importedFiles.length})</span></div>`;
     importedFiles.forEach((f, idx) => {
       const shifts = countWorkerShiftsAllMonths(f.workerId);
+      const importDate = f.importDate ? new Date(f.importDate) : null;
+      const dateStr = importDate ? importDate.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + importDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : 'Sin fecha';
       list.innerHTML += `<div style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--surface);border-radius:12px;box-shadow:var(--shadow);margin-bottom:8px;">
         <div style="width:40px;height:40px;border-radius:10px;background:rgba(196,149,106,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
         <div style="flex:1;cursor:pointer;" onclick="showImportDetail(${idx})">
           <div style="font-size:13px;font-weight:600;">${escHtml(f.name)}</div>
-          <div style="font-size:11px;color:var(--text3);">${escHtml(f.file)} · ${escHtml(f.role)}</div>
+          <div style="font-size:11px;color:var(--text3);">${escHtml(f.file)} · ${escHtml(f.role || '')}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">Importado: ${dateStr}</div>
         </div>
         <div style="text-align:right;font-size:10px;color:var(--text2);line-height:1.6;">
           <div>${shifts.total} turnos · ${shifts.n} noches</div>
@@ -16522,7 +16525,7 @@ function renderImportManagement() {
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
           <div style="padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600;background:rgba(122,171,138,0.12);color:var(--success);">OK</div>
-          <button onclick="purgeWorkerData(${f.workerId})" title="Eliminar datos" style="background:rgba(196,122,122,0.1);border:none;width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--danger);display:flex;align-items:center;justify-content:center;">✕</button>
+          <button onclick="event.stopPropagation();purgeWorkerData(${f.workerId})" title="Eliminar datos de ${escHtml(f.name)}" style="background:rgba(196,122,122,0.1);border:none;width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--danger);display:flex;align-items:center;justify-content:center;transition:background 0.2s;" onmouseover="this.style.background='rgba(196,122,122,0.25)'" onmouseout="this.style.background='rgba(196,122,122,0.1)'">✕</button>
         </div>
       </div>`;
     });
@@ -16545,7 +16548,7 @@ function renderImportManagement() {
           <div>${shifts.total} turnos</div>
           <div>M:${shifts.m} T:${shifts.t} N:${shifts.n}</div>
         </div>
-        <button onclick="purgeWorkerData(${w.id})" title="Eliminar datos huérfanos" style="background:rgba(196,122,122,0.1);border:none;width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--danger);display:flex;align-items:center;justify-content:center;">✕</button>
+        <button onclick="event.stopPropagation();purgeWorkerData(${w.id})" title="Eliminar datos de ${escHtml(w.name)}" style="background:rgba(196,122,122,0.1);border:none;width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--danger);display:flex;align-items:center;justify-content:center;transition:background 0.2s;" onmouseover="this.style.background='rgba(196,122,122,0.25)'" onmouseout="this.style.background='rgba(196,122,122,0.1)'">✕</button>
       </div>`;
     });
   } else {
@@ -16578,7 +16581,8 @@ function showImportDetail(idx) {
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
         <div>
           <div style="font-size:16px;font-weight:600;margin-bottom:4px;">${escHtml(f.name)}</div>
-          <div style="font-size:12px;color:var(--text3);">${escHtml(f.role)} · ${escHtml(f.file)}</div>
+          <div style="font-size:12px;color:var(--text3);">${escHtml(f.role || '')} · ${escHtml(f.file)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">Importado: ${f.importDate ? new Date(f.importDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Sin fecha registrada'}</div>
         </div>
         <button onclick="this.closest('#importDetailPanel').style.display='none'" style="background:var(--surface2);border:none;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--text2);">✕</button>
       </div>
@@ -22546,7 +22550,7 @@ function autoAssignSP() {
     var n = 0;
     for (var d = 0; d < daysInMonth; d++) {
       var s = sch[wId] ? (sch[wId][d] || '').toString().trim() : '';
-      if (s === 'N') n++;
+      if (normalizeShift(s) === 'N') n++;
     }
     proposed.forEach(function(a) { if (a.wId === wId && a.shift === 'N') n++; });
     return n;
@@ -22554,10 +22558,11 @@ function autoAssignSP() {
 
   // Helper: count consecutive work days around dayIdx (including proposed)
   function countConsecutive(wId, dayIdx, proposed) {
-    var WORK = ['M','T','N','MR','M7H','M6R','M55'];
+    var WORK = ['M','T','N'];
     function isWork(d) {
       var s = sch[wId] ? (sch[wId][d] || '').toString().trim() : '';
-      if (WORK.includes(s)) return true;
+      var eff = normalizeShift(s) || s;
+      if (WORK.includes(eff)) return true;
       for (var i = 0; i < proposed.length; i++) {
         if (proposed[i].wId === wId && proposed[i].day === d) return true;
       }
@@ -22572,7 +22577,6 @@ function autoAssignSP() {
   // Helper: check shift compatibility with adjacent days
   function isShiftCompatible(wId, dayIdx, shift, proposed) {
     function getEffective(d) {
-      // Check proposed first
       for (var i = 0; i < proposed.length; i++) {
         if (proposed[i].wId === wId && proposed[i].day === d) return proposed[i].shift;
       }
@@ -22586,37 +22590,39 @@ function autoAssignSP() {
     return true;
   }
 
-  // Build all coverage gaps across all plants
-  var allGaps = [];
-  PLANTAS.forEach(function(p) {
-    if (p.id === 'refuerzo') return;
-    var covReq = PLANT_COVERAGE[p.id] || {};
-    for (var d = 0; d < daysInMonth; d++) {
-      ['M','T','N'].forEach(function(shift) {
-        var needed = (covReq[shift] || {}).min || 0;
-        if (needed === 0) return;
-        var onShift = 0;
-        workers.filter(function(ww) { return ww.planta === p.id; }).forEach(function(ww) {
-          var s = sch[ww.id] ? (sch[ww.id][d] || '').toString().trim() : '';
-          var eff = normalizeShift(s) || s;
-          if (eff === shift) onShift++;
-        });
-        if (onShift < needed) {
-          allGaps.push({ plantId: p.id, plantName: p.short, day: d, shift: shift, gap: needed - onShift, priority: (needed - onShift) * (shift === 'N' ? 1.5 : 1) });
-        }
-      });
-    }
-  });
-  // Sort gaps: biggest gaps first, nights slightly prioritized
-  allGaps.sort(function(a, b) { return b.priority - a.priority; });
+  // Helper: check if worker is SP on a given day
+  function isWorkerSP(wId, d) {
+    var s = sch[wId] ? (sch[wId][d] || '').toString().trim() : '';
+    if (s === 'SP') return true;
+    var w = workers.find(function(ww) { return ww.id === wId; });
+    if (w && w.scheduleImported && s === '') return true;
+    return false;
+  }
 
-  // Find all SP workers (explicit SP + empty days on imported workers)
+  // Count staff on shift for a plant+day+shift (including proposed assignments)
+  function countOnShift(plantId, day, shift, proposed) {
+    var count = 0;
+    workers.filter(function(ww) { return ww.planta === plantId; }).forEach(function(ww) {
+      // Check proposed first
+      for (var i = 0; i < proposed.length; i++) {
+        if (proposed[i].wId === ww.id && proposed[i].day === day) {
+          if (proposed[i].shift === shift) count++;
+          return;
+        }
+      }
+      var s = sch[ww.id] ? (sch[ww.id][day] || '').toString().trim() : '';
+      var eff = normalizeShift(s) || s;
+      if (eff === shift) count++;
+    });
+    return count;
+  }
+
+  // ── Collect all SP workers ──
   var spWorkers = [];
   workers.forEach(function(w) {
     var spDays = [];
     for (var d = 0; d < daysInMonth; d++) {
-      var s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
-      if (s === 'SP' || (s === '' && w.scheduleImported)) spDays.push(d);
+      if (isWorkerSP(w.id, d)) spDays.push(d);
     }
     if (spDays.length > 0) {
       var burnout = 0;
@@ -22625,61 +22631,156 @@ function autoAssignSP() {
       try { eq = getMultiMonthEquity(w.id, month, year); } catch(e) {}
       var totalShifts = 0;
       try { var st = getWorkerStats(w.id); totalShifts = (st.m || 0) + (st.t || 0) + (st.n || 0); } catch(e) {}
-      spWorkers.push({ w: w, spDays: spDays, burnout: burnout, equity: eq, totalShifts: totalShifts });
+      spWorkers.push({ w: w, spDays: spDays.slice(), burnout: burnout, equity: eq, totalShifts: totalShifts });
     }
   });
 
-  // For each gap, try to find best SP worker
-  allGaps.forEach(function(gap) {
-    // Find candidate workers: must have SP on that day, belong to gap's plant (or flotante), shift must be valid
+  if (spWorkers.length === 0) {
+    alert('No hay trabajadores con días SP (Sin Planificar) este mes.');
+    return;
+  }
+
+  // ── FASE 1: Cubrir huecos de cobertura (mínimos no alcanzados) ──
+  var coverageGaps = [];
+  PLANTAS.forEach(function(p) {
+    if (p.id === 'refuerzo') return;
+    var covReq = PLANT_COVERAGE[p.id] || {};
+    for (var d = 0; d < daysInMonth; d++) {
+      ['M','T','N'].forEach(function(shift) {
+        var needed = (covReq[shift] || {}).min || 0;
+        if (needed === 0) return;
+        var onShift = countOnShift(p.id, d, shift, []);
+        if (onShift < needed) {
+          coverageGaps.push({ plantId: p.id, plantName: p.short, day: d, shift: shift, gap: needed - onShift, priority: (needed - onShift) * (shift === 'N' ? 1.5 : 1), phase: 1 });
+        }
+      });
+    }
+  });
+  coverageGaps.sort(function(a, b) { return b.priority - a.priority; });
+
+  // Try to fill coverage gaps first
+  function tryAssign(gap) {
     var candidates = [];
     spWorkers.forEach(function(spw) {
       if (spw.spDays.indexOf(gap.day) === -1) return;
-      // Worker must belong to this plant or be flotante
       if (spw.w.planta !== gap.plantId && !spw.w.flotante) return;
-      // Already assigned this day in proposed?
       var alreadyAssigned = false;
       assignments.forEach(function(a) { if (a.wId === spw.w.id && a.day === gap.day) alreadyAssigned = true; });
       if (alreadyAssigned) return;
-      // Check shift compatibility
       if (!isShiftCompatible(spw.w.id, gap.day, gap.shift, assignments)) return;
-      // Check night limit
       if (gap.shift === 'N' && countNights(spw.w.id, assignments) >= SP_RULES.maxNightsPerMonth) return;
-      // Check consecutive days
       if (countConsecutive(spw.w.id, gap.day, assignments) > SP_RULES.maxConsecutiveDays) return;
 
-      // Score: lower is better (less burnout, fewer shifts, better equity)
       var score = spw.burnout * 2 + spw.totalShifts * 0.5;
       if (spw.equity && spw.equity.isChronicallyOverloaded) score += 50;
-      // Count how many assignments already proposed for this worker
       var proposedCount = 0;
       assignments.forEach(function(a) { if (a.wId === spw.w.id) proposedCount++; });
       score += proposedCount * 10;
       candidates.push({ spw: spw, score: score });
     });
-
-    if (candidates.length === 0) return;
+    if (candidates.length === 0) return false;
     candidates.sort(function(a, b) { return a.score - b.score; });
     var best = candidates[0].spw;
-
     assignments.push({
-      wId: best.w.id,
-      wName: best.w.name,
-      plantId: gap.plantId,
-      plantName: gap.plantName,
-      day: gap.day,
-      shift: gap.shift,
+      wId: best.w.id, wName: best.w.name,
+      plantId: gap.plantId, plantName: gap.plantName,
+      day: gap.day, shift: gap.shift,
       burnout: best.burnout,
-      reason: 'Cobertura ' + gap.plantName + ' día ' + (gap.day + 1)
+      reason: gap.phase === 1 ? 'Cobertura mínima ' + gap.plantName + ' día ' + (gap.day + 1) : 'Refuerzo ' + gap.plantName + ' día ' + (gap.day + 1)
     });
-
-    // Remove this day from the worker's available SP days
     var idx = best.spDays.indexOf(gap.day);
     if (idx !== -1) best.spDays.splice(idx, 1);
+    return true;
+  }
+
+  coverageGaps.forEach(function(gap) { tryAssign(gap); });
+
+  // ── FASE 2: Asignar SP restantes como refuerzo (distribución equilibrada) ──
+  // For each remaining SP day, find the best plant+shift to reinforce
+  var remainingSP = [];
+  spWorkers.forEach(function(spw) {
+    spw.spDays.forEach(function(d) {
+      var alreadyAssigned = false;
+      assignments.forEach(function(a) { if (a.wId === spw.w.id && a.day === d) alreadyAssigned = true; });
+      if (!alreadyAssigned) remainingSP.push({ spw: spw, day: d });
+    });
+  });
+
+  // Sort: prioritize workers with more SP days (they need more assignments)
+  remainingSP.sort(function(a, b) { return b.spw.spDays.length - a.spw.spDays.length; });
+
+  remainingSP.forEach(function(item) {
+    var spw = item.spw;
+    var d = item.day;
+    // Check not already assigned
+    var alreadyAssigned = false;
+    assignments.forEach(function(a) { if (a.wId === spw.w.id && a.day === d) alreadyAssigned = true; });
+    if (alreadyAssigned) return;
+
+    // Find best plant+shift: prioritize own plant, then wherever needs most help
+    var bestOption = null;
+    var bestScore = -Infinity;
+
+    // Candidate plants: own plant first, then flotante targets
+    var candidatePlants = [spw.w.planta];
+    if (spw.w.flotante) {
+      PLANTAS.forEach(function(p) {
+        if (p.id !== 'refuerzo' && p.id !== spw.w.planta) candidatePlants.push(p.id);
+      });
+    }
+
+    candidatePlants.forEach(function(pId) {
+      if (pId === 'refuerzo') return;
+      var pObj = PLANTAS.find(function(pp) { return pp.id === pId; });
+      if (!pObj) return;
+      var covReq = PLANT_COVERAGE[pId] || {};
+
+      ['M','T','N'].forEach(function(shift) {
+        if (!isShiftCompatible(spw.w.id, d, shift, assignments)) return;
+        if (shift === 'N' && countNights(spw.w.id, assignments) >= SP_RULES.maxNightsPerMonth) return;
+        if (countConsecutive(spw.w.id, d, assignments) > SP_RULES.maxConsecutiveDays) return;
+
+        var needed = (covReq[shift] || {}).min || 0;
+        var onShift = countOnShift(pId, d, shift, assignments);
+
+        // Score: higher = more useful
+        // Big bonus if still under minimum coverage
+        var score = 0;
+        if (onShift < needed) {
+          score += (needed - onShift) * 100;
+        }
+        // Bonus for being closer to own plant
+        if (pId === spw.w.planta) score += 20;
+        // Prefer morning/afternoon over night for balance
+        if (shift === 'M') score += 5;
+        if (shift === 'T') score += 3;
+        // Slight penalty if plant already well-staffed for this shift
+        if (onShift > needed) score -= (onShift - needed) * 10;
+        // Penalty for worker burnout
+        score -= spw.burnout * 0.5;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestOption = { plantId: pId, plantName: pObj.short, shift: shift };
+        }
+      });
+    });
+
+    if (bestOption) {
+      assignments.push({
+        wId: spw.w.id, wName: spw.w.name,
+        plantId: bestOption.plantId, plantName: bestOption.plantName,
+        day: d, shift: bestOption.shift,
+        burnout: spw.burnout,
+        reason: 'Refuerzo ' + bestOption.plantName + ' día ' + (d + 1)
+      });
+      var idx = spw.spDays.indexOf(d);
+      if (idx !== -1) spw.spDays.splice(idx, 1);
+    }
   });
 
   if (assignments.length === 0) {
-    alert('No se encontraron asignaciones posibles. Puede que no haya huecos de cobertura o no haya trabajadores SP disponibles.');
+    alert('No se encontraron asignaciones posibles. Revisa que haya trabajadores con días SP y que cumplan las reglas de convenio.');
     return;
   }
 
