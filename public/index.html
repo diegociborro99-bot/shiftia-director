@@ -8980,6 +8980,7 @@ table.schedule tbody tr:hover {
         <div id="intelligenciaPanel" class="scroll-reveal" style="margin-top:32px;"></div>
         <div id="burnoutDetector" class="scroll-reveal" style="margin-top:32px;"></div>
         <div id="crossPlantSwapEngine" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="plantScoringPanel" class="scroll-reveal" style="margin-top:32px;"></div>
         <div id="equipoPlantaPanel" class="scroll-reveal" style="margin-top:32px;"></div>
         <div id="spSuggestionsPanel" class="scroll-reveal" style="margin-top:32px;"></div>
         <div id="auditLogContainer" class="scroll-reveal" style="margin-top:32px;"></div>
@@ -9508,9 +9509,7 @@ const PLANTAS = [
   { id: 'p2e', name: '2º Este', short: '2E' },
   { id: 'p3e', name: '3º Este', short: '3E' },
   { id: 'endo', name: 'Endoscopias', short: 'END' },
-  { id: 'ucin', name: 'UCIN', short: 'UCIN' },
   { id: 'urg', name: 'Urgencias', short: 'URG' },
-  { id: 'quir', name: 'Quirófano', short: 'QUI' },
   { id: 'refuerzo', name: 'Plantilla Refuerzo', short: 'REF' }
 ];
 let selectedPlanta = 'all'; // current filter
@@ -9522,14 +9521,12 @@ let PLANT_SUPERVISORS = {
   'p2e': { name: 'Carmen Díaz', role: 'Supervisora' },
   'p3e': { name: 'Rosa Martínez', role: 'Supervisora' },
   'endo': { name: 'Elena Suárez', role: 'Supervisora' },
-  'ucin': { name: 'Patricia Álvarez', role: 'Supervisora' },
   'urg': { name: 'Isabel Pérez', role: 'Supervisora' },
-  'quir': { name: 'Beatriz Rodríguez', role: 'Supervisora' },
   'refuerzo': { name: '', role: 'Supervisora' }
 };
 
 // Regla general: mínimo 2 enfermeras por turno + la supervisora (que no se cuenta en el mín.)
-// Excepciones: Endo y Quirófano sin noche; UCIN y Urgencias requieren 3 por su carga.
+// Excepciones: Endo sin noche; Urgencias requiere 3 por su carga.
 const PLANT_COVERAGE = {
   'p1n': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
   'p2n': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
@@ -9537,9 +9534,7 @@ const PLANT_COVERAGE = {
   'p2e': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
   'p3e': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
   'endo': { M: { min: 2 }, T: { min: 2 }, N: { min: 0 } },
-  'ucin': { M: { min: 3 }, T: { min: 3 }, N: { min: 2 } },
   'urg': { M: { min: 3 }, T: { min: 3 }, N: { min: 2 } },
-  'quir': { M: { min: 2 }, T: { min: 2 }, N: { min: 0 } },
   'refuerzo': { M: { min: 0 }, T: { min: 0 }, N: { min: 0 } }
 };
 
@@ -10862,19 +10857,22 @@ function renderDashboard() {
   // Render fatigue recommendations
   try { renderFatigueRecommendations(); } catch(e) { console.warn('[Shiftia] Fatigue recommendations error:', e); }
 
-  // Render advanced intelligence panels
-  try { renderPredictiveAbsenceEngine(); } catch(e) { console.warn('[Shiftia] Predictive absence error:', e); }
-  try { renderEquityDashboard(); } catch(e) { console.warn('[Shiftia] Equity dashboard error:', e); }
-  try { renderScheduleOptimizer(); } catch(e) { console.warn('[Shiftia] Schedule optimizer error:', e); }
-  try { renderSwapRecommender(); } catch(e) { console.warn('[Shiftia] Swap recommender error:', e); }
-  try { renderScenarioSimulator(); } catch(e) { console.warn('[Shiftia] Scenario simulator error:', e); }
-  try { renderPatternRecognition(); } catch(e) { console.warn('[Shiftia] Pattern recognition error:', e); }
+  // Render advanced intelligence panels (lazy loaded for performance)
   try { renderIntelligenciaShiftia(); } catch(e) { console.warn('[Shiftia] Inteligencia panel error:', e); }
-  try { renderBurnoutDetector(); } catch(e) { console.warn('[Shiftia] Burnout detector error:', e); }
-  try { renderCrossPlantSwapEngine(); } catch(e) { console.warn('[Shiftia] Cross-plant swap error:', e); }
+  lazyRenderPanel('predictiveAbsenceEngine', renderPredictiveAbsenceEngine);
+  lazyRenderPanel('equityDashboard', renderEquityDashboard);
+  lazyRenderPanel('scheduleOptimizer', renderScheduleOptimizer);
+  lazyRenderPanel('swapRecommender', renderSwapRecommender);
+  lazyRenderPanel('scenarioSimulator', renderScenarioSimulator);
+  lazyRenderPanel('patternRecognition', renderPatternRecognition);
+  lazyRenderPanel('burnoutDetector', renderBurnoutDetector);
+  lazyRenderPanel('crossPlantSwapEngine', renderCrossPlantSwapEngine);
+
+  // Render plant scoring
+  try { renderPlantScoring(); } catch(e) { console.warn('[Shiftia] Plant scoring error:', e); }
 
   // Render SP coverage suggestions
-  try { renderEquipoPlanta('equipoPlantaPanel'); } catch(e) { console.warn('[Shiftia] Equipo planta error:', e); }
+  lazyRenderPanel('equipoPlantaPanel', function() { renderEquipoPlanta('equipoPlantaPanel'); });
   try { renderSPSuggestions(); } catch(e) { console.warn('[Shiftia] SP suggestions error:', e); }
 
   // Render audit log
@@ -12663,7 +12661,13 @@ function renderGestorSPView() {
   html += '<div style="font-size:22px;font-weight:800;color:#dc2626;">' + plantGaps.length + '</div>';
   html += '<div style="font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;">Huecos</div>';
   html += '</div>';
-  html += '</div></div></div>';
+  html += '</div></div>';
+  // ── Auto-assign SP button ──
+  html += '<div style="margin-top:16px;display:flex;gap:10px;align-items:center;">';
+  html += '<button onclick="autoAssignSP();" style="display:flex;align-items:center;gap:8px;padding:12px 24px;border-radius:14px;border:none;background:linear-gradient(135deg,var(--primary),var(--accent));color:white;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.15);transition:all 0.2s;">' + shiftiaIcon('bolt', 18, 'white') + ' Auto-asignar SP</button>';
+  html += '<span style="font-size:11px;color:var(--text3);">Asigna turnos automáticamente priorizando cobertura, equidad y bienestar</span>';
+  html += '</div>';
+  html += '</div>';
 
   // ── PLANT SELECTOR (big visual tabs) ──
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;">';
@@ -13308,7 +13312,7 @@ function renderPlantMap() {
     [PLANTAS.find(p=>p.id==='p2n'), PLANTAS.find(p=>p.id==='p2e')],
     [PLANTAS.find(p=>p.id==='p1n'), null],
   ];
-  const servicePlants = PLANTAS.filter(p => ['endo','ucin','urg','quir','refuerzo'].includes(p.id));
+  const servicePlants = PLANTAS.filter(p => ['endo','urg','refuerzo'].includes(p.id));
 
   let html = `<div class="plant-map-panel" onclick="event.stopPropagation()">
     <div class="plant-map-header">
@@ -21804,7 +21808,7 @@ function renderScenarioSimulator() {
       desc: affectedCount + ' trabajadores de baja simultánea',
       impactPct: -scenario3Impact,
       plants: PLANTAS.slice(0, 3).map(p => p.name),
-      actions: ['Protocolo de emergencia', 'Personal de refuerzo', 'Priorizar UCIN/URG']
+      actions: ['Protocolo de emergencia', 'Personal de refuerzo', 'Priorizar URG']
     }
   ];
 
@@ -22444,6 +22448,494 @@ function renderIntelligenciaShiftia() {
   }
 
   html += '</div>';
+  container.innerHTML = html;
+}
+
+// ========== FEATURE: RENDER CACHE & LAZY LOADING ==========
+var _renderCache = {};
+var _renderCacheTs = 0;
+function getCachedStats(wId) {
+  var ts = Math.floor(Date.now() / 60000);
+  if (ts !== _renderCacheTs) { _renderCache = {}; _renderCacheTs = ts; }
+  if (!_renderCache[wId]) {
+    var now = new Date();
+    _renderCache[wId] = {
+      stats: getWorkerStats(wId),
+      equity: getMultiMonthEquity(wId, now.getMonth(), now.getFullYear()),
+      fatigue: getAccumulatedFatigue(wId, now.getDate(), now.getMonth(), now.getFullYear())
+    };
+  }
+  return _renderCache[wId];
+}
+
+function lazyRenderPanel(containerId, renderFn) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  // Reset rendered state so panels re-render on dashboard refresh
+  el.dataset.rendered = 'false';
+  el.innerHTML = '<div style="min-height:80px;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:12px;">Cargando panel...</div>';
+  var obs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        el.dataset.rendered = 'true';
+        try { renderFn(); } catch(e) { console.warn('[Shiftia] Lazy render error:', containerId, e); }
+        obs.disconnect();
+      }
+    });
+  }, { rootMargin: '200px' });
+  obs.observe(el);
+}
+
+// ========== FEATURE: AUTO-ASSIGN SP ==========
+function autoAssignSP() {
+  var m = appState.currentMonth;
+  var year = m.getFullYear();
+  var month = m.getMonth();
+  var daysInMonth = new Date(year, month + 1, 0).getDate();
+  var sch = genSchedule(year, month);
+  var assignments = [];
+
+  // Helper: count nights this month for a worker (including proposed assignments)
+  function countNights(wId, proposed) {
+    var n = 0;
+    for (var d = 0; d < daysInMonth; d++) {
+      var s = sch[wId] ? (sch[wId][d] || '').toString().trim() : '';
+      if (s === 'N') n++;
+    }
+    proposed.forEach(function(a) { if (a.wId === wId && a.shift === 'N') n++; });
+    return n;
+  }
+
+  // Helper: count consecutive work days around dayIdx (including proposed)
+  function countConsecutive(wId, dayIdx, proposed) {
+    var WORK = ['M','T','N','MR','M7H','M6R','M55'];
+    function isWork(d) {
+      var s = sch[wId] ? (sch[wId][d] || '').toString().trim() : '';
+      if (WORK.includes(s)) return true;
+      for (var i = 0; i < proposed.length; i++) {
+        if (proposed[i].wId === wId && proposed[i].day === d) return true;
+      }
+      return false;
+    }
+    var count = 1; // the day itself
+    for (var d = dayIdx - 1; d >= 0; d--) { if (isWork(d)) count++; else break; }
+    for (var d2 = dayIdx + 1; d2 < daysInMonth; d2++) { if (isWork(d2)) count++; else break; }
+    return count;
+  }
+
+  // Helper: check shift compatibility with adjacent days
+  function isShiftCompatible(wId, dayIdx, shift, proposed) {
+    function getEffective(d) {
+      // Check proposed first
+      for (var i = 0; i < proposed.length; i++) {
+        if (proposed[i].wId === wId && proposed[i].day === d) return proposed[i].shift;
+      }
+      var s = sch[wId] ? (sch[wId][d] || '').toString().trim() : '';
+      return normalizeShift(s) || s;
+    }
+    var prevEff = dayIdx > 0 ? getEffective(dayIdx - 1) : '';
+    var nextEff = dayIdx < daysInMonth - 1 ? getEffective(dayIdx + 1) : '';
+    if (prevEff === 'N' && (shift === 'M' || shift === 'T')) return false;
+    if (shift === 'N' && (nextEff === 'M' || nextEff === 'T')) return false;
+    return true;
+  }
+
+  // Build all coverage gaps across all plants
+  var allGaps = [];
+  PLANTAS.forEach(function(p) {
+    if (p.id === 'refuerzo') return;
+    var covReq = PLANT_COVERAGE[p.id] || {};
+    for (var d = 0; d < daysInMonth; d++) {
+      ['M','T','N'].forEach(function(shift) {
+        var needed = (covReq[shift] || {}).min || 0;
+        if (needed === 0) return;
+        var onShift = 0;
+        workers.filter(function(ww) { return ww.planta === p.id; }).forEach(function(ww) {
+          var s = sch[ww.id] ? (sch[ww.id][d] || '').toString().trim() : '';
+          var eff = normalizeShift(s) || s;
+          if (eff === shift) onShift++;
+        });
+        if (onShift < needed) {
+          allGaps.push({ plantId: p.id, plantName: p.short, day: d, shift: shift, gap: needed - onShift, priority: (needed - onShift) * (shift === 'N' ? 1.5 : 1) });
+        }
+      });
+    }
+  });
+  // Sort gaps: biggest gaps first, nights slightly prioritized
+  allGaps.sort(function(a, b) { return b.priority - a.priority; });
+
+  // Find all SP workers
+  var spWorkers = [];
+  workers.forEach(function(w) {
+    var spDays = [];
+    for (var d = 0; d < daysInMonth; d++) {
+      var s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
+      if (s === 'SP') spDays.push(d);
+    }
+    if (spDays.length > 0) {
+      var burnout = 0;
+      try { burnout = computeBurnoutRisk(w.id).score; } catch(e) {}
+      var eq = null;
+      try { eq = getMultiMonthEquity(w.id, month, year); } catch(e) {}
+      var totalShifts = 0;
+      try { var st = getWorkerStats(w.id); totalShifts = (st.m || 0) + (st.t || 0) + (st.n || 0); } catch(e) {}
+      spWorkers.push({ w: w, spDays: spDays, burnout: burnout, equity: eq, totalShifts: totalShifts });
+    }
+  });
+
+  // For each gap, try to find best SP worker
+  allGaps.forEach(function(gap) {
+    // Find candidate workers: must have SP on that day, belong to gap's plant (or flotante), shift must be valid
+    var candidates = [];
+    spWorkers.forEach(function(spw) {
+      if (spw.spDays.indexOf(gap.day) === -1) return;
+      // Worker must belong to this plant or be flotante
+      if (spw.w.planta !== gap.plantId && !spw.w.flotante) return;
+      // Already assigned this day in proposed?
+      var alreadyAssigned = false;
+      assignments.forEach(function(a) { if (a.wId === spw.w.id && a.day === gap.day) alreadyAssigned = true; });
+      if (alreadyAssigned) return;
+      // Check shift compatibility
+      if (!isShiftCompatible(spw.w.id, gap.day, gap.shift, assignments)) return;
+      // Check night limit
+      if (gap.shift === 'N' && countNights(spw.w.id, assignments) >= SP_RULES.maxNightsPerMonth) return;
+      // Check consecutive days
+      if (countConsecutive(spw.w.id, gap.day, assignments) > SP_RULES.maxConsecutiveDays) return;
+
+      // Score: lower is better (less burnout, fewer shifts, better equity)
+      var score = spw.burnout * 2 + spw.totalShifts * 0.5;
+      if (spw.equity && spw.equity.isChronicallyOverloaded) score += 50;
+      // Count how many assignments already proposed for this worker
+      var proposedCount = 0;
+      assignments.forEach(function(a) { if (a.wId === spw.w.id) proposedCount++; });
+      score += proposedCount * 10;
+      candidates.push({ spw: spw, score: score });
+    });
+
+    if (candidates.length === 0) return;
+    candidates.sort(function(a, b) { return a.score - b.score; });
+    var best = candidates[0].spw;
+
+    assignments.push({
+      wId: best.w.id,
+      wName: best.w.name,
+      plantId: gap.plantId,
+      plantName: gap.plantName,
+      day: gap.day,
+      shift: gap.shift,
+      burnout: best.burnout,
+      reason: 'Cobertura ' + gap.plantName + ' día ' + (gap.day + 1)
+    });
+
+    // Remove this day from the worker's available SP days
+    var idx = best.spDays.indexOf(gap.day);
+    if (idx !== -1) best.spDays.splice(idx, 1);
+  });
+
+  if (assignments.length === 0) {
+    alert('No se encontraron asignaciones posibles. Puede que no haya huecos de cobertura o no haya trabajadores SP disponibles.');
+    return;
+  }
+
+  renderAutoSPPreview(assignments);
+}
+
+function renderAutoSPPreview(assignments) {
+  var overlay = document.createElement('div');
+  overlay.id = 'autoSPOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);';
+
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:var(--surface);border:1.5px solid var(--glass-border);border-radius:20px;padding:28px;max-width:700px;width:95%;max-height:80vh;overflow-y:auto;backdrop-filter:blur(24px);box-shadow:0 24px 48px rgba(0,0,0,0.2);';
+
+  var html = '';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">';
+  html += '<div>';
+  html += '<h2 style="font-size:20px;font-weight:800;color:var(--text);margin:0;">' + shiftiaIcon('bolt', 22, 'var(--accent)') + ' Auto-asignación SP</h2>';
+  html += '<p style="font-size:12px;color:var(--text3);margin:4px 0 0;">Se proponen ' + assignments.length + ' asignaciones basadas en cobertura, equidad y bienestar</p>';
+  html += '</div>';
+  html += '<button onclick="document.getElementById(\'autoSPOverlay\').remove();" style="background:none;border:none;color:var(--text3);font-size:24px;cursor:pointer;padding:4px;">&times;</button>';
+  html += '</div>';
+
+  // Group by plant
+  var byPlant = {};
+  assignments.forEach(function(a) {
+    if (!byPlant[a.plantName]) byPlant[a.plantName] = [];
+    byPlant[a.plantName].push(a);
+  });
+
+  var shiftColors = { M: '#2e8b7a', T: '#4a9dd4', N: '#c5a832' };
+  var shiftLabels = { M: 'Mañana', T: 'Tarde', N: 'Noche' };
+
+  Object.keys(byPlant).forEach(function(plantName) {
+    html += '<div style="margin-bottom:16px;">';
+    html += '<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px;">' + shiftiaIcon('hospital', 16, 'var(--primary)') + ' ' + escHtml(plantName) + '</div>';
+    byPlant[plantName].forEach(function(a) {
+      var burnoutColor = a.burnout < 30 ? '#27ae60' : a.burnout < 55 ? '#e89500' : '#dc2626';
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-bottom:6px;">';
+      html += '<span style="font-size:13px;font-weight:600;color:var(--text);min-width:130px;">' + escHtml(a.wName) + '</span>';
+      html += '<span style="font-size:11px;color:var(--text3);min-width:50px;">Día ' + (a.day + 1) + '</span>';
+      html += '<span style="display:inline-block;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;color:white;background:' + (shiftColors[a.shift] || 'var(--primary)') + ';">' + (shiftLabels[a.shift] || a.shift) + '</span>';
+      html += '<span style="font-size:10px;color:' + burnoutColor + ';font-weight:600;">Burnout: ' + a.burnout + '</span>';
+      html += '<span style="flex:1;text-align:right;font-size:10px;color:var(--text3);">' + escHtml(a.reason) + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+
+  html += '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">';
+  html += '<button onclick="document.getElementById(\'autoSPOverlay\').remove();" style="padding:10px 20px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;">Cancelar</button>';
+  html += '<button onclick="applyAutoSPAssignments();document.getElementById(\'autoSPOverlay\').remove();" style="padding:10px 24px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--primary),var(--accent));color:white;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.15);">' + shiftiaIcon('bolt', 14, 'white') + ' Aplicar todo (' + assignments.length + ')</button>';
+  html += '</div>';
+
+  modal.innerHTML = html;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // Store assignments globally for applyAutoSPAssignments
+  window._pendingAutoSPAssignments = assignments;
+}
+
+function applyAutoSPAssignments() {
+  var assignments = window._pendingAutoSPAssignments || [];
+  if (assignments.length === 0) return;
+
+  var m = appState.currentMonth;
+  var year = m.getFullYear();
+  var month = m.getMonth();
+  var sch = genSchedule(year, month);
+
+  assignments.forEach(function(a) {
+    if (!sch[a.wId]) sch[a.wId] = [];
+    sch[a.wId][a.day] = a.shift;
+  });
+
+  window._pendingAutoSPAssignments = [];
+
+  // Log audit
+  try {
+    logAudit('auto-sp', 'Auto-asignación SP: ' + assignments.length + ' turnos asignados automáticamente', null, null);
+  } catch(e) {}
+
+  // Re-render
+  try { renderGestorSPView(); } catch(e) {}
+  try { renderAll(); } catch(e) {}
+}
+
+// ========== FEATURE: PLANT SCORING ==========
+function renderPlantScoring() {
+  var container = document.getElementById('plantScoringPanel');
+  if (!container) return;
+  if (workers.length === 0) { container.innerHTML = ''; return; }
+
+  var m = appState.currentMonth;
+  var year = m.getFullYear();
+  var month = m.getMonth();
+  var daysInMonth = new Date(year, month + 1, 0).getDate();
+  var sch = genSchedule(year, month);
+
+  var plantScores = [];
+
+  PLANTAS.forEach(function(planta) {
+    if (planta.id === 'refuerzo') return;
+    var plantWorkers = workers.filter(function(w) { return w.planta === planta.id; });
+    if (plantWorkers.length === 0) {
+      plantScores.push({ planta: planta, total: 0, cobertura: 0, equidad: 0, bienestar: 0, competencia: 0 });
+      return;
+    }
+
+    // 1. COBERTURA (30%): % of shifts meeting PLANT_COVERAGE minimums
+    var covReq = PLANT_COVERAGE[planta.id] || {};
+    var totalSlots = 0;
+    var coveredSlots = 0;
+    for (var d = 0; d < daysInMonth; d++) {
+      ['M','T','N'].forEach(function(shift) {
+        var needed = (covReq[shift] || {}).min || 0;
+        if (needed === 0) return;
+        totalSlots++;
+        var onShift = 0;
+        plantWorkers.forEach(function(ww) {
+          var s = sch[ww.id] ? (sch[ww.id][d] || '').toString().trim() : '';
+          var eff = normalizeShift(s) || s;
+          if (eff === shift) onShift++;
+        });
+        if (onShift >= needed) coveredSlots++;
+      });
+    }
+    var coberturaScore = totalSlots > 0 ? Math.round((coveredSlots / totalSlots) * 100) : 100;
+
+    // 2. EQUIDAD (25%): inverse of Gini coefficient for hours
+    var hours = [];
+    plantWorkers.forEach(function(w) {
+      try {
+        var st = getWorkerStats(w.id);
+        hours.push(st.h || 0);
+      } catch(e) { hours.push(0); }
+    });
+    var equidadScore = 100;
+    if (hours.length > 1) {
+      // Gini coefficient
+      hours.sort(function(a, b) { return a - b; });
+      var n = hours.length;
+      var totalH = 0;
+      hours.forEach(function(h) { totalH += h; });
+      if (totalH > 0) {
+        var sumOfDiffs = 0;
+        for (var i = 0; i < n; i++) {
+          for (var j = 0; j < n; j++) {
+            sumOfDiffs += Math.abs(hours[i] - hours[j]);
+          }
+        }
+        var gini = sumOfDiffs / (2 * n * totalH);
+        equidadScore = Math.round((1 - gini) * 100);
+      }
+    }
+
+    // 3. BIENESTAR (25%): inverse of average burnout
+    var totalBurnout = 0;
+    var burnoutCount = 0;
+    plantWorkers.forEach(function(w) {
+      try {
+        var br = computeBurnoutRisk(w.id);
+        totalBurnout += br.score;
+        burnoutCount++;
+      } catch(e) {}
+    });
+    var avgBurnout = burnoutCount > 0 ? totalBurnout / burnoutCount : 0;
+    var bienestarScore = Math.round(100 - avgBurnout);
+
+    // 4. COMPETENCIA (20%): average of subjective ratings
+    var ratingSum = 0;
+    var ratingCount = 0;
+    plantWorkers.forEach(function(w) {
+      var subj = ((workerMemory[w.id] || {}).subjective || {});
+      ['tecnica', 'colaboracion', 'emergencias'].forEach(function(key) {
+        if (subj[key] && subj[key] > 0) {
+          ratingSum += subj[key];
+          ratingCount++;
+        }
+      });
+    });
+    var avgRating = ratingCount > 0 ? ratingSum / ratingCount : 3; // default 3/5
+    var competenciaScore = Math.round((avgRating / 5) * 100);
+
+    // Composite
+    var total = Math.round(coberturaScore * 0.30 + equidadScore * 0.25 + bienestarScore * 0.25 + competenciaScore * 0.20);
+
+    // Trend: compare to 3-month average if data available
+    var trend = 0;
+    try {
+      var prevScores = [];
+      for (var mi = 1; mi <= 3; mi++) {
+        var pm = month - mi, py = year;
+        if (pm < 0) { pm += 12; py--; }
+        var prevKey = py + '-' + pm;
+        if (scheduleData[prevKey]) {
+          var prevSch = scheduleData[prevKey];
+          var prevDays = new Date(py, pm + 1, 0).getDate();
+          var prevTotal2 = 0, prevCov2 = 0;
+          for (var pd = 0; pd < prevDays; pd++) {
+            ['M','T','N'].forEach(function(shift) {
+              var needed2 = (covReq[shift] || {}).min || 0;
+              if (needed2 === 0) return;
+              prevTotal2++;
+              var on2 = 0;
+              plantWorkers.forEach(function(ww) {
+                var s2 = prevSch[ww.id] ? (prevSch[ww.id][pd] || '').toString().trim() : '';
+                var eff2 = normalizeShift(s2) || s2;
+                if (eff2 === shift) on2++;
+              });
+              if (on2 >= needed2) prevCov2++;
+            });
+          }
+          if (prevTotal2 > 0) prevScores.push(Math.round((prevCov2 / prevTotal2) * 100 * 0.30 + equidadScore * 0.25 + bienestarScore * 0.25 + competenciaScore * 0.20));
+        }
+      }
+      if (prevScores.length > 0) {
+        var avgPrev = 0;
+        prevScores.forEach(function(s) { avgPrev += s; });
+        avgPrev /= prevScores.length;
+        trend = total - avgPrev;
+      }
+    } catch(e) {}
+
+    plantScores.push({
+      planta: planta,
+      total: total,
+      cobertura: coberturaScore,
+      equidad: equidadScore,
+      bienestar: bienestarScore,
+      competencia: competenciaScore,
+      trend: trend
+    });
+  });
+
+  // Render
+  var html = '';
+  html += '<div style="background:var(--surface);border:1.5px solid var(--glass-border);border-radius:20px;padding:28px;backdrop-filter:blur(var(--glass-blur));">';
+  html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">';
+  html += shiftiaIcon('chart', 24, 'var(--accent)');
+  html += '<div><div style="font-size:18px;font-weight:800;color:var(--text);">Scoring de Equipo por Planta</div>';
+  html += '<div style="font-size:12px;color:var(--text3);">Puntuación compuesta 0-100 basada en cobertura, equidad, bienestar y competencia</div></div>';
+  html += '</div>';
+
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">';
+
+  plantScores.forEach(function(ps) {
+    var scoreColor = ps.total > 75 ? '#27ae60' : ps.total > 50 ? '#e89500' : '#dc2626';
+    var trendIcon = ps.trend > 2 ? '&#9650;' : ps.trend < -2 ? '&#9660;' : '&#9644;';
+    var trendColor = ps.trend > 2 ? '#27ae60' : ps.trend < -2 ? '#dc2626' : 'var(--text3)';
+
+    html += '<div style="background:var(--bg);border:1.5px solid var(--border);border-radius:16px;padding:20px;position:relative;">';
+
+    // Header
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
+    html += '<div style="font-size:15px;font-weight:700;color:var(--text);">' + escHtml(ps.planta.name) + '</div>';
+    html += '<span style="font-size:14px;color:' + trendColor + ';font-weight:700;" title="Tendencia vs 3 meses">' + trendIcon + ' ' + (ps.trend > 0 ? '+' : '') + Math.round(ps.trend) + '</span>';
+    html += '</div>';
+
+    // Circular gauge SVG
+    var radius = 40;
+    var circumference = 2 * Math.PI * radius;
+    var pct = ps.total / 100;
+    var dashOffset = circumference * (1 - pct);
+
+    html += '<div style="display:flex;align-items:center;gap:20px;margin-bottom:16px;">';
+    html += '<svg width="100" height="100" viewBox="0 0 100 100" style="flex-shrink:0;">';
+    html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--border)" stroke-width="8" />';
+    html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="' + scoreColor + '" stroke-width="8" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + dashOffset + '" stroke-linecap="round" transform="rotate(-90 50 50)" style="transition:stroke-dashoffset 0.8s ease;" />';
+    html += '<text x="50" y="50" text-anchor="middle" dominant-baseline="central" style="font-size:22px;font-weight:800;fill:' + scoreColor + ';">' + ps.total + '</text>';
+    html += '</svg>';
+
+    // Sub-scores as bars
+    html += '<div style="flex:1;display:flex;flex-direction:column;gap:8px;">';
+    var subs = [
+      { label: 'Cobertura', value: ps.cobertura, weight: '30%' },
+      { label: 'Equidad', value: ps.equidad, weight: '25%' },
+      { label: 'Bienestar', value: ps.bienestar, weight: '25%' },
+      { label: 'Competencia', value: ps.competencia, weight: '20%' }
+    ];
+    subs.forEach(function(sub) {
+      var barColor = sub.value > 75 ? '#27ae60' : sub.value > 50 ? '#e89500' : '#dc2626';
+      html += '<div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;">';
+      html += '<span style="color:var(--text2);font-weight:600;">' + sub.label + ' <span style="color:var(--text3);font-weight:400;">(' + sub.weight + ')</span></span>';
+      html += '<span style="color:' + barColor + ';font-weight:700;">' + sub.value + '</span>';
+      html += '</div>';
+      html += '<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">';
+      html += '<div style="height:100%;width:' + sub.value + '%;background:' + barColor + ';border-radius:3px;transition:width 0.6s ease;"></div>';
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    html += '</div>'; // flex row
+    html += '</div>'; // card
+  });
+
+  html += '</div>'; // grid
+  html += '</div>'; // outer container
+
   container.innerHTML = html;
 }
 
