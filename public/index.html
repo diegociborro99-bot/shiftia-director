@@ -9456,7 +9456,22 @@ function escHtml(str) {
 function normalizeShift(s) {
   if (!s) return '';
   const code = s.toString().trim();
+  if (/^SIN\s*PLANIF/i.test(code) || code === 'S.P.' || code === 'SINPLAN') return 'SP';
   return ['MR','M7H','M6R','M55'].includes(code) ? 'M' : code;
+}
+
+// Check if a day is "Sin Planificar" — explicit SP or empty day on imported worker
+function isSP(wId, dayIndex) {
+  const now = new Date();
+  const key = now.getFullYear() + '-' + now.getMonth();
+  const sch = scheduleData[key];
+  if (!sch || !sch[wId]) return false;
+  const s = (sch[wId][dayIndex] || '').toString().trim();
+  if (s === 'SP') return true;
+  // Empty day on an imported worker = sin planificar
+  const w = workers.find(function(w) { return w.id === wId; });
+  if (w && w.scheduleImported && s === '') return true;
+  return false;
 }
 
 // ========== DATA MODEL ==========
@@ -9505,7 +9520,6 @@ let nextWorkerId = 1;
 const PLANTAS = [
   { id: 'p1n', name: '1º Norte', short: '1N' },
   { id: 'p2n', name: '2º Norte', short: '2N' },
-  { id: 'p3n', name: '3º Norte', short: '3N' },
   { id: 'p2e', name: '2º Este', short: '2E' },
   { id: 'p3e', name: '3º Este', short: '3E' },
   { id: 'endo', name: 'Endoscopias', short: 'END' },
@@ -9517,7 +9531,6 @@ let selectedPlanta = 'all'; // current filter
 let PLANT_SUPERVISORS = {
   'p1n': { name: 'Marta López', role: 'Supervisora' },
   'p2n': { name: 'Ana García', role: 'Supervisora' },
-  'p3n': { name: 'Lucía Fernández', role: 'Supervisora' },
   'p2e': { name: 'Carmen Díaz', role: 'Supervisora' },
   'p3e': { name: 'Rosa Martínez', role: 'Supervisora' },
   'endo': { name: 'Elena Suárez', role: 'Supervisora' },
@@ -9530,7 +9543,6 @@ let PLANT_SUPERVISORS = {
 const PLANT_COVERAGE = {
   'p1n': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
   'p2n': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
-  'p3n': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
   'p2e': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
   'p3e': { M: { min: 2 }, T: { min: 2 }, N: { min: 2 } },
   'endo': { M: { min: 2 }, T: { min: 2 }, N: { min: 0 } },
@@ -9591,9 +9603,9 @@ function getUnplannedDays(year, month) {
 
   for (let dayIdx = 0; dayIdx < daysInMonth; dayIdx++) {
     workers.forEach(w => {
-      const shift = sch[w.id] ? sch[w.id][dayIdx] : '';
-      // Unplanned = empty or blank string (worker available but not assigned)
-      if (shift === '' || shift === null) {
+      const shift = sch[w.id] ? (sch[w.id][dayIdx] || '').toString().trim() : '';
+      // Unplanned = SP, empty on imported worker, or null
+      if (shift === 'SP' || (shift === '' && w.scheduleImported) || shift === '') {
         unplanedDays.push({
           day: dayIdx + 1,
           workerId: w.id,
@@ -10824,7 +10836,10 @@ function renderDashboard() {
       let spCount = 0;
       workers.forEach(w => {
         const ws = sch[w.id];
-        if (ws) ws.forEach(s => { if (s === 'SP') spCount++; });
+        if (ws) ws.forEach(s => {
+          const v = (s || '').toString().trim();
+          if (v === 'SP' || (v === '' && w.scheduleImported)) spCount++;
+        });
       });
       spCardEl.textContent = spCount > 0 ? spCount + ' días SP este mes' : 'Abrir gestor';
     } catch(e) { spCardEl.textContent = 'Abrir gestor'; }
@@ -11483,11 +11498,11 @@ function renderEquipoPlanta(targetId) {
         stripHtml += '<div style="width:100%;height:14px;background:' + bg + ';border-radius:1px;" title="Dia ' + (d+1) + ': ' + (s || '-') + '"></div>';
       }
 
-      // SP count
+      // SP count (explicit SP + empty days on imported workers)
       let spDays = 0;
       for (let d = 0; d < daysInMonth; d++) {
         const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
-        if (s === 'SP') spDays++;
+        if (s === 'SP' || (s === '' && w.scheduleImported)) spDays++;
       }
 
       const cardId = 'equipo-card-' + w.id;
@@ -11793,7 +11808,7 @@ function renderSPSuggestions() {
     spWorkerDays[w.id] = [];
     for (let d = 0; d < daysInMonth; d++) {
       const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
-      if (s === 'SP') {
+      if (s === 'SP' || (s === '' && w.scheduleImported)) {
         spByDay[d]++;
         spWorkerDays[w.id].push(d);
         totalSP++;
@@ -11890,7 +11905,7 @@ function renderSPSuggestions() {
     if (spByDay[gap.day] === 0) return; // No SP available
     const candidates = workers.filter(w => {
       const ws = sch[w.id] ? (sch[w.id][gap.day] || '').toString().trim() : '';
-      return ws === 'SP' && !assignedThisRound.has(w.id + '-' + gap.day);
+      return (ws === 'SP' || (ws === '' && w.scheduleImported)) && !assignedThisRound.has(w.id + '-' + gap.day);
     });
     // Score and rank
     const scored = candidates.map(w => ({
@@ -12247,7 +12262,7 @@ function renderSPManagerContent() {
     const spDays = [];
     for (let d = 0; d < daysInMonth; d++) {
       const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
-      if (s === 'SP') {
+      if (s === 'SP' || (s === '' && w.scheduleImported)) {
         const { valid, reasons } = getValidShifts(w.id, d);
         spDays.push({ day: d, dayLabel: d + 1, validShifts: valid, reasons });
       }
@@ -12581,7 +12596,7 @@ function renderGestorSPView() {
     const spDays = [];
     for (let d = 0; d < daysInMonth; d++) {
       const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
-      if (s === 'SP') {
+      if (s === 'SP' || (s === '' && w.scheduleImported)) {
         const { valid, reasons } = getValidShiftsLocal(w.id, d);
         spDays.push({ day: d, dayLabel: d + 1, validShifts: valid, reasons });
       }
@@ -13308,7 +13323,7 @@ function renderPlantMap() {
   }
 
   const floorLayout = [
-    [PLANTAS.find(p=>p.id==='p3n'), PLANTAS.find(p=>p.id==='p3e')],
+    [PLANTAS.find(p=>p.id==='p3e'), null],
     [PLANTAS.find(p=>p.id==='p2n'), PLANTAS.find(p=>p.id==='p2e')],
     [PLANTAS.find(p=>p.id==='p1n'), null],
   ];
@@ -16209,12 +16224,14 @@ async function parsePDFFile(file) {
 
     // Map best row items to shifts
     bestRow.forEach(w => {
-      const code = w.text.toUpperCase();
+      let code = w.text.toUpperCase();
       // Skip pure weekday letters that are NOT shift codes
       if (code.length === 1 && 'LXJVS'.includes(code)) return;
       // Skip numbers
       if (/^\d+\.?\d*$/.test(code)) return;
       if (code === 'HORAS' || code === 'MES') return;
+      // Normalize "Sin Planificar" variants to SP
+      if (/^SIN\s*PLANIF/i.test(code) || code === 'S.P.' || code === 'SINPLAN') code = 'SP';
 
       const day = xToDay(w.x);
       if (day >= 1 && day <= daysInMonth && VALID_SHIFTS.includes(code)) {
@@ -16296,8 +16313,16 @@ function integratePDFData(parsedData, matchedWorker) {
       workers.forEach(w => scheduleData[key][w.id] = new Array(daysInMonth).fill(''));
     }
 
-    // Set this worker's shifts
-    scheduleData[key][wId] = parsedData.shifts[m];
+    // Set this worker's shifts — normalize empty days to 'SP' (sin planificar)
+    const monthShifts = parsedData.shifts[m].slice();
+    const daysInM = new Date(year, m + 1, 0).getDate();
+    for (let d = 0; d < daysInM; d++) {
+      const val = (monthShifts[d] || '').toString().trim();
+      if (val === '' || val === '-') {
+        monthShifts[d] = 'SP';
+      }
+    }
+    scheduleData[key][wId] = monthShifts;
   }
 
   // Mark worker as imported
@@ -18261,6 +18286,23 @@ async function loadFromStorage() {
 
     const hasData = Object.keys(scheduleData).length > 0;
     if (hasData) {
+      // Migration: normalize empty days to 'SP' for imported workers
+      const importedIds = new Set(workers.filter(w => w.scheduleImported).map(w => w.id));
+      if (importedIds.size === 0) importedFiles.forEach(f => { if (f.workerId) importedIds.add(f.workerId); });
+      if (importedIds.size > 0) {
+        let migrated = 0;
+        for (const key in scheduleData) {
+          const sch = scheduleData[key];
+          importedIds.forEach(wId => {
+            if (!sch[wId]) return;
+            for (let d = 0; d < sch[wId].length; d++) {
+              const v = (sch[wId][d] || '').toString().trim();
+              if (v === '' || v === '-') { sch[wId][d] = 'SP'; migrated++; }
+            }
+          });
+        }
+        if (migrated > 0) console.log('[Shiftia] Migración SP: ' + migrated + ' días vacíos → SP');
+      }
       lastSyncTime = new Date();
       console.log('[Shiftia] Datos restaurados:', Object.keys(scheduleData).length, 'meses,', importedFiles.length, 'planillas');
     }
@@ -22568,13 +22610,13 @@ function autoAssignSP() {
   // Sort gaps: biggest gaps first, nights slightly prioritized
   allGaps.sort(function(a, b) { return b.priority - a.priority; });
 
-  // Find all SP workers
+  // Find all SP workers (explicit SP + empty days on imported workers)
   var spWorkers = [];
   workers.forEach(function(w) {
     var spDays = [];
     for (var d = 0; d < daysInMonth; d++) {
       var s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
-      if (s === 'SP') spDays.push(d);
+      if (s === 'SP' || (s === '' && w.scheduleImported)) spDays.push(d);
     }
     if (spDays.length > 0) {
       var burnout = 0;
