@@ -22329,7 +22329,7 @@ function renderIntelligenciaShiftia() {
   // Compute summary data
   var burnoutResults = [];
   workers.forEach(function(w) {
-    try { burnoutResults.push(computeBurnoutRisk(w.id)); } catch(e) {}
+    try { var r = computeBurnoutRisk(w.id); r.wId = w.id; burnoutResults.push(r); } catch(e) {}
   });
   var burnoutAtRisk = burnoutResults.filter(function(r) { return r.score >= 30; }).length;
   var burnoutCritical = burnoutResults.filter(function(r) { return r.level === 'critico'; }).length;
@@ -22367,7 +22367,7 @@ function renderIntelligenciaShiftia() {
         var cr = PLANT_COVERAGE[pl.id] || {};
         ['M','T','N'].forEach(function(sh) {
           var mn = (cr[sh] || {}).min || 0; if (mn === 0) return;
-          var asgn = 0; workers.forEach(function(w2) { if (w2.planta !== pl.id) return; var ws = (_sch[w2.id] || [])[dI]; if (ws && ws.toString().trim() === sh) asgn++; });
+          var asgn = 0; workers.forEach(function(w2) { if (w2.planta !== pl.id) return; var ws = (_sch[w2.id] || [])[dI]; if (ws && normalizeShift(ws.toString().trim()) === sh) asgn++; });
           if (mn - asgn > 0) swapCount++;
         });
       });
@@ -22471,6 +22471,8 @@ function getCachedStats(wId) {
 function lazyRenderPanel(containerId, renderFn) {
   var el = document.getElementById(containerId);
   if (!el) return;
+  // Disconnect previous observer if exists
+  if (el._shiftiaObs) { el._shiftiaObs.disconnect(); el._shiftiaObs = null; }
   // Reset rendered state so panels re-render on dashboard refresh
   el.dataset.rendered = 'false';
   el.innerHTML = '<div style="min-height:80px;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:12px;">Cargando panel...</div>';
@@ -22480,9 +22482,11 @@ function lazyRenderPanel(containerId, renderFn) {
         el.dataset.rendered = 'true';
         try { renderFn(); } catch(e) { console.warn('[Shiftia] Lazy render error:', containerId, e); }
         obs.disconnect();
+        el._shiftiaObs = null;
       }
     });
   }, { rootMargin: '200px' });
+  el._shiftiaObs = obs;
   obs.observe(el);
 }
 
@@ -22692,17 +22696,19 @@ function renderAutoSPPreview(assignments) {
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
 
-  // Store assignments globally for applyAutoSPAssignments
-  window._pendingAutoSPAssignments = assignments;
+  // Store assignments + source month globally for applyAutoSPAssignments
+  var srcMonth = appState.currentMonth;
+  window._pendingAutoSP = { assignments: assignments, year: srcMonth.getFullYear(), month: srcMonth.getMonth() };
 }
 
 function applyAutoSPAssignments() {
-  var assignments = window._pendingAutoSPAssignments || [];
+  var pending = window._pendingAutoSP || {};
+  var assignments = pending.assignments || [];
   if (assignments.length === 0) return;
 
-  var m = appState.currentMonth;
-  var year = m.getFullYear();
-  var month = m.getMonth();
+  var year = pending.year;
+  var month = pending.month;
+  if (year === undefined || month === undefined) return;
   var sch = genSchedule(year, month);
 
   assignments.forEach(function(a) {
@@ -22710,7 +22716,7 @@ function applyAutoSPAssignments() {
     sch[a.wId][a.day] = a.shift;
   });
 
-  window._pendingAutoSPAssignments = [];
+  window._pendingAutoSP = {};
 
   // Log audit
   try {
@@ -22848,7 +22854,7 @@ function renderPlantScoring() {
               if (on2 >= needed2) prevCov2++;
             });
           }
-          if (prevTotal2 > 0) prevScores.push(Math.round((prevCov2 / prevTotal2) * 100 * 0.30 + equidadScore * 0.25 + bienestarScore * 0.25 + competenciaScore * 0.20));
+          if (prevTotal2 > 0) prevScores.push(Math.round((prevCov2 / prevTotal2) * 100));
         }
       }
       if (prevScores.length > 0) {
