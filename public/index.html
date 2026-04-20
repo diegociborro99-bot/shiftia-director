@@ -11307,6 +11307,7 @@ function renderWeeklyShortageRollup() {
 // Subjective data persists in workerMemory and feeds AI analysis.
 
 let equipoSelectedPlanta = null; // null = use selectedPlanta or first plant
+let equipoCategoryFilter = 'all'; // 'all', 'enf', 'tec'
 let equipoActiveContainer = 'equipoPlantaPanel'; // track which container is active
 
 function renderEquipoView() {
@@ -11337,15 +11338,16 @@ function renderEquipoPlanta(targetId) {
   const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const shiftColors = { M: '#2e8b7a', T: '#4a9dd4', N: '#c5a832', D: '#d94444', SP: '#e89500' };
 
-  // Determine selected plant
-  const selP = equipoSelectedPlanta || selectedPlanta || PLANTAS[0].id;
-  if (selP === 'all' && !equipoSelectedPlanta) equipoSelectedPlanta = PLANTAS[0].id;
-  const plantaId = equipoSelectedPlanta || selP;
-  const planta = PLANTAS.find(p => p.id === plantaId);
-  const supervisor = PLANT_SUPERVISORS[plantaId];
+  // Determine selected plant (null or 'all' = show all plants)
+  const plantaId = equipoSelectedPlanta || 'all';
+  const planta = plantaId !== 'all' ? PLANTAS.find(p => p.id === plantaId) : null;
+  const supervisor = plantaId !== 'all' ? PLANT_SUPERVISORS[plantaId] : null;
 
-  // Get team members for this plant
-  const team = workers.filter(w => w.planta === plantaId);
+  // Get team members — filter by plant and category
+  let team = plantaId === 'all' ? workers.slice() : workers.filter(w => w.planta === plantaId);
+  if (equipoCategoryFilter !== 'all') {
+    team = team.filter(w => w.type === equipoCategoryFilter);
+  }
 
   // ── Hospital-Specific Subjective Intelligence System ──
   const SUBJ_CATEGORIES = [
@@ -11445,18 +11447,29 @@ function renderEquipoPlanta(targetId) {
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">';
   html += '<div>';
   html += '<div style="font-size:16px;font-weight:700;color:var(--text);letter-spacing:-0.3px;">Equipo</div>';
-  html += '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + (planta ? escHtml(planta.name) : '') + ' — ' + monthNames[month] + ' ' + year + ' · ' + team.length + ' integrantes</div>';
+  html += '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + (planta ? escHtml(planta.name) : 'Todas las plantas') + ' — ' + monthNames[month] + ' ' + year + ' · ' + team.length + ' integrantes' + (equipoCategoryFilter !== 'all' ? ' (' + (equipoCategoryFilter === 'enf' ? 'Enfermeras' : 'Técnicos') + ')' : '') + '</div>';
   html += '</div>';
   html += '<div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,rgba(46,139,122,0.12),rgba(74,157,212,0.08));display:flex;align-items:center;justify-content:center;">';
   html += '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
   html += '</div></div>';
 
-  // Plant selector tabs
-  html += '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:18px;">';
+  // Plant selector tabs (includes "Todas" and all plants including refuerzo)
+  html += '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">';
+  var isAllSel = plantaId === 'all';
+  html += '<button onclick="equipoSelectedPlanta=\'all\';renderEquipoPlanta(equipoActiveContainer);" style="padding:5px 11px;border-radius:7px;border:1.5px solid ' + (isAllSel ? 'var(--primary)' : 'var(--border)') + ';background:' + (isAllSel ? 'var(--primary)' : 'var(--surface)') + ';color:' + (isAllSel ? 'white' : 'var(--text2)') + ';font-size:10px;font-weight:600;cursor:pointer;transition:all 0.2s;">Todas</button>';
   PLANTAS.forEach(p => {
-    if (p.id === 'refuerzo') return;
     const isSel = p.id === plantaId;
     html += '<button onclick="equipoSelectedPlanta=\'' + p.id + '\';renderEquipoPlanta(equipoActiveContainer);" style="padding:5px 11px;border-radius:7px;border:1.5px solid ' + (isSel ? 'var(--primary)' : 'var(--border)') + ';background:' + (isSel ? 'var(--primary)' : 'var(--surface)') + ';color:' + (isSel ? 'white' : 'var(--text2)') + ';font-size:10px;font-weight:600;cursor:pointer;transition:all 0.2s;">' + escHtml(p.short) + '</button>';
+  });
+  html += '</div>';
+  // Category filter (ENF / TEC)
+  html += '<div style="display:flex;gap:5px;margin-bottom:18px;">';
+  html += '<span style="font-size:10px;color:var(--text3);font-weight:600;line-height:26px;margin-right:4px;">Categoría:</span>';
+  ['all','enf','tec'].forEach(function(cat) {
+    var label = cat === 'all' ? 'Todas' : cat === 'enf' ? 'Enfermeras' : 'Técnicos';
+    var color = cat === 'enf' ? '#2e8b7a' : cat === 'tec' ? '#4a9dd4' : 'var(--primary)';
+    var isSel = equipoCategoryFilter === cat;
+    html += '<button onclick="equipoCategoryFilter=\'' + cat + '\';renderEquipoPlanta(equipoActiveContainer);" style="padding:4px 12px;border-radius:6px;border:1px solid var(--glass-border);background:' + (isSel ? color : 'var(--surface)') + ';color:' + (isSel ? '#fff' : 'var(--text2)') + ';font-size:10px;font-weight:600;cursor:pointer;">' + label + '</button>';
   });
   html += '</div>';
 
@@ -20641,6 +20654,7 @@ function toggleGuardiaAutoRefresh() {
 // ========== CALENDARIO VACACIONES GANTT ==========
 let vacGanttYear = null; // null = use appState year
 let vacGanttFilter = 'all'; // 'all', 'enf', 'tec'
+let vacGanttPlantFilter = 'all'; // 'all' or plant id
 let vacGanttSort = 'days'; // 'days', 'name', 'remaining', 'type'
 
 function getVacationAnalysis(year) {
@@ -22635,8 +22649,17 @@ function autoAssignSP() {
     }
   });
 
+  console.log('[AutoSP] Mes:', year + '-' + month, 'Workers:', workers.length, 'SP workers:', spWorkers.length);
+  spWorkers.forEach(function(spw) {
+    console.log('[AutoSP] SP Worker:', spw.w.name, 'planta:', spw.w.planta, 'flotante:', spw.w.flotante, 'SP days:', spw.spDays.length, 'scheduleImported:', spw.w.scheduleImported);
+  });
+
   if (spWorkers.length === 0) {
-    alert('No hay trabajadores con días SP (Sin Planificar) este mes.');
+    // Show more diagnostic info
+    var importedCount = workers.filter(function(w) { return w.scheduleImported; }).length;
+    var schKeys = Object.keys(scheduleData);
+    console.log('[AutoSP] No SP workers found. Imported workers:', importedCount, 'scheduleData keys:', schKeys.join(', '));
+    alert('No hay trabajadores con días SP (Sin Planificar) este mes.\n\nTrabajadores importados: ' + importedCount + '\nMeses con datos: ' + schKeys.join(', ') + '\nMes actual: ' + year + '-' + month);
     return;
   }
 
@@ -22693,7 +22716,9 @@ function autoAssignSP() {
     return true;
   }
 
+  console.log('[AutoSP] Coverage gaps found:', coverageGaps.length, 'across', PLANTAS.filter(function(p){return p.id!=='refuerzo';}).length, 'plants');
   coverageGaps.forEach(function(gap) { tryAssign(gap); });
+  console.log('[AutoSP] After Fase 1:', assignments.length, 'assignments');
 
   // ── FASE 2: Asignar SP restantes como refuerzo (distribución equilibrada) ──
   // For each remaining SP day, find the best plant+shift to reinforce
@@ -22779,8 +22804,10 @@ function autoAssignSP() {
     }
   });
 
+  console.log('[AutoSP] After Fase 2: total assignments:', assignments.length);
+
   if (assignments.length === 0) {
-    alert('No se encontraron asignaciones posibles. Revisa que haya trabajadores con días SP y que cumplan las reglas de convenio.');
+    alert('No se encontraron asignaciones posibles.\n\nSP workers: ' + spWorkers.length + '\nCobertura gaps: ' + coverageGaps.length + '\nRevisa la consola (F12) para más detalles.');
     return;
   }
 
@@ -24015,9 +24042,12 @@ function renderVacacionesGantt() {
   const analysis = getVacationAnalysis(year);
   let { vacData, overlapDays, monthlyCoverageImpact, recommendations, bestWindows, dailyVacCount, VAC_QUOTA } = analysis;
 
-  // Apply filter
+  // Apply filters
   if (vacGanttFilter !== 'all') {
     vacData = vacData.filter(v => v.worker.type === vacGanttFilter);
+  }
+  if (vacGanttPlantFilter !== 'all') {
+    vacData = vacData.filter(v => v.worker.planta === vacGanttPlantFilter);
   }
 
   // Apply sort
@@ -24128,6 +24158,9 @@ function renderVacacionesGantt() {
       <button onclick="vacGanttFilter='all';renderVacacionesGantt();" style="padding:4px 12px;border-radius:6px;border:1px solid var(--glass-border);background:${vacGanttFilter === 'all' ? 'var(--primary)' : 'var(--surface)'};color:${vacGanttFilter === 'all' ? '#fff' : 'var(--text2)'};font-size:11px;font-weight:600;cursor:pointer;">Todos</button>
       <button onclick="vacGanttFilter='enf';renderVacacionesGantt();" style="padding:4px 12px;border-radius:6px;border:1px solid var(--glass-border);background:${vacGanttFilter === 'enf' ? '#2e8b7a' : 'var(--surface)'};color:${vacGanttFilter === 'enf' ? '#fff' : 'var(--text2)'};font-size:11px;font-weight:600;cursor:pointer;">ENF</button>
       <button onclick="vacGanttFilter='tec';renderVacacionesGantt();" style="padding:4px 12px;border-radius:6px;border:1px solid var(--glass-border);background:${vacGanttFilter === 'tec' ? '#4a9dd4' : 'var(--surface)'};color:${vacGanttFilter === 'tec' ? '#fff' : 'var(--text2)'};font-size:11px;font-weight:600;cursor:pointer;">TEC</button>
+      <span style="margin-left:8px;font-size:11px;color:var(--text3);font-weight:600;">Planta:</span>
+      <button onclick="vacGanttPlantFilter='all';renderVacacionesGantt();" style="padding:4px 10px;border-radius:6px;border:1px solid var(--glass-border);background:${vacGanttPlantFilter === 'all' ? 'var(--primary)' : 'var(--surface)'};color:${vacGanttPlantFilter === 'all' ? '#fff' : 'var(--text2)'};font-size:10px;font-weight:600;cursor:pointer;">Todas</button>
+      ${PLANTAS.filter(function(p){return p.id !== 'refuerzo';}).map(function(p) { return '<button onclick="vacGanttPlantFilter=\'' + p.id + '\';renderVacacionesGantt();" style="padding:4px 10px;border-radius:6px;border:1px solid var(--glass-border);background:' + (vacGanttPlantFilter === p.id ? 'var(--primary)' : 'var(--surface)') + ';color:' + (vacGanttPlantFilter === p.id ? '#fff' : 'var(--text2)') + ';font-size:10px;font-weight:600;cursor:pointer;">' + p.short + '</button>'; }).join('\n      ')}
       <span style="margin-left:12px;font-size:11px;color:var(--text3);font-weight:600;">Ordenar:</span>
       <select onchange="vacGanttSort=this.value;renderVacacionesGantt();" style="padding:4px 8px;border-radius:6px;border:1px solid var(--glass-border);background:var(--surface);color:var(--text2);font-size:11px;">
         <option value="days" ${vacGanttSort === 'days' ? 'selected' : ''}>Dias (mayor)</option>
