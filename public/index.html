@@ -30526,11 +30526,14 @@ function animateNumber(elementId, targetValue, duration) {
   var ASSIGNABLE = ['M','T','N']; // turnos que el generador puede asignar
   var REST_VALUES = ['', 'L']; // libre / vacío
 
+  // v7.3: detección de mobile para reducir iter (evita freeze en CPU débil)
+  var IS_MOBILE = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
+
   // Estado del módulo
   var state = {
     weights: { coverage: 80, equity: 50, preference: 30 },
     selectedTemplate: null,
-    iterations: 2500,
+    iterations: IS_MOBILE ? 1500 : 2500,
     currentSnapshot: null, // backup del schedule original (para descartar)
     proposed: null,        // schedule propuesto por la IA
     proposedDiff: [],      // [{wId, day, before, after}]
@@ -30863,7 +30866,7 @@ function animateNumber(elementId, targetValue, duration) {
       html += '    <div><div class="scgen-slider-name">' + s.name + '</div><div class="scgen-slider-desc">' + s.desc + '</div></div>';
       html += '    <span class="scgen-slider-val" id="scgenVal_' + s.key + '">' + v + '</span>';
       html += '  </div>';
-      html += '  <input type="range" min="0" max="100" value="' + v + '" oninput="window.scgenSetWeight(' + JSON.stringify(s.key) + ', this.value); this.style.setProperty(\'--p\', this.value + \'%\')" style="--p: ' + v + '%;">';
+      html += '  <input type="range" min="0" max="100" value="' + v + '" aria-label="' + escHtml(s.name) + ' — ' + escHtml(s.desc) + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + v + '" oninput="window.scgenSetWeight(' + JSON.stringify(s.key) + ', this.value); this.style.setProperty(\'--p\', this.value + \'%\'); this.setAttribute(\'aria-valuenow\', this.value)" style="--p: ' + v + '%;">';
       html += '</div>';
     });
     html += '  </div>';
@@ -31072,7 +31075,8 @@ function animateNumber(elementId, targetValue, duration) {
     if (typeof scheduleData !== 'undefined') {
       scheduleData[ctx.key] = ctx.sch;
       try {
-        if (typeof localStorage !== 'undefined') {
+        if (window.scheduleSaveThrottled) window.scheduleSaveThrottled();
+        else if (typeof localStorage !== 'undefined') {
           localStorage.setItem('shiftia_schedule_data', JSON.stringify(scheduleData));
         }
       } catch (e) {}
@@ -31128,6 +31132,28 @@ function animateNumber(elementId, targetValue, duration) {
   var filters = { plantaId: 'all', shift: 'all', urgency: 'all' };
   var history = []; // { workerId, dayIdx, shift, prevValue, ts }
   var focusedCardIdx = -1;
+
+  // v7.3: throttle global para localStorage.setItem (evita bloquear UI ~80ms en cada save)
+  // expuesto en window para que SCGEN lo reuse
+  if (!window.scheduleSaveThrottled) {
+    var saveTimer = null;
+    var pendingSave = false;
+    window.scheduleSaveThrottled = function () {
+      pendingSave = true;
+      if (saveTimer) return;
+      saveTimer = setTimeout(function () {
+        saveTimer = null;
+        if (!pendingSave) return;
+        pendingSave = false;
+        try {
+          if (window.scheduleSaveThrottled) window.scheduleSaveThrottled();
+          else if (typeof scheduleData !== 'undefined' && typeof localStorage !== 'undefined') {
+            localStorage.setItem('shiftia_schedule_data', JSON.stringify(scheduleData));
+          }
+        } catch (e) { console.warn('[v7.3] localStorage save failed:', e); }
+      }, 500);
+    };
+  }
 
   function getCurrentSchedule() {
     var m = (typeof appState !== 'undefined') ? appState.currentMonth : new Date();
@@ -31405,7 +31431,8 @@ function animateNumber(elementId, targetValue, duration) {
       try {
         if (typeof scheduleData !== 'undefined') {
           scheduleData[ctx.key] = ctx.sch;
-          if (typeof localStorage !== 'undefined') {
+          if (window.scheduleSaveThrottled) window.scheduleSaveThrottled();
+          else if (typeof localStorage !== 'undefined') {
             localStorage.setItem('shiftia_schedule_data', JSON.stringify(scheduleData));
           }
         }
@@ -31506,7 +31533,8 @@ function animateNumber(elementId, targetValue, duration) {
       try {
         if (typeof scheduleData !== 'undefined') {
           scheduleData[ctx.key] = ctx.sch;
-          if (typeof localStorage !== 'undefined') {
+          if (window.scheduleSaveThrottled) window.scheduleSaveThrottled();
+          else if (typeof localStorage !== 'undefined') {
             localStorage.setItem('shiftia_schedule_data', JSON.stringify(scheduleData));
           }
         }
@@ -31576,9 +31604,22 @@ function animateNumber(elementId, targetValue, duration) {
       existing.classList.toggle('is-high', gaps.length >= 10);
     } catch (e) { /* silent */ }
   }
-  // Update badge cuando se carga y cuando se abre/cierra el SP Manager
-  setInterval(updateSPBadge, 4000);
+  // v7.3: smart polling — solo cuando la pestaña está visible (ahorra batería)
+  var badgeInterval = null;
+  function startBadgePolling() {
+    if (badgeInterval) return;
+    badgeInterval = setInterval(updateSPBadge, 4000);
+  }
+  function stopBadgePolling() {
+    if (badgeInterval) { clearInterval(badgeInterval); badgeInterval = null; }
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) stopBadgePolling();
+    else { updateSPBadge(); startBadgePolling(); }
+  });
+  if (!document.hidden) startBadgePolling();
   document.addEventListener('DOMContentLoaded', updateSPBadge);
+  window.addEventListener('beforeunload', stopBadgePolling);
 
   function renderSuggestionsModal() {
     var modal = document.getElementById('spiaModal');
