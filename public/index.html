@@ -12337,8 +12337,17 @@ function renderSPManagerContent() {
 
   // Header
   html += '<div style="margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--surface2);">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">';
+  html += '<div>';
   html += '<div style="font-size:18px;font-weight:800;color:var(--text);letter-spacing:-0.5px;">Gestor de Cobertura SP</div>';
   html += '<div style="font-size:11px;color:var(--text3);margin-top:4px;">' + monthNames[month] + ' ' + year + ' — Asigna turnos a dias sin planificar</div>';
+  html += '</div>';
+  // v6.2 — Botón IA Suggest SP
+  html += '<button id="spIASuggestBtn" onclick="openSPAutoSuggest()" title="La IA cruza huecos de cobertura con trabajadores que tienen SP y propone asignaciones que respetan el convenio" style="display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:10px;border:none;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:-0.01em;color:white;background:linear-gradient(135deg,#0f7a6d,#4ecdc4);box-shadow:0 6px 18px rgba(15,122,109,0.28);transition:transform 0.18s cubic-bezier(0.16,1,0.3,1),box-shadow 0.18s;white-space:nowrap;" onmouseover="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 10px 24px rgba(15,122,109,0.36)\'" onmouseout="this.style.transform=\'\';this.style.boxShadow=\'0 6px 18px rgba(15,122,109,0.28)\'">';
+  html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>';
+  html += 'Sugerir refuerzos IA';
+  html += '</button>';
+  html += '</div>';
   html += '</div>';
 
   // Plant selector
@@ -29980,6 +29989,494 @@ function animateNumber(elementId, targetValue, duration) {
   }
   requestAnimationFrame(tick);
 }
+</script>
+
+<!-- ====== v6.2 — IA SUGGEST SP: refuerzos automáticos para huecos de cobertura ====== -->
+<style>
+.spia-overlay {
+  position: fixed; inset: 0; z-index: 99994;
+  background: rgba(15,15,15,0.45); backdrop-filter: blur(6px);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.spia-overlay.is-open { opacity: 1; pointer-events: auto; }
+.spia-modal {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -45%) scale(0.96);
+  width: min(720px, 96vw); max-height: 86vh; overflow: hidden;
+  background: white; border-radius: 18px;
+  box-shadow: 0 30px 80px rgba(15,15,15,0.32);
+  z-index: 99995; display: flex; flex-direction: column;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  font-family: var(--font, 'Nunito', system-ui, sans-serif);
+}
+.spia-overlay.is-open + .spia-modal,
+.spia-modal.is-open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+.spia-header {
+  padding: 22px 26px 18px; border-bottom: 1px solid #f0eee6;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  background: linear-gradient(135deg, #f7faf9, #ffffff);
+}
+.spia-title {
+  font-size: 18px; font-weight: 800; color: #0e0f0f; letter-spacing: -0.02em;
+  display: flex; align-items: center; gap: 10px;
+}
+.spia-title-icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg,#0f7a6d,#4ecdc4); color: white;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.spia-subtitle { font-size: 11.5px; color: #6b7280; margin-top: 4px; }
+.spia-close {
+  width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer;
+  background: rgba(15,15,15,0.04); color: #4b5563; font-size: 18px;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.18s, color 0.18s;
+}
+.spia-close:hover { background: rgba(15,15,15,0.08); color: #0e0f0f; }
+.spia-body { padding: 18px 26px; overflow-y: auto; flex: 1; }
+.spia-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  margin-bottom: 16px;
+}
+.spia-stat {
+  padding: 10px 12px; border-radius: 10px;
+  background: #f8f7f2; border: 1px solid #ece9df;
+}
+.spia-stat-num { font-size: 22px; font-weight: 800; color: #0f7a6d; line-height: 1; font-family: var(--font-display, 'Fraunces', serif); }
+.spia-stat-label { font-size: 10px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px; }
+.spia-empty {
+  text-align: center; padding: 40px 20px; color: #6b7280; font-size: 13px;
+}
+.spia-empty-icon {
+  width: 48px; height: 48px; border-radius: 50%; background: #f0fdf4;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-bottom: 12px; color: #15803d;
+}
+.spia-group {
+  margin-bottom: 14px; padding: 12px 14px; background: #fbfaf6;
+  border-radius: 12px; border: 1px solid #ece9df;
+}
+.spia-group-head {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  font-size: 12px; font-weight: 700; color: #0e0f0f;
+}
+.spia-pill-day {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 999px; background: white; border: 1px solid #e5e7eb;
+  font-size: 11px; font-weight: 700; color: #1f2937;
+}
+.spia-pill-shift {
+  display: inline-flex; align-items: center;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 800;
+}
+.spia-pill-shift.s-M { background: #e9f5f2; color: #0f7a6d; }
+.spia-pill-shift.s-T { background: #e8f1fb; color: #1d4ed8; }
+.spia-pill-shift.s-N { background: #fdf6e3; color: #92580a; }
+.spia-pill-gap {
+  display: inline-flex; align-items: center;
+  padding: 3px 9px; border-radius: 999px;
+  background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;
+  font-size: 11px; font-weight: 700;
+}
+.spia-cand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; background: white; border: 1px solid #ece9df; border-radius: 10px;
+  margin-bottom: 6px;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.spia-cand:hover { border-color: #0f7a6d; }
+.spia-cand.is-applied { background: #f0fdf4; border-color: #bbf7d0; }
+.spia-cand-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 700; color: #0e0f0f; }
+.spia-cand-meta { font-size: 10.5px; color: #6b7280; font-weight: 500; margin-top: 2px; }
+.spia-cand-score {
+  display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 6px;
+  background: #f0fdf4; color: #15803d; font-size: 10px; font-weight: 700;
+}
+.spia-cand-score.med { background: #fef3c7; color: #92580a; }
+.spia-cand-score.low { background: #fef2f2; color: #b91c1c; }
+.spia-cand-btn {
+  padding: 7px 12px; border-radius: 8px; border: none; cursor: pointer;
+  background: #0f7a6d; color: white; font-size: 11px; font-weight: 700;
+  transition: background 0.15s, transform 0.15s;
+}
+.spia-cand-btn:hover:not(:disabled) { background: #0c635a; transform: translateY(-1px); }
+.spia-cand-btn:disabled { background: #d1d5db; cursor: default; }
+.spia-actions {
+  padding: 14px 26px 20px; border-top: 1px solid #f0eee6; background: #fafaf7;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+}
+.spia-actions .left { font-size: 11px; color: #6b7280; }
+.spia-btn-secondary {
+  padding: 9px 14px; border-radius: 8px; border: 1px solid #d1d5db; cursor: pointer;
+  background: white; color: #4b5563; font-size: 12px; font-weight: 600;
+}
+.spia-btn-primary {
+  padding: 9px 16px; border-radius: 8px; border: none; cursor: pointer;
+  background: #0f7a6d; color: white; font-size: 12px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background 0.15s;
+}
+.spia-btn-primary:hover:not(:disabled) { background: #0c635a; }
+.spia-btn-primary:disabled { background: #d1d5db; cursor: default; }
+@media (max-width: 600px) {
+  .spia-stats { grid-template-columns: 1fr 1fr; }
+  .spia-actions { flex-direction: column-reverse; align-items: stretch; }
+  .spia-actions .left { text-align: center; }
+}
+</style>
+<div class="spia-overlay" id="spiaOverlay" onclick="closeSPAutoSuggest()"></div>
+<div class="spia-modal" id="spiaModal" role="dialog" aria-modal="true" aria-labelledby="spiaTitle"></div>
+
+<script>
+// ============================================================================
+// v6.2 — IA SUGGEST SP
+// Cruza huecos de cobertura por planta/día/turno con trabajadores con SP,
+// valida convenio (SP_RULES), scoring por equidad y propone asignaciones.
+// ============================================================================
+(function () {
+  'use strict';
+
+  var WORK_SHIFTS = ['M','T','N','MR','M7H','M6R','M55'];
+  var ASSIGNABLE_SHIFTS = ['M','T','N']; // las únicas que asignamos como refuerzo
+
+  function getCurrentSchedule() {
+    var m = (typeof appState !== 'undefined') ? appState.currentMonth : new Date();
+    var year = m.getFullYear();
+    var month = m.getMonth();
+    var key = year + '-' + month;
+    if (typeof scheduleData === 'undefined') return null;
+    if (!scheduleData[key]) {
+      // fallback a genSchedule si existe
+      if (typeof genSchedule === 'function') scheduleData[key] = genSchedule(year, month);
+      else scheduleData[key] = {};
+    }
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
+    return { key: key, year: year, month: month, daysInMonth: daysInMonth, sch: scheduleData[key] };
+  }
+
+  // Detecta huecos: para cada planta-día-turno, ¿hay menos personal que el mínimo?
+  function findCoverageGaps(ctx) {
+    var gaps = [];
+    if (typeof PLANTAS === 'undefined' || typeof PLANT_COVERAGE === 'undefined' || typeof workers === 'undefined') return gaps;
+
+    PLANTAS.forEach(function (p) {
+      if (p.id === 'refuerzo') return; // refuerzo no tiene cobertura mínima
+      var coverage = PLANT_COVERAGE[p.id];
+      if (!coverage) return;
+      var workersOfPlanta = workers.filter(function (w) { return w.planta === p.id; });
+      for (var d = 0; d < ctx.daysInMonth; d++) {
+        ASSIGNABLE_SHIFTS.forEach(function (shift) {
+          var min = (coverage[shift] && coverage[shift].min) || 0;
+          if (min === 0) return;
+          var working = 0;
+          workersOfPlanta.forEach(function (w) {
+            var s = (ctx.sch[w.id] && ctx.sch[w.id][d] || '').toString().trim();
+            // contamos turnos del mismo tipo o equivalentes (M variants)
+            if (s === shift) working++;
+            else if (shift === 'M' && ['MR','M7H','M6R','M55'].indexOf(s) !== -1) working++;
+          });
+          var deficit = min - working;
+          if (deficit > 0) {
+            gaps.push({ plantaId: p.id, day: d, shift: shift, deficit: deficit, min: min, working: working });
+          }
+        });
+      }
+    });
+    return gaps;
+  }
+
+  // Pool de candidatos: workers con SP en el día d (no asignados a esa planta necesariamente — refuerzo)
+  function findSPWorkersOnDay(ctx, dayIdx) {
+    if (typeof workers === 'undefined' || typeof isSP !== 'function') return [];
+    return workers.filter(function (w) {
+      try { return isSP(w.id, dayIdx, ctx.year, ctx.month); }
+      catch (e) { return false; }
+    });
+  }
+
+  // Helpers de validación de convenio (mismo criterio que SP Manager)
+  function countNightsThisMonth(ctx, wId) {
+    var n = 0;
+    for (var d = 0; d < ctx.daysInMonth; d++) {
+      var s = (ctx.sch[wId] && ctx.sch[wId][d] || '').toString().trim();
+      if (s === 'N') n++;
+    }
+    return n;
+  }
+  function consecutiveDaysIfAssigned(ctx, wId, dayIdx) {
+    var count = 1;
+    for (var d = dayIdx - 1; d >= 0; d--) {
+      var s = (ctx.sch[wId] && ctx.sch[wId][d] || '').toString().trim();
+      if (WORK_SHIFTS.indexOf(s) !== -1) count++; else break;
+    }
+    for (var d2 = dayIdx + 1; d2 < ctx.daysInMonth; d2++) {
+      var s2 = (ctx.sch[wId] && ctx.sch[wId][d2] || '').toString().trim();
+      if (WORK_SHIFTS.indexOf(s2) !== -1) count++; else break;
+    }
+    return count;
+  }
+  function violatesAdjacency(ctx, wId, dayIdx, shift) {
+    // N→M (mismo o siguiente día), o T→M día siguiente — clásicos del convenio
+    var prev = (dayIdx > 0 && ctx.sch[wId]) ? (ctx.sch[wId][dayIdx - 1] || '').toString().trim() : '';
+    var next = (dayIdx < ctx.daysInMonth - 1 && ctx.sch[wId]) ? (ctx.sch[wId][dayIdx + 1] || '').toString().trim() : '';
+    var prevEff = ['MR','M7H','M6R','M55'].indexOf(prev) !== -1 ? 'M' : prev;
+    var nextEff = ['MR','M7H','M6R','M55'].indexOf(next) !== -1 ? 'M' : next;
+    // No N seguida de M/T al día siguiente
+    if (prev === 'N' && (shift === 'M' || shift === 'T')) return 'descanso post-noche';
+    if (shift === 'N' && (nextEff === 'M' || nextEff === 'T')) return 'descanso pre-mañana';
+    if (prev === 'T' && shift === 'M') return 'tarde→mañana sin descanso';
+    if (shift === 'T' && nextEff === 'M') return 'tarde→mañana sin descanso';
+    return null;
+  }
+
+  // Validación + razón si no es válido
+  function validateAssignment(ctx, w, dayIdx, shift) {
+    // Convenio
+    var rules = (typeof SP_RULES !== 'undefined') ? SP_RULES : { maxNightsPerMonth: 2, maxConsecutiveDays: 6 };
+    if (shift === 'N') {
+      var nights = countNightsThisMonth(ctx, w.id);
+      if (nights >= rules.maxNightsPerMonth) {
+        return { ok: false, reason: 'ya tiene ' + nights + '/' + rules.maxNightsPerMonth + ' noches' };
+      }
+    }
+    var consec = consecutiveDaysIfAssigned(ctx, w.id, dayIdx);
+    if (consec > rules.maxConsecutiveDays) {
+      return { ok: false, reason: consec + ' días consecutivos (max ' + rules.maxConsecutiveDays + ')' };
+    }
+    var adj = violatesAdjacency(ctx, w.id, dayIdx, shift);
+    if (adj) return { ok: false, reason: adj };
+    return { ok: true };
+  }
+
+  // Scoring: prioriza menor uso (equidad). Score 0-100.
+  function scoreCandidate(ctx, w, dayIdx, shift, gap) {
+    var workedDays = 0;
+    var nightsCount = 0;
+    for (var d = 0; d < ctx.daysInMonth; d++) {
+      var s = (ctx.sch[w.id] && ctx.sch[w.id][d] || '').toString().trim();
+      if (WORK_SHIFTS.indexOf(s) !== -1) workedDays++;
+      if (s === 'N') nightsCount++;
+    }
+    // Base: 100 - workedDays (más libres → más puntos)
+    var score = Math.max(0, 100 - workedDays * 4);
+    // Bonus si pertenece a la misma planta (refuerzo natural)
+    if (w.planta === gap.plantaId) score += 12;
+    // Bonus si es de "refuerzo" (su rol es cubrir)
+    if (w.planta === 'refuerzo') score += 18;
+    // Penalización si ya hizo muchas noches este mes y le toca otra
+    if (shift === 'N') score -= nightsCount * 6;
+    return Math.max(0, Math.min(100, Math.round(score)));
+  }
+
+  // Genera el plan completo
+  function buildSuggestionPlan() {
+    var ctx = getCurrentSchedule();
+    if (!ctx) return null;
+    var gaps = findCoverageGaps(ctx);
+    var perGap = gaps.map(function (g) {
+      var pool = findSPWorkersOnDay(ctx, g.day);
+      var candidates = [];
+      pool.forEach(function (w) {
+        var v = validateAssignment(ctx, w, g.day, g.shift);
+        if (!v.ok) return; // descartado por convenio
+        var score = scoreCandidate(ctx, w, g.day, g.shift, g);
+        candidates.push({ w: w, score: score });
+      });
+      candidates.sort(function (a, b) { return b.score - a.score; });
+      return { gap: g, candidates: candidates.slice(0, 3) };
+    });
+    return { ctx: ctx, gaps: gaps, perGap: perGap };
+  }
+
+  // Aplica una asignación: escribe shift en el schedule y refresca UI
+  window.spiaApplyAssignment = function (workerId, dayIdx, shift, btnEl) {
+    try {
+      var ctx = getCurrentSchedule();
+      if (!ctx) return;
+      if (!ctx.sch[workerId]) ctx.sch[workerId] = [];
+      ctx.sch[workerId][dayIdx] = shift;
+      // Persistir
+      try {
+        if (typeof scheduleData !== 'undefined') {
+          scheduleData[ctx.key] = ctx.sch;
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('shiftia_schedule_data', JSON.stringify(scheduleData));
+          }
+        }
+      } catch (e) {}
+      // Sync con backend si hay token
+      try {
+        if (typeof getAuthToken === 'function' || (typeof localStorage !== 'undefined' && localStorage.getItem('shiftia_auth_token'))) {
+          var token = (typeof getAuthToken === 'function') ? getAuthToken() : localStorage.getItem('shiftia_auth_token');
+          if (token) {
+            fetch('/api/data', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              body: JSON.stringify({ scheduleData: scheduleData })
+            }).catch(function () {});
+          }
+        }
+      } catch (e) {}
+      // Marcar UI
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.textContent = 'Asignado';
+        var card = btnEl.closest('.spia-cand');
+        if (card) card.classList.add('is-applied');
+      }
+      if (typeof showToast === 'function') showToast('Refuerzo asignado: ' + shift + ' día ' + (dayIdx + 1), 'success', 2200);
+      // Refrescar SP Manager y cuadrante si existen
+      try { if (typeof renderSPManagerContent === 'function') renderSPManagerContent(); } catch (e) {}
+      try { if (typeof renderSchedule === 'function') renderSchedule(); } catch (e) {}
+    } catch (err) {
+      console.warn('[SP-IA] applyAssignment failed:', err);
+      if (typeof showToast === 'function') showToast('No se pudo asignar', 'error', 3000);
+    }
+  };
+
+  // Aplica TODAS las sugerencias top-1 que aún sean válidas
+  window.spiaApplyAll = function () {
+    var btn = document.getElementById('spiaApplyAllBtn');
+    if (btn) btn.disabled = true;
+    var plan = buildSuggestionPlan();
+    if (!plan) return;
+    var applied = 0;
+    plan.perGap.forEach(function (entry) {
+      if (entry.candidates.length === 0) return;
+      var top = entry.candidates[0];
+      window.spiaApplyAssignment(top.w.id, entry.gap.day, entry.gap.shift, null);
+      applied++;
+    });
+    if (typeof showToast === 'function') showToast('Aplicadas ' + applied + ' sugerencias', applied > 0 ? 'success' : 'info', 2800);
+    setTimeout(function () { renderSuggestionsModal(); }, 200);
+  };
+
+  function renderSuggestionsModal() {
+    var modal = document.getElementById('spiaModal');
+    if (!modal) return;
+    var plan = buildSuggestionPlan();
+    if (!plan) {
+      modal.innerHTML = '<div class="spia-body"><div class="spia-empty">Sin datos disponibles. Asegúrate de tener un mes cargado.</div></div>';
+      return;
+    }
+    var totalCands = plan.perGap.reduce(function (a, b) { return a + b.candidates.length; }, 0);
+    var coverableNow = plan.perGap.filter(function (e) { return e.candidates.length > 0; }).length;
+
+    var html = '';
+    html += '<div class="spia-header">';
+    html += '  <div>';
+    html += '    <div class="spia-title" id="spiaTitle">';
+    html += '      <span class="spia-title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></span>';
+    html += '      Sugerencias IA · Refuerzos desde el pool SP';
+    html += '    </div>';
+    html += '    <div class="spia-subtitle">Cruza huecos de cobertura con trabajadores que tienen SP. Respeta SP_RULES (noches/mes, consecutivos, descansos).</div>';
+    html += '  </div>';
+    html += '  <button class="spia-close" onclick="closeSPAutoSuggest()" aria-label="Cerrar">×</button>';
+    html += '</div>';
+
+    html += '<div class="spia-body">';
+    html += '<div class="spia-stats">';
+    html += '  <div class="spia-stat"><div class="spia-stat-num">' + plan.gaps.length + '</div><div class="spia-stat-label">huecos detectados</div></div>';
+    html += '  <div class="spia-stat"><div class="spia-stat-num">' + coverableNow + '</div><div class="spia-stat-label">cubribles ahora</div></div>';
+    html += '  <div class="spia-stat"><div class="spia-stat-num">' + totalCands + '</div><div class="spia-stat-label">candidatos</div></div>';
+    html += '</div>';
+
+    if (plan.gaps.length === 0) {
+      html += '<div class="spia-empty">';
+      html += '  <div class="spia-empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>';
+      html += '  <div style="font-weight:700;color:#0e0f0f;">No hay huecos de cobertura</div>';
+      html += '  <div style="margin-top:6px;">Todas las plantas cumplen el mínimo en cada turno este mes.</div>';
+      html += '</div>';
+    } else {
+      var monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      var dowNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+      // Limitamos a top 12 huecos para no saturar
+      var displayed = plan.perGap.slice(0, 12);
+      displayed.forEach(function (entry) {
+        var g = entry.gap;
+        var dayDate = new Date(plan.ctx.year, plan.ctx.month, g.day);
+        var dayLabel = dowNames[dayDate.getDay()] + ' ' + (g.day + 1) + ' ' + monthNames[plan.ctx.month].substring(0,3).toLowerCase();
+        var planta = (typeof PLANTAS !== 'undefined') ? PLANTAS.find(function(p){ return p.id === g.plantaId; }) : null;
+        var plantaName = planta ? planta.short : g.plantaId;
+
+        html += '<div class="spia-group">';
+        html += '  <div class="spia-group-head">';
+        html += '    <span class="spia-pill-day">' + escHtml(dayLabel) + '</span>';
+        html += '    <span style="color:#9ca3af;">·</span>';
+        html += '    <span style="color:#1f2937;font-weight:800;">' + escHtml(plantaName) + '</span>';
+        html += '    <span class="spia-pill-shift s-' + g.shift + '">' + g.shift + '</span>';
+        html += '    <span class="spia-pill-gap">−' + g.deficit + ' falta' + (g.deficit > 1 ? 'n' : '') + '</span>';
+        html += '  </div>';
+
+        if (entry.candidates.length === 0) {
+          html += '<div style="font-size:11.5px;color:#92580a;background:#fff7ed;padding:8px 10px;border-radius:8px;border:1px solid #fed7aa;">Sin candidatos válidos: nadie con SP ese día respeta el convenio para este turno.</div>';
+        } else {
+          entry.candidates.forEach(function (c, i) {
+            var scoreClass = c.score >= 70 ? '' : c.score >= 40 ? 'med' : 'low';
+            var pName = (typeof PLANTAS !== 'undefined') ? PLANTAS.find(function(p){ return p.id === c.w.planta; }) : null;
+            var pShort = pName ? pName.short : (c.w.planta || '');
+            var typeBadge = c.w.type === 'enf' ? 'Enf' : (c.w.type === 'tec' ? 'Téc' : (c.w.type || ''));
+            var rationale = '';
+            if (c.w.planta === g.plantaId) rationale = 'misma planta';
+            else if (c.w.planta === 'refuerzo') rationale = 'refuerzo natural';
+            else rationale = 'SP disponible';
+            html += '<div class="spia-cand">';
+            html += '  <div style="flex:1;min-width:0;">';
+            html += '    <div class="spia-cand-name">' + escHtml(c.w.name || '—') + '</div>';
+            html += '    <div class="spia-cand-meta">' + escHtml(typeBadge) + ' · ' + escHtml(pShort) + ' · ' + escHtml(rationale) + '</div>';
+            html += '  </div>';
+            html += '  <span class="spia-cand-score ' + scoreClass + '">' + c.score + '</span>';
+            html += '  <button class="spia-cand-btn" onclick="window.spiaApplyAssignment(' + JSON.stringify(c.w.id) + ',' + g.day + ',' + JSON.stringify(g.shift) + ',this)">Asignar</button>';
+            html += '</div>';
+          });
+        }
+        html += '</div>';
+      });
+      if (plan.perGap.length > 12) {
+        html += '<div style="text-align:center;font-size:11px;color:#6b7280;padding:8px;">… y ' + (plan.perGap.length - 12) + ' huecos más. Aplica algunas sugerencias y vuelve a abrir.</div>';
+      }
+    }
+    html += '</div>'; // body
+
+    html += '<div class="spia-actions">';
+    html += '  <div class="left">' + plan.gaps.length + ' hueco' + (plan.gaps.length !== 1 ? 's' : '') + ' · ' + coverableNow + ' con candidatos · ' + totalCands + ' opciones totales</div>';
+    html += '  <div style="display:flex;gap:8px;">';
+    html += '    <button class="spia-btn-secondary" onclick="closeSPAutoSuggest()">Cerrar</button>';
+    if (coverableNow > 0) {
+      html += '    <button id="spiaApplyAllBtn" class="spia-btn-primary" onclick="window.spiaApplyAll()">';
+      html += '      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      html += '      Aplicar top-1 de cada hueco';
+      html += '    </button>';
+    }
+    html += '  </div>';
+    html += '</div>';
+
+    modal.innerHTML = html;
+  }
+
+  window.openSPAutoSuggest = function () {
+    var ov = document.getElementById('spiaOverlay');
+    var modal = document.getElementById('spiaModal');
+    if (!ov || !modal) return;
+    renderSuggestionsModal();
+    ov.classList.add('is-open');
+    modal.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    // Cerrar con Escape
+    document.addEventListener('keydown', escListener);
+  };
+  window.closeSPAutoSuggest = function () {
+    var ov = document.getElementById('spiaOverlay');
+    var modal = document.getElementById('spiaModal');
+    if (ov) ov.classList.remove('is-open');
+    if (modal) modal.classList.remove('is-open');
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', escListener);
+  };
+  function escListener(e) { if (e.key === 'Escape') window.closeSPAutoSuggest(); }
+})();
 </script>
 
 <!-- ====== v6.1 — UX VISIBLE: fetch wrapper + status indicator + escapeHtml helper ====== -->
