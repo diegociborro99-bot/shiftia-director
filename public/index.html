@@ -30226,7 +30226,7 @@ function animateNumber(elementId, targetValue, duration) {
 /* Floating undo button */
 .spia-undo-float {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
-  z-index: 99996; padding: 11px 18px; border-radius: 999px;
+  z-index: 99991; padding: 11px 18px; border-radius: 999px;
   background: #0e0f0f; color: white; border: none; cursor: pointer;
   font-size: 12px; font-weight: 700; font-family: inherit;
   display: inline-flex; align-items: center; gap: 8px;
@@ -30261,9 +30261,9 @@ function animateNumber(elementId, targetValue, duration) {
 
 <!-- ====================== v7.0 — SCHEDULE GENERATOR (AUTO-PLANIFICACIÓN COMPLETA) ====================== -->
 <style>
-/* FAB flotante para abrir el generador */
+/* FAB flotante para abrir el generador (v7.2: bottom 88px para no chocar con sync-status) */
 .scgen-fab {
-  position: fixed; bottom: 24px; right: 24px; z-index: 99993;
+  position: fixed; bottom: 88px; right: 24px; z-index: 99990;
   display: inline-flex; align-items: center; gap: 8px;
   padding: 14px 20px 14px 16px; border: none; border-radius: 999px; cursor: pointer;
   background: linear-gradient(135deg, #0f7a6d 0%, #4ecdc4 100%);
@@ -30717,7 +30717,9 @@ function animateNumber(elementId, targetValue, duration) {
     var template = options.template || null;
     var weights = options.weights;
     var iterations = options.iterations || 2500;
-    var T0 = 100, Tmin = 0.5;
+    // v7.2: cooling más conservador. Antes Tmin=0.5 → T(500)≈50, T(1500)≈5, atrapaba óptimos locales.
+    // Ahora Tmin=2 → exploración mantenida más tiempo, mejor minimo global.
+    var T0 = 100, Tmin = 2;
     var T = T0;
     var alpha = Math.pow(Tmin / T0, 1 / iterations);
 
@@ -30787,7 +30789,8 @@ function animateNumber(elementId, targetValue, duration) {
       loads.push(ld);
     });
     var v = variance(loads);
-    var equity = Math.max(0, 100 - Math.round(v * 5));
+    // v7.2: escala más granular (antes *5 saturaba a 0 con variance típico ~20)
+    var equity = Math.max(0, Math.min(100, 100 - Math.round(v * 2.5)));
     // Conflictos = adyacencias prohibidas
     workers.forEach(function (w) {
       if (w.planta === 'refuerzo') return;
@@ -31218,6 +31221,11 @@ function animateNumber(elementId, targetValue, duration) {
 
   // Validación + razón si no es válido
   function validateAssignment(ctx, w, dayIdx, shift) {
+    // v7.2: rechaza si ya tiene un turno asignado ese día (no debe haber ocurrido si está en SP, pero defensivo)
+    var existing = (ctx.sch[w.id] && ctx.sch[w.id][dayIdx] || '').toString().trim();
+    if (existing && existing !== 'SP' && existing !== 'L' && existing !== '-') {
+      return { ok: false, reason: 'ya tiene ' + existing + ' ese día' };
+    }
     // Convenio
     var rules = (typeof SP_RULES !== 'undefined') ? SP_RULES : { maxNightsPerMonth: 2, maxConsecutiveDays: 6 };
     if (shift === 'N') {
@@ -31245,7 +31253,8 @@ function animateNumber(elementId, targetValue, duration) {
       if (s === 'N') nightsCount++;
     }
     var breakdown = [];
-    var base = Math.max(0, 100 - workedDays * 4);
+    // v7.2: piso mínimo 20 (antes 0) para que personas overworked aún tengan score útil en urgencias
+    var base = Math.max(20, 100 - workedDays * 3);
     breakdown.push({ label: 'Base equidad', value: base, detail: workedDays + ' días trabajados' });
     var bonusPlanta = 0, bonusRefuerzo = 0, penalNoche = 0;
     if (w.planta === gap.plantaId) {
@@ -31378,6 +31387,8 @@ function animateNumber(elementId, targetValue, duration) {
     return picks;
   }
 
+  // v7.2: en bulk apply, evitamos cascada de renders + sync backend hasta el final
+  var bulkMode = false;
   // Aplica una asignación: escribe shift en el schedule, registra historial, refresca UI
   window.spiaApplyAssignment = function (workerId, dayIdx, shift, btnEl, suppressToast) {
     try {
@@ -31399,18 +31410,20 @@ function animateNumber(elementId, targetValue, duration) {
           }
         }
       } catch (e) {}
-      // Sync con backend si hay token
-      try {
-        var token = (typeof getAuthToken === 'function') ? getAuthToken()
-                  : (typeof localStorage !== 'undefined' ? localStorage.getItem('shiftia_auth_token') : null);
-        if (token) {
-          fetch('/api/data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ scheduleData: scheduleData })
-          }).catch(function () {});
-        }
-      } catch (e) {}
+      // Sync con backend si hay token (skipear durante bulkMode, se hace al final)
+      if (!bulkMode) {
+        try {
+          var token = (typeof getAuthToken === 'function') ? getAuthToken()
+                    : (typeof localStorage !== 'undefined' ? localStorage.getItem('shiftia_auth_token') : null);
+          if (token) {
+            fetch('/api/data', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              body: JSON.stringify({ scheduleData: scheduleData })
+            }).catch(function () {});
+          }
+        } catch (e) {}
+      }
       // Marcar UI con animación de éxito
       if (btnEl) {
         btnEl.disabled = true;
@@ -31424,11 +31437,12 @@ function animateNumber(elementId, targetValue, duration) {
       if (!suppressToast && typeof showToast === 'function') {
         showToast('Refuerzo asignado: ' + shift + ' día ' + (dayIdx + 1), 'success', 2200);
       }
-      // Refrescar SP Manager y cuadrante si existen
-      try { if (typeof renderSPManagerContent === 'function') renderSPManagerContent(); } catch (e) {}
-      try { if (typeof renderSchedule === 'function') renderSchedule(); } catch (e) {}
-      // Actualizar badge global (huecos restantes)
-      updateSPBadge();
+      // v7.2: en bulkMode skipeamos los renders pesados (se hacen UNA vez al final)
+      if (!bulkMode) {
+        try { if (typeof renderSPManagerContent === 'function') renderSPManagerContent(); } catch (e) {}
+        try { if (typeof renderSchedule === 'function') renderSchedule(); } catch (e) {}
+        updateSPBadge();
+      }
     } catch (err) {
       console.warn('[SP-IA] applyAssignment failed:', err);
       if (typeof showToast === 'function') showToast('No se pudo asignar', 'error', 3000);
@@ -31436,6 +31450,7 @@ function animateNumber(elementId, targetValue, duration) {
   };
 
   // Bulk inteligente: aplica top-1 de cada gap respetando MAX_BULK_PER_WORKER
+  // v7.2: bulkMode evita 28 renders + 14 POSTs en cascada. UN render + UN POST al final.
   window.spiaApplyAll = function () {
     var btn = document.getElementById('spiaApplyAllBtn');
     if (btn) btn.disabled = true;
@@ -31443,14 +31458,38 @@ function animateNumber(elementId, targetValue, duration) {
     if (!plan) return;
     var picks = pickBulkSelection(plan);
     var applied = 0;
-    picks.forEach(function (pk) {
-      window.spiaApplyAssignment(pk.candidate.w.id, pk.gap.day, pk.gap.shift, null, true);
-      applied++;
-    });
+    bulkMode = true;
+    try {
+      picks.forEach(function (pk) {
+        window.spiaApplyAssignment(pk.candidate.w.id, pk.gap.day, pk.gap.shift, null, true);
+        applied++;
+      });
+    } finally {
+      bulkMode = false;
+    }
+    // Render + sync UN único POST al backend tras todo el bulk
+    try { if (typeof renderSPManagerContent === 'function') renderSPManagerContent(); } catch (e) {}
+    try { if (typeof renderSchedule === 'function') renderSchedule(); } catch (e) {}
+    updateSPBadge();
+    try {
+      var token = (typeof getAuthToken === 'function') ? getAuthToken()
+                : (typeof localStorage !== 'undefined' ? localStorage.getItem('shiftia_auth_token') : null);
+      if (token && applied > 0) {
+        fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ scheduleData: scheduleData })
+        }).catch(function () {});
+      }
+    } catch (e) {}
+
+    // Reportar también gaps que se quedaron sin candidato (anti silent skip)
+    var missed = plan.perGap.length - picks.length;
     if (typeof showToast === 'function') {
       var msg = applied === 0 ? 'No hay sugerencias aplicables'
               : 'Aplicadas ' + applied + ' sugerencias (bulk inteligente, sin sobrecarga)';
-      showToast(msg, applied > 0 ? 'success' : 'info', 3200);
+      if (missed > 0) msg += ' · ' + missed + ' huecos sin candidato disponible';
+      showToast(msg, applied > 0 ? 'success' : 'info', 3500);
     }
     setTimeout(function () { renderSuggestionsModal(); }, 200);
   };
