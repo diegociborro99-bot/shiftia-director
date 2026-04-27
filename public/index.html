@@ -30125,21 +30125,156 @@ function animateNumber(elementId, targetValue, duration) {
   .spia-actions { flex-direction: column-reverse; align-items: stretch; }
   .spia-actions .left { text-align: center; }
 }
+
+/* ====== v6.3 ADDITIONS ====== */
+/* Badge en el botón "Sugerir refuerzos IA" del SP Manager */
+.spia-btn-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px; margin-left: 4px;
+  background: rgba(255,255,255,0.28); border-radius: 9px;
+  font-size: 10px; font-weight: 800; color: white;
+  font-variant-numeric: tabular-nums;
+}
+.spia-btn-badge.is-high { background: #fef2f2; color: #b91c1c; }
+
+/* Filtros chips */
+.spia-filters {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;
+  padding: 10px 12px; background: #f8f7f2; border-radius: 12px;
+  border: 1px solid #ece9df;
+}
+.spia-filter-group {
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.spia-filter-label {
+  font-size: 9.5px; font-weight: 700; color: #6b7280;
+  text-transform: uppercase; letter-spacing: 0.06em; margin-right: 4px;
+}
+.spia-chip {
+  padding: 4px 10px; border-radius: 999px; border: 1px solid #d1d5db;
+  background: white; color: #4b5563; font-size: 10.5px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+  font-family: inherit;
+}
+.spia-chip:hover { border-color: #0f7a6d; color: #0f7a6d; }
+.spia-chip.is-active {
+  background: #0f7a6d; color: white; border-color: #0f7a6d;
+  box-shadow: 0 2px 6px rgba(15,122,109,0.25);
+}
+
+/* What-if preview card */
+.spia-whatif {
+  display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px;
+  align-items: center; margin-bottom: 16px; padding: 14px 16px;
+  background: linear-gradient(135deg, #f7faf9, #fffefb);
+  border: 1px solid #d1e7e2; border-radius: 14px;
+}
+.spia-whatif-side { text-align: center; }
+.spia-whatif-label { font-size: 9.5px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.spia-whatif-num { font-size: 26px; font-weight: 800; line-height: 1; font-family: var(--font-display, 'Fraunces', serif); }
+.spia-whatif-num.bad { color: #b91c1c; }
+.spia-whatif-num.good { color: #15803d; }
+.spia-whatif-arrow {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #0f7a6d; color: white;
+}
+.spia-whatif-delta {
+  display: inline-block; margin-top: 4px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 10px; font-weight: 700;
+  background: #f0fdf4; color: #15803d;
+}
+
+/* Score breakdown tooltip */
+.spia-score-wrap { position: relative; cursor: help; }
+.spia-score-tooltip {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 100;
+  background: #0e0f0f; color: white; padding: 8px 10px; border-radius: 8px;
+  font-size: 10.5px; font-weight: 500; min-width: 180px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.25);
+  opacity: 0; pointer-events: none; transform: translateY(-4px);
+  transition: opacity 0.15s, transform 0.15s;
+  line-height: 1.5;
+}
+.spia-score-tooltip::after {
+  content: ''; position: absolute; right: 14px; top: -5px;
+  width: 10px; height: 10px; background: #0e0f0f; transform: rotate(45deg);
+}
+.spia-score-tooltip-row {
+  display: flex; justify-content: space-between; gap: 12px;
+}
+.spia-score-tooltip-row b { font-weight: 700; }
+.spia-score-tooltip-row.total {
+  margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.15);
+  font-weight: 800;
+}
+.spia-score-wrap:hover .spia-score-tooltip {
+  opacity: 1; transform: translateY(0);
+}
+
+/* Animación de aplicación exitosa */
+@keyframes spiaApplyPulse {
+  0% { box-shadow: 0 0 0 0 rgba(21, 128, 61, 0.45); transform: scale(1); }
+  50% { box-shadow: 0 0 0 12px rgba(21, 128, 61, 0); transform: scale(1.012); }
+  100% { box-shadow: 0 0 0 0 rgba(21, 128, 61, 0); transform: scale(1); }
+}
+.spia-cand.is-just-applied {
+  animation: spiaApplyPulse 0.8s ease-out;
+}
+
+/* Floating undo button */
+.spia-undo-float {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+  z-index: 99996; padding: 11px 18px; border-radius: 999px;
+  background: #0e0f0f; color: white; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 700; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 8px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.28);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.spia-undo-float.is-visible { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+.spia-undo-float:hover { background: #1f2937; }
+
+/* Atajos de teclado hint */
+.spia-kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 4px;
+  background: rgba(15,15,15,0.06); border-radius: 4px;
+  border: 1px solid rgba(15,15,15,0.1); border-bottom-width: 2px;
+  font-size: 10px; font-weight: 700; color: #4b5563;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+}
+
+/* Card seleccionado (foco teclado) */
+.spia-cand.is-focused {
+  border-color: #0f7a6d; box-shadow: 0 0 0 3px rgba(15,122,109,0.18);
+}
 </style>
 <div class="spia-overlay" id="spiaOverlay" onclick="closeSPAutoSuggest()"></div>
 <div class="spia-modal" id="spiaModal" role="dialog" aria-modal="true" aria-labelledby="spiaTitle"></div>
+<button id="spiaUndoFloat" class="spia-undo-float" onclick="window.spiaUndoLast()" aria-label="Deshacer última asignación">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/></svg>
+  <span>Deshacer última</span>
+</button>
 
 <script>
 // ============================================================================
-// v6.2 — IA SUGGEST SP
-// Cruza huecos de cobertura por planta/día/turno con trabajadores con SP,
-// valida convenio (SP_RULES), scoring por equidad y propone asignaciones.
+// v6.3 — IA SUGGEST SP (PRO)
+// Bulk inteligente · What-if preview · Filtros · Undo · Badge · Tooltips · Teclado
 // ============================================================================
 (function () {
   'use strict';
 
   var WORK_SHIFTS = ['M','T','N','MR','M7H','M6R','M55'];
   var ASSIGNABLE_SHIFTS = ['M','T','N']; // las únicas que asignamos como refuerzo
+  var MAX_BULK_PER_WORKER = 2; // bulk inteligente: no asignar la misma persona >2 veces
+
+  // Estado del módulo: filtros + historial para undo
+  var filters = { plantaId: 'all', shift: 'all', urgency: 'all' };
+  var history = []; // { workerId, dayIdx, shift, prevValue, ts }
+  var focusedCardIdx = -1;
 
   function getCurrentSchedule() {
     var m = (typeof appState !== 'undefined') ? appState.currentMonth : new Date();
@@ -30250,7 +30385,7 @@ function animateNumber(elementId, targetValue, duration) {
     return { ok: true };
   }
 
-  // Scoring: prioriza menor uso (equidad). Score 0-100.
+  // Scoring: prioriza menor uso (equidad). Devuelve {score, breakdown}.
   function scoreCandidate(ctx, w, dayIdx, shift, gap) {
     var workedDays = 0;
     var nightsCount = 0;
@@ -30259,44 +30394,152 @@ function animateNumber(elementId, targetValue, duration) {
       if (WORK_SHIFTS.indexOf(s) !== -1) workedDays++;
       if (s === 'N') nightsCount++;
     }
-    // Base: 100 - workedDays (más libres → más puntos)
-    var score = Math.max(0, 100 - workedDays * 4);
-    // Bonus si pertenece a la misma planta (refuerzo natural)
-    if (w.planta === gap.plantaId) score += 12;
-    // Bonus si es de "refuerzo" (su rol es cubrir)
-    if (w.planta === 'refuerzo') score += 18;
-    // Penalización si ya hizo muchas noches este mes y le toca otra
-    if (shift === 'N') score -= nightsCount * 6;
-    return Math.max(0, Math.min(100, Math.round(score)));
+    var breakdown = [];
+    var base = Math.max(0, 100 - workedDays * 4);
+    breakdown.push({ label: 'Base equidad', value: base, detail: workedDays + ' días trabajados' });
+    var bonusPlanta = 0, bonusRefuerzo = 0, penalNoche = 0;
+    if (w.planta === gap.plantaId) {
+      bonusPlanta = 12;
+      breakdown.push({ label: 'Misma planta', value: '+' + bonusPlanta });
+    }
+    if (w.planta === 'refuerzo') {
+      bonusRefuerzo = 18;
+      breakdown.push({ label: 'Rol refuerzo', value: '+' + bonusRefuerzo });
+    }
+    if (shift === 'N' && nightsCount > 0) {
+      penalNoche = nightsCount * 6;
+      breakdown.push({ label: 'Penalización noches previas', value: '−' + penalNoche, detail: nightsCount + ' noches' });
+    }
+    var raw = base + bonusPlanta + bonusRefuerzo - penalNoche;
+    var score = Math.max(0, Math.min(100, Math.round(raw)));
+    breakdown.push({ label: 'Score final', value: score, isTotal: true });
+    return { score: score, breakdown: breakdown };
   }
 
-  // Genera el plan completo
+  // Filtra un gap según el state de filtros
+  function passesFilter(gap, ctx) {
+    if (filters.plantaId !== 'all' && gap.plantaId !== filters.plantaId) return false;
+    if (filters.shift !== 'all' && gap.shift !== filters.shift) return false;
+    if (filters.urgency === 'week') {
+      var today = new Date();
+      var sevenAhead = new Date();
+      sevenAhead.setDate(today.getDate() + 7);
+      var dayDate = new Date(ctx.year, ctx.month, gap.day);
+      // Solo entran si están dentro de 7 días desde hoy (y no en pasado)
+      if (dayDate < today.setHours(0,0,0,0) || dayDate > sevenAhead) return false;
+    }
+    return true;
+  }
+
+  // Calcula el % de cobertura global (working/min) sumando todos los slots
+  function computeCoverage(ctx) {
+    if (typeof PLANTAS === 'undefined' || typeof PLANT_COVERAGE === 'undefined' || typeof workers === 'undefined') {
+      return { pct: 0, covered: 0, required: 0 };
+    }
+    var covered = 0, required = 0;
+    PLANTAS.forEach(function (p) {
+      if (p.id === 'refuerzo') return;
+      var coverage = PLANT_COVERAGE[p.id];
+      if (!coverage) return;
+      var workersOfPlanta = workers.filter(function (w) { return w.planta === p.id; });
+      for (var d = 0; d < ctx.daysInMonth; d++) {
+        ASSIGNABLE_SHIFTS.forEach(function (shift) {
+          var min = (coverage[shift] && coverage[shift].min) || 0;
+          if (min === 0) return;
+          required += min;
+          var working = 0;
+          workersOfPlanta.forEach(function (w) {
+            var s = (ctx.sch[w.id] && ctx.sch[w.id][d] || '').toString().trim();
+            if (s === shift) working++;
+            else if (shift === 'M' && ['MR','M7H','M6R','M55'].indexOf(s) !== -1) working++;
+          });
+          covered += Math.min(working, min);
+        });
+      }
+    });
+    var pct = required === 0 ? 100 : Math.round((covered / required) * 100);
+    return { pct: pct, covered: covered, required: required };
+  }
+
+  // Simula aplicar las top-1 sugerencias y calcula el what-if
+  function computeWhatIf(plan) {
+    if (!plan || !plan.perGap.length) return null;
+    var before = computeCoverage(plan.ctx);
+    // Clonamos el sch para simular
+    var simSch = {};
+    Object.keys(plan.ctx.sch).forEach(function (wId) {
+      simSch[wId] = (plan.ctx.sch[wId] || []).slice();
+    });
+    // Bulk inteligente: máximo 2 asignaciones por persona
+    var usage = {};
+    plan.perGap.forEach(function (entry) {
+      if (entry.candidates.length === 0) return;
+      var pick = null;
+      for (var i = 0; i < entry.candidates.length; i++) {
+        var c = entry.candidates[i];
+        if ((usage[c.w.id] || 0) < MAX_BULK_PER_WORKER) { pick = c; break; }
+      }
+      if (!pick) return;
+      usage[pick.w.id] = (usage[pick.w.id] || 0) + 1;
+      if (!simSch[pick.w.id]) simSch[pick.w.id] = [];
+      simSch[pick.w.id][entry.gap.day] = entry.gap.shift;
+    });
+    var simCtx = { year: plan.ctx.year, month: plan.ctx.month, daysInMonth: plan.ctx.daysInMonth, sch: simSch };
+    var after = computeCoverage(simCtx);
+    return { before: before, after: after, willApply: Object.keys(usage).length };
+  }
+
+  // Genera el plan completo (respeta filtros)
   function buildSuggestionPlan() {
     var ctx = getCurrentSchedule();
     if (!ctx) return null;
-    var gaps = findCoverageGaps(ctx);
+    var allGaps = findCoverageGaps(ctx);
+    var gaps = allGaps.filter(function (g) { return passesFilter(g, ctx); });
     var perGap = gaps.map(function (g) {
       var pool = findSPWorkersOnDay(ctx, g.day);
       var candidates = [];
       pool.forEach(function (w) {
         var v = validateAssignment(ctx, w, g.day, g.shift);
         if (!v.ok) return; // descartado por convenio
-        var score = scoreCandidate(ctx, w, g.day, g.shift, g);
-        candidates.push({ w: w, score: score });
+        var sc = scoreCandidate(ctx, w, g.day, g.shift, g);
+        candidates.push({ w: w, score: sc.score, breakdown: sc.breakdown });
       });
       candidates.sort(function (a, b) { return b.score - a.score; });
       return { gap: g, candidates: candidates.slice(0, 3) };
     });
-    return { ctx: ctx, gaps: gaps, perGap: perGap };
+    return { ctx: ctx, gaps: gaps, allGaps: allGaps, perGap: perGap };
   }
 
-  // Aplica una asignación: escribe shift en el schedule y refresca UI
-  window.spiaApplyAssignment = function (workerId, dayIdx, shift, btnEl) {
+  // Selecciona top-1 de cada gap respetando MAX_BULK_PER_WORKER (anti-burnout)
+  function pickBulkSelection(plan) {
+    var picks = [];
+    var usage = {};
+    plan.perGap.forEach(function (entry) {
+      if (entry.candidates.length === 0) return;
+      var chosen = null;
+      for (var i = 0; i < entry.candidates.length; i++) {
+        var c = entry.candidates[i];
+        if ((usage[c.w.id] || 0) < MAX_BULK_PER_WORKER) { chosen = c; break; }
+      }
+      if (!chosen) return;
+      usage[chosen.w.id] = (usage[chosen.w.id] || 0) + 1;
+      picks.push({ candidate: chosen, gap: entry.gap });
+    });
+    return picks;
+  }
+
+  // Aplica una asignación: escribe shift en el schedule, registra historial, refresca UI
+  window.spiaApplyAssignment = function (workerId, dayIdx, shift, btnEl, suppressToast) {
     try {
       var ctx = getCurrentSchedule();
       if (!ctx) return;
       if (!ctx.sch[workerId]) ctx.sch[workerId] = [];
+      var prevValue = ctx.sch[workerId][dayIdx] || '';
       ctx.sch[workerId][dayIdx] = shift;
+      // Historial para undo
+      history.push({ workerId: workerId, dayIdx: dayIdx, shift: shift, prevValue: prevValue, ts: Date.now() });
+      if (history.length > 50) history.shift(); // cap a 50 ops
+      updateUndoButton();
       // Persistir
       try {
         if (typeof scheduleData !== 'undefined') {
@@ -30308,50 +30551,145 @@ function animateNumber(elementId, targetValue, duration) {
       } catch (e) {}
       // Sync con backend si hay token
       try {
-        if (typeof getAuthToken === 'function' || (typeof localStorage !== 'undefined' && localStorage.getItem('shiftia_auth_token'))) {
-          var token = (typeof getAuthToken === 'function') ? getAuthToken() : localStorage.getItem('shiftia_auth_token');
-          if (token) {
-            fetch('/api/data', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-              body: JSON.stringify({ scheduleData: scheduleData })
-            }).catch(function () {});
-          }
+        var token = (typeof getAuthToken === 'function') ? getAuthToken()
+                  : (typeof localStorage !== 'undefined' ? localStorage.getItem('shiftia_auth_token') : null);
+        if (token) {
+          fetch('/api/data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ scheduleData: scheduleData })
+          }).catch(function () {});
         }
       } catch (e) {}
-      // Marcar UI
+      // Marcar UI con animación de éxito
       if (btnEl) {
         btnEl.disabled = true;
         btnEl.textContent = 'Asignado';
         var card = btnEl.closest('.spia-cand');
-        if (card) card.classList.add('is-applied');
+        if (card) {
+          card.classList.add('is-applied', 'is-just-applied');
+          setTimeout(function () { card.classList.remove('is-just-applied'); }, 800);
+        }
       }
-      if (typeof showToast === 'function') showToast('Refuerzo asignado: ' + shift + ' día ' + (dayIdx + 1), 'success', 2200);
+      if (!suppressToast && typeof showToast === 'function') {
+        showToast('Refuerzo asignado: ' + shift + ' día ' + (dayIdx + 1), 'success', 2200);
+      }
       // Refrescar SP Manager y cuadrante si existen
       try { if (typeof renderSPManagerContent === 'function') renderSPManagerContent(); } catch (e) {}
       try { if (typeof renderSchedule === 'function') renderSchedule(); } catch (e) {}
+      // Actualizar badge global (huecos restantes)
+      updateSPBadge();
     } catch (err) {
       console.warn('[SP-IA] applyAssignment failed:', err);
       if (typeof showToast === 'function') showToast('No se pudo asignar', 'error', 3000);
     }
   };
 
-  // Aplica TODAS las sugerencias top-1 que aún sean válidas
+  // Bulk inteligente: aplica top-1 de cada gap respetando MAX_BULK_PER_WORKER
   window.spiaApplyAll = function () {
     var btn = document.getElementById('spiaApplyAllBtn');
     if (btn) btn.disabled = true;
     var plan = buildSuggestionPlan();
     if (!plan) return;
+    var picks = pickBulkSelection(plan);
     var applied = 0;
-    plan.perGap.forEach(function (entry) {
-      if (entry.candidates.length === 0) return;
-      var top = entry.candidates[0];
-      window.spiaApplyAssignment(top.w.id, entry.gap.day, entry.gap.shift, null);
+    picks.forEach(function (pk) {
+      window.spiaApplyAssignment(pk.candidate.w.id, pk.gap.day, pk.gap.shift, null, true);
       applied++;
     });
-    if (typeof showToast === 'function') showToast('Aplicadas ' + applied + ' sugerencias', applied > 0 ? 'success' : 'info', 2800);
+    if (typeof showToast === 'function') {
+      var msg = applied === 0 ? 'No hay sugerencias aplicables'
+              : 'Aplicadas ' + applied + ' sugerencias (bulk inteligente, sin sobrecarga)';
+      showToast(msg, applied > 0 ? 'success' : 'info', 3200);
+    }
     setTimeout(function () { renderSuggestionsModal(); }, 200);
   };
+
+  // Deshacer la última asignación realizada (de la sesión actual)
+  window.spiaUndoLast = function () {
+    if (history.length === 0) return;
+    var last = history.pop();
+    try {
+      var ctx = getCurrentSchedule();
+      if (!ctx) return;
+      if (!ctx.sch[last.workerId]) ctx.sch[last.workerId] = [];
+      ctx.sch[last.workerId][last.dayIdx] = last.prevValue;
+      try {
+        if (typeof scheduleData !== 'undefined') {
+          scheduleData[ctx.key] = ctx.sch;
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('shiftia_schedule_data', JSON.stringify(scheduleData));
+          }
+        }
+      } catch (e) {}
+      try {
+        var token = (typeof getAuthToken === 'function') ? getAuthToken()
+                  : (typeof localStorage !== 'undefined' ? localStorage.getItem('shiftia_auth_token') : null);
+        if (token) {
+          fetch('/api/data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ scheduleData: scheduleData })
+          }).catch(function () {});
+        }
+      } catch (e) {}
+      try { if (typeof renderSPManagerContent === 'function') renderSPManagerContent(); } catch (e) {}
+      try { if (typeof renderSchedule === 'function') renderSchedule(); } catch (e) {}
+      if (typeof showToast === 'function') {
+        showToast('Asignación deshecha (día ' + (last.dayIdx + 1) + ')', 'info', 2200);
+      }
+      // Si modal abierto, re-render
+      var modalOpen = document.getElementById('spiaModal');
+      if (modalOpen && modalOpen.classList.contains('is-open')) {
+        renderSuggestionsModal();
+      }
+      updateUndoButton();
+      updateSPBadge();
+    } catch (err) {
+      console.warn('[SP-IA] undoLast failed:', err);
+    }
+  };
+
+  function updateUndoButton() {
+    var btn = document.getElementById('spiaUndoFloat');
+    if (!btn) return;
+    if (history.length > 0) btn.classList.add('is-visible');
+    else btn.classList.remove('is-visible');
+  }
+
+  // Setea filtro y re-render
+  window.spiaSetFilter = function (key, value) {
+    if (filters[key] === undefined) return;
+    filters[key] = value;
+    renderSuggestionsModal();
+  };
+
+  // Badge en el botón "Sugerir refuerzos IA" del SP Manager
+  function updateSPBadge() {
+    var btn = document.getElementById('spIASuggestBtn');
+    if (!btn) return;
+    try {
+      var ctx = getCurrentSchedule();
+      if (!ctx) return;
+      var gaps = findCoverageGaps(ctx);
+      var existing = btn.querySelector('.spia-btn-badge');
+      if (gaps.length === 0) {
+        if (existing) existing.remove();
+        return;
+      }
+      var html = gaps.length > 99 ? '99+' : String(gaps.length);
+      if (!existing) {
+        existing = document.createElement('span');
+        existing.className = 'spia-btn-badge';
+        btn.appendChild(existing);
+      }
+      existing.textContent = html;
+      existing.classList.toggle('is-high', gaps.length >= 10);
+    } catch (e) { /* silent */ }
+  }
+  // Update badge cuando se carga y cuando se abre/cierra el SP Manager
+  setInterval(updateSPBadge, 4000);
+  document.addEventListener('DOMContentLoaded', updateSPBadge);
 
   function renderSuggestionsModal() {
     var modal = document.getElementById('spiaModal');
@@ -30363,6 +30701,8 @@ function animateNumber(elementId, targetValue, duration) {
     }
     var totalCands = plan.perGap.reduce(function (a, b) { return a + b.candidates.length; }, 0);
     var coverableNow = plan.perGap.filter(function (e) { return e.candidates.length > 0; }).length;
+    var totalGapsAll = plan.allGaps.length;
+    var whatIf = computeWhatIf(plan);
 
     var html = '';
     html += '<div class="spia-header">';
@@ -30371,14 +30711,60 @@ function animateNumber(elementId, targetValue, duration) {
     html += '      <span class="spia-title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></span>';
     html += '      Sugerencias IA · Refuerzos desde el pool SP';
     html += '    </div>';
-    html += '    <div class="spia-subtitle">Cruza huecos de cobertura con trabajadores que tienen SP. Respeta SP_RULES (noches/mes, consecutivos, descansos).</div>';
+    html += '    <div class="spia-subtitle">Cruza huecos con trabajadores SP · Bulk inteligente reparte carga · Respeta SP_RULES</div>';
     html += '  </div>';
     html += '  <button class="spia-close" onclick="closeSPAutoSuggest()" aria-label="Cerrar">×</button>';
     html += '</div>';
 
     html += '<div class="spia-body">';
+
+    // ===== Filtros =====
+    html += '<div class="spia-filters">';
+    html += '  <div class="spia-filter-group"><span class="spia-filter-label">Planta</span>';
+    html += '    <button class="spia-chip ' + (filters.plantaId === 'all' ? 'is-active' : '') + '" onclick="window.spiaSetFilter(\'plantaId\',\'all\')">Todas</button>';
+    if (typeof PLANTAS !== 'undefined') {
+      PLANTAS.forEach(function (p) {
+        if (p.id === 'refuerzo') return;
+        html += '<button class="spia-chip ' + (filters.plantaId === p.id ? 'is-active' : '') + '" onclick="window.spiaSetFilter(\'plantaId\',' + JSON.stringify(p.id) + ')">' + escHtml(p.short) + '</button>';
+      });
+    }
+    html += '  </div>';
+    html += '  <div class="spia-filter-group"><span class="spia-filter-label">Turno</span>';
+    ['all','M','T','N'].forEach(function (s) {
+      var lbl = s === 'all' ? 'Todos' : s;
+      html += '<button class="spia-chip ' + (filters.shift === s ? 'is-active' : '') + '" onclick="window.spiaSetFilter(\'shift\',' + JSON.stringify(s) + ')">' + lbl + '</button>';
+    });
+    html += '  </div>';
+    html += '  <div class="spia-filter-group"><span class="spia-filter-label">Urgencia</span>';
+    html += '    <button class="spia-chip ' + (filters.urgency === 'all' ? 'is-active' : '') + '" onclick="window.spiaSetFilter(\'urgency\',\'all\')">Todo el mes</button>';
+    html += '    <button class="spia-chip ' + (filters.urgency === 'week' ? 'is-active' : '') + '" onclick="window.spiaSetFilter(\'urgency\',\'week\')">Próximos 7 días</button>';
+    html += '  </div>';
+    html += '</div>';
+
+    // ===== What-if preview =====
+    if (whatIf && whatIf.willApply > 0) {
+      var deltaPct = whatIf.after.pct - whatIf.before.pct;
+      html += '<div class="spia-whatif">';
+      html += '  <div class="spia-whatif-side">';
+      html += '    <div class="spia-whatif-label">Cobertura ahora</div>';
+      html += '    <div class="spia-whatif-num ' + (whatIf.before.pct < 90 ? 'bad' : '') + '">' + whatIf.before.pct + '%</div>';
+      html += '    <div style="font-size:10px;color:#9ca3af;margin-top:2px;">' + whatIf.before.covered + ' / ' + whatIf.before.required + '</div>';
+      html += '  </div>';
+      html += '  <div class="spia-whatif-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>';
+      html += '  <div class="spia-whatif-side">';
+      html += '    <div class="spia-whatif-label">Si aplicas todo</div>';
+      html += '    <div class="spia-whatif-num good">' + whatIf.after.pct + '%</div>';
+      if (deltaPct > 0) {
+        html += '    <div class="spia-whatif-delta">+' + deltaPct + ' pp · ' + whatIf.willApply + ' asignaciones</div>';
+      } else {
+        html += '    <div style="font-size:10px;color:#9ca3af;margin-top:2px;">' + whatIf.after.covered + ' / ' + whatIf.after.required + '</div>';
+      }
+      html += '  </div>';
+      html += '</div>';
+    }
+
     html += '<div class="spia-stats">';
-    html += '  <div class="spia-stat"><div class="spia-stat-num">' + plan.gaps.length + '</div><div class="spia-stat-label">huecos detectados</div></div>';
+    html += '  <div class="spia-stat"><div class="spia-stat-num">' + plan.gaps.length + '</div><div class="spia-stat-label">huecos' + (filters.plantaId !== 'all' || filters.shift !== 'all' || filters.urgency !== 'all' ? ' (filtrados)' : ' detectados') + '</div></div>';
     html += '  <div class="spia-stat"><div class="spia-stat-num">' + coverableNow + '</div><div class="spia-stat-label">cubribles ahora</div></div>';
     html += '  <div class="spia-stat"><div class="spia-stat-num">' + totalCands + '</div><div class="spia-stat-label">candidatos</div></div>';
     html += '</div>';
@@ -30422,12 +30808,25 @@ function animateNumber(elementId, targetValue, duration) {
             if (c.w.planta === g.plantaId) rationale = 'misma planta';
             else if (c.w.planta === 'refuerzo') rationale = 'refuerzo natural';
             else rationale = 'SP disponible';
-            html += '<div class="spia-cand">';
+            // Tooltip con breakdown del score
+            var tooltipHtml = '';
+            if (c.breakdown && c.breakdown.length) {
+              tooltipHtml = '<div class="spia-score-tooltip">';
+              c.breakdown.forEach(function (b) {
+                var rowClass = b.isTotal ? ' total' : '';
+                tooltipHtml += '<div class="spia-score-tooltip-row' + rowClass + '"><span>' + escHtml(b.label) + (b.detail ? ' <i style="opacity:0.6;font-style:normal;">· ' + escHtml(b.detail) + '</i>' : '') + '</span><b>' + escHtml(String(b.value)) + '</b></div>';
+              });
+              tooltipHtml += '</div>';
+            }
+            html += '<div class="spia-cand" data-card-idx="' + i + '">';
             html += '  <div style="flex:1;min-width:0;">';
             html += '    <div class="spia-cand-name">' + escHtml(c.w.name || '—') + '</div>';
             html += '    <div class="spia-cand-meta">' + escHtml(typeBadge) + ' · ' + escHtml(pShort) + ' · ' + escHtml(rationale) + '</div>';
             html += '  </div>';
-            html += '  <span class="spia-cand-score ' + scoreClass + '">' + c.score + '</span>';
+            html += '  <span class="spia-score-wrap" tabindex="0" aria-label="Desglose del score">';
+            html += '    <span class="spia-cand-score ' + scoreClass + '">' + c.score + '</span>';
+            html += tooltipHtml;
+            html += '  </span>';
             html += '  <button class="spia-cand-btn" onclick="window.spiaApplyAssignment(' + JSON.stringify(c.w.id) + ',' + g.day + ',' + JSON.stringify(g.shift) + ',this)">Asignar</button>';
             html += '</div>';
           });
@@ -30441,19 +30840,24 @@ function animateNumber(elementId, targetValue, duration) {
     html += '</div>'; // body
 
     html += '<div class="spia-actions">';
-    html += '  <div class="left">' + plan.gaps.length + ' hueco' + (plan.gaps.length !== 1 ? 's' : '') + ' · ' + coverableNow + ' con candidatos · ' + totalCands + ' opciones totales</div>';
+    html += '  <div class="left">';
+    html += '    ' + plan.gaps.length + ' hueco' + (plan.gaps.length !== 1 ? 's' : '');
+    if (totalGapsAll !== plan.gaps.length) html += ' (de ' + totalGapsAll + ')';
+    html += ' · <span class="spia-kbd">Enter</span> aplicar · <span class="spia-kbd">Esc</span> cerrar';
+    html += '  </div>';
     html += '  <div style="display:flex;gap:8px;">';
     html += '    <button class="spia-btn-secondary" onclick="closeSPAutoSuggest()">Cerrar</button>';
     if (coverableNow > 0) {
       html += '    <button id="spiaApplyAllBtn" class="spia-btn-primary" onclick="window.spiaApplyAll()">';
       html += '      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-      html += '      Aplicar top-1 de cada hueco';
+      html += '      Aplicar inteligente · ' + (whatIf ? whatIf.willApply : coverableNow);
       html += '    </button>';
     }
     html += '  </div>';
     html += '</div>';
 
     modal.innerHTML = html;
+    updateUndoButton();
   }
 
   window.openSPAutoSuggest = function () {
@@ -30465,7 +30869,7 @@ function animateNumber(elementId, targetValue, duration) {
     modal.classList.add('is-open');
     document.body.style.overflow = 'hidden';
     // Cerrar con Escape
-    document.addEventListener('keydown', escListener);
+    document.addEventListener('keydown', kbListener);
   };
   window.closeSPAutoSuggest = function () {
     var ov = document.getElementById('spiaOverlay');
@@ -30473,9 +30877,31 @@ function animateNumber(elementId, targetValue, duration) {
     if (ov) ov.classList.remove('is-open');
     if (modal) modal.classList.remove('is-open');
     document.body.style.overflow = '';
-    document.removeEventListener('keydown', escListener);
+    document.removeEventListener('keydown', kbListener);
   };
-  function escListener(e) { if (e.key === 'Escape') window.closeSPAutoSuggest(); }
+  function kbListener(e) {
+    var modal = document.getElementById('spiaModal');
+    if (!modal || !modal.classList.contains('is-open')) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      window.closeSPAutoSuggest();
+      return;
+    }
+    if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+      var target = e.target && e.target.tagName ? e.target.tagName.toUpperCase() : '';
+      if (target === 'BUTTON' || target === 'INPUT' || target === 'TEXTAREA') return;
+      var btn = document.getElementById('spiaApplyAllBtn');
+      if (btn && !btn.disabled) {
+        e.preventDefault();
+        btn.click();
+      }
+      return;
+    }
+    if (e.key === 'z' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      window.spiaUndoLast();
+    }
+  }
 })();
 </script>
 
