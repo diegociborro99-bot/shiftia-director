@@ -9491,19 +9491,22 @@ const appState = {
   scheduleMode: 'normal', // 'normal' or 'compact'
 };
 
-// OS Dark Mode Detection and Preference Management
+// Tema: LIGHT por defecto (consistencia entre dispositivos),
+// dark solo si el director lo activa explícitamente con el toggle.
+// El SO ya NO fuerza dark — eso provocaba la queja "se ve oscuro" en hospitales.
 (function() {
   const saved = localStorage.getItem('shiftia_theme_preference');
-  if (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  if (saved === 'dark') {
     appState.theme = 'dark';
     document.documentElement.setAttribute('data-theme', 'dark');
-  } else if (saved) {
-    appState.theme = saved;
-    document.documentElement.setAttribute('data-theme', saved === 'dark' ? 'dark' : '');
+  } else {
+    // light por defecto — independientemente del SO
+    appState.theme = 'light';
+    document.documentElement.setAttribute('data-theme', '');
   }
 
-  // Listen for OS dark mode changes
-  if (window.matchMedia) {
+  // Listen for OS dark mode changes — IGNORADO. Cambiar requiere toggle manual.
+  if (window.matchMedia && false) {
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
       const userOverride = localStorage.getItem('shiftia_theme_preference');
       if (!userOverride) {
@@ -26032,9 +26035,9 @@ function buildAICoverageAnalysis(w, days, action) {
           if (!a.candidate) return;
           const d = a.dayAnalysis;
           html += `<div style="display:flex;gap:8px;align-items:center;padding:4px 0;font-size:11px;border-bottom:1px solid var(--surface2);">
-            <span style="font-weight:600;min-width:60px;">${d.dayName} ${d.dayDate.getDate()}</span>
+            <span style="font-weight:600;min-width:60px;">${escHtml(d.dayName)} ${d.dayDate.getDate()}</span>
             <span style="color:var(--text3);">→</span>
-            <span style="font-weight:600;color:var(--accent);">${a.candidate.w.name}</span>
+            <span style="font-weight:600;color:var(--accent);">${escHtml(a.candidate.w.name)}</span>
           </div>`;
         });
 
@@ -29977,6 +29980,154 @@ function animateNumber(elementId, targetValue, duration) {
   }
   requestAnimationFrame(tick);
 }
+</script>
+
+<!-- ====== v6.1 — UX VISIBLE: fetch wrapper + status indicator + escapeHtml helper ====== -->
+<style>
+/* Sync status indicator (esquina inferior derecha) */
+.sync-status {
+  position: fixed; bottom: 16px; right: 16px; z-index: 99996;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-radius: 999px;
+  background: rgba(255,255,255,0.92); backdrop-filter: blur(10px);
+  border: 1px solid rgba(15,15,15,0.08);
+  box-shadow: 0 6px 20px rgba(15,15,15,0.08);
+  font-family: var(--font, 'Nunito', system-ui, sans-serif);
+  font-size: 12px; font-weight: 600; color: #4b5563;
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+.sync-status.is-visible { opacity: 1; transform: translateY(0); }
+.sync-status.is-syncing { background: #eef6f4; color: #0f7a6d; }
+.sync-status.is-error { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.sync-status.is-offline { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
+.sync-status .dot {
+  width: 8px; height: 8px; border-radius: 50%; background: currentColor;
+  box-shadow: 0 0 0 3px currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 25%, transparent);
+}
+.sync-status.is-syncing .dot { animation: syncPulse 1s ease-in-out infinite; }
+@keyframes syncPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* Global loading bar finísimo en top */
+.global-loading-bar {
+  position: fixed; top: 0; left: 0; height: 2px; width: 0%;
+  background: linear-gradient(90deg, #0f7a6d, #4ecdc4);
+  z-index: 99997;
+  transition: width 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+.global-loading-bar.is-active { opacity: 1; }
+</style>
+
+<div class="sync-status" id="syncStatus" role="status" aria-live="polite">
+  <span class="dot" aria-hidden="true"></span>
+  <span class="text">Conectado</span>
+</div>
+<div class="global-loading-bar" id="globalLoadingBar" aria-hidden="true"></div>
+
+<script>
+// v6.1 — UX visible: indicador de sincronización + wrapper de fetch
+(function () {
+  'use strict';
+  var statusEl = document.getElementById('syncStatus');
+  var statusText = statusEl && statusEl.querySelector('.text');
+  var loadingBar = document.getElementById('globalLoadingBar');
+  var inFlight = 0;
+  var hideTimer = null;
+
+  function setStatus(state, msg) {
+    if (!statusEl) return;
+    statusEl.classList.remove('is-syncing', 'is-error', 'is-offline');
+    if (state === 'syncing') statusEl.classList.add('is-syncing');
+    else if (state === 'error') statusEl.classList.add('is-error');
+    else if (state === 'offline') statusEl.classList.add('is-offline');
+    if (statusText) statusText.textContent = msg;
+    statusEl.classList.add('is-visible');
+    clearTimeout(hideTimer);
+    if (state === 'ok' || state === 'syncing-done') {
+      hideTimer = setTimeout(function () { statusEl.classList.remove('is-visible'); }, 1800);
+    }
+  }
+
+  function startProgress() {
+    inFlight++;
+    if (!loadingBar) return;
+    loadingBar.style.width = '12%';
+    loadingBar.classList.add('is-active');
+    setTimeout(function () { if (inFlight > 0 && loadingBar) loadingBar.style.width = '70%'; }, 250);
+  }
+  function endProgress() {
+    inFlight = Math.max(0, inFlight - 1);
+    if (inFlight > 0 || !loadingBar) return;
+    loadingBar.style.width = '100%';
+    setTimeout(function () {
+      if (loadingBar) {
+        loadingBar.classList.remove('is-active');
+        loadingBar.style.width = '0%';
+      }
+    }, 250);
+  }
+
+  // Wrap global fetch — solo para llamadas a /api/* (no a CDNs externos)
+  var originalFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || '';
+    var isApi = url.indexOf('/api/') >= 0 || url.indexOf('/auth/') >= 0;
+    var isWrite = init && init.method && /^(POST|PUT|DELETE|PATCH)$/i.test(init.method);
+    if (isApi) {
+      startProgress();
+      if (isWrite) setStatus('syncing', 'Guardando…');
+    }
+    return originalFetch(input, init).then(function (res) {
+      if (isApi) {
+        endProgress();
+        if (!res.ok) {
+          var msg = res.status === 401 ? 'Sesión expirada — vuelve a entrar'
+                  : res.status === 429 ? 'Demasiadas peticiones, espera un momento'
+                  : res.status === 503 ? 'Servidor temporalmente no disponible'
+                  : res.status >= 500 ? 'Error del servidor (' + res.status + ')'
+                  : 'Petición fallida (' + res.status + ')';
+          setStatus('error', msg);
+          if (typeof showToast === 'function') showToast(msg, 'error', 4000);
+        } else if (isWrite) {
+          setStatus('ok', 'Guardado');
+        }
+      }
+      return res;
+    }).catch(function (err) {
+      if (isApi) {
+        endProgress();
+        var msg = !navigator.onLine ? 'Sin conexión — los cambios se guardan localmente'
+                                     : 'No se pudo conectar con el servidor';
+        setStatus(navigator.onLine ? 'error' : 'offline', msg);
+        if (typeof showToast === 'function') showToast(msg, !navigator.onLine ? 'warning' : 'error', 4500);
+      }
+      throw err;
+    });
+  };
+
+  // Online / offline events
+  window.addEventListener('offline', function () {
+    setStatus('offline', 'Sin conexión');
+  });
+  window.addEventListener('online', function () {
+    setStatus('ok', 'Conectado');
+  });
+
+  // ===== escapeHtml helper global — para evitar XSS al inyectar nombres en innerHTML =====
+  window.escapeHtml = function (str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+  // Alias corto
+  window.esc = window.escapeHtml;
+})();
 </script>
 
 </body>

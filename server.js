@@ -10,12 +10,31 @@ const WebSocket = require('ws');
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || (() => {
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const PKG_VERSION = (() => { try { return require('./package.json').version; } catch (e) { return '0.0.0'; } })();
+
+// ====== STARTUP BANNER ======
+console.log('========================================');
+console.log(`  Shiftia Director v${PKG_VERSION} starting`);
+console.log(`  NODE_ENV=${process.env.NODE_ENV || 'development'}`);
+console.log(`  PORT=${PORT}`);
+console.log('========================================');
+
+// ====== JWT SECRET — obligatorio en producción ======
+let JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  if (IS_PRODUCTION) {
+    console.error('[FATAL] JWT_SECRET env var REQUIRED in production. Refusing to start.');
+    process.exit(1);
+  }
   const crypto = require('crypto');
-  const generated = crypto.randomBytes(32).toString('hex');
-  console.warn('[SECURITY WARNING] JWT_SECRET not set — using random secret. Sessions will NOT survive restarts. Set JWT_SECRET in Railway env vars.');
-  return generated;
-})();
+  JWT_SECRET = 'dev-only-' + crypto.randomBytes(16).toString('hex');
+  console.warn('[SECURITY] JWT_SECRET not set — using ephemeral DEV secret. Sessions will reset on restart.');
+}
+
+// ====== TRUST PROXY ======
+// Detrás de Railway/Heroku necesario para req.ip real, rate limiting, secure cookies
+app.set('trust proxy', 1);
 
 // ====== WEBSOCKET SERVER (real-time sync) ======
 const wss = new WebSocket.Server({ server, path: '/ws' });
@@ -94,18 +113,100 @@ function broadcastToUser(userId, data, excludeWs) {
   });
 }
 
-// Periodic cleanup of stale WebSocket connections
+// Periodic cleanup of stale WebSocket connections + heartbeat
+// Heartbeat: marca isAlive=false; en pong → true. Si en el siguiente tick
+// sigue false → la conexión está muerta, la cerramos.
+wss.on('connection', (ws) => {
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
+});
+
 setInterval(() => {
   wsClients.forEach((set, userId) => {
     set.forEach(ws => {
-      if (ws.readyState !== WebSocket.OPEN) set.delete(ws);
+      if (ws.readyState !== WebSocket.OPEN) {
+        set.delete(ws);
+        return;
+      }
+      if (ws.isAlive === false) {
+        try { ws.terminate(); } catch (e) {}
+        set.delete(ws);
+        return;
+      }
+      ws.isAlive = false;
+      try { ws.ping(); } catch (e) {}
     });
     if (set.size === 0) wsClients.delete(userId);
   });
 }, 30000);
 
-app.use(express.json());
+// ====== SECURITY HEADERS (helmet ligero, sin dependencia extra) ======
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (IS_PRODUCTION) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  // Eliminamos el header X-Powered-By: Express (info leak)
+  res.removeHeader('X-Powered-By');
+  next();
+});
+
+// ====== CORS — explícito, no abierto ======
+app.use((req, res, next) => {
+  const allowed = (process.env.CORS_ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+  const origin = req.headers.origin;
+  // Si no hay configuración explícita: same-origin only (no CORS)
+  if (origin && allowed.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    res.setHeader('Vary', 'Origin');
+  }
+  if (req.method === 'OPTIONS' && origin && allowed.includes(origin)) return res.status(204).end();
+  next();
+});
+
+// ====== BODY LIMITS — DoS protection ======
+app.use(express.json({ limit: '256kb' }));
+app.use(express.urlencoded({ extended: true, limit: '256kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ====== RATE LIMITING in-memory (sin dependencia extra) ======
+// Buckets por IP+ruta. Si la ruta es de auth, límite más estricto.
+const rateBuckets = new Map();
+function rateLimit(opts) {
+  const max = opts.max || 60;
+  const windowMs = opts.windowMs || 60000;
+  return function (req, res, next) {
+    const key = (req.ip || req.connection.remoteAddress || 'unknown') + '::' + (opts.scope || req.path);
+    const now = Date.now();
+    let bucket = rateBuckets.get(key);
+    if (!bucket || now - bucket.start > windowMs) {
+      bucket = { count: 0, start: now };
+      rateBuckets.set(key, bucket);
+    }
+    bucket.count++;
+    if (bucket.count > max) {
+      const retryAfter = Math.ceil((bucket.start + windowMs - now) / 1000);
+      res.setHeader('Retry-After', retryAfter);
+      return res.status(429).json({ error: 'Demasiadas peticiones. Espera ' + retryAfter + 's.' });
+    }
+    next();
+  };
+}
+// Limpieza periódica
+setInterval(() => {
+  const now = Date.now();
+  rateBuckets.forEach((b, k) => { if (now - b.start > 5 * 60000) rateBuckets.delete(k); });
+}, 60000);
+
+// Rate limits específicos para auth (montados sobre las rutas más abajo)
+const authLimiter = rateLimit({ max: 10, windowMs: 60000, scope: 'auth' });        // 10/min por IP
+const writeLimiter = rateLimit({ max: 60, windowMs: 60000, scope: 'write' });      // 60/min por IP en saves
 
 // ====== DATABASE CONFIG ======
 // Filter out undefined values to avoid overriding connectionString
@@ -237,13 +338,27 @@ async function initializeDatabase() {
     const existingSara = await client.query('SELECT id FROM users WHERE email = $1', [saraEmail]);
 
     if (existingSara.rows.length === 0) {
-      const adminPass = process.env.ADMIN_PASSWORD || 'vinicius1';
-      const hashedPassword = await bcrypt.hash(adminPass, 10);
-      await client.query(`
-        INSERT INTO users (email, password_hash, name, company, plan, plan_status, workers_limit)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `, [saraEmail, hashedPassword, 'Director — Enfermería', 'Fundación Hospital de Jove', 'enterprise', 'active', 1000]);
-      console.log('Admin user created: director@shiftia.es (ICUEVA)');
+      const adminPass = process.env.ADMIN_PASSWORD;
+      if (!adminPass) {
+        if (IS_PRODUCTION) {
+          console.error('[FATAL] No admin user exists and ADMIN_PASSWORD env var is not set in production. Refusing to create with default password.');
+          // No hacemos exit para no tirar el servicio: simplemente no creamos admin.
+          // El operador debe definir ADMIN_PASSWORD y reiniciar.
+        } else {
+          console.warn('[SECURITY] ADMIN_PASSWORD env var not set — skipping admin seed. Define it for first admin.');
+        }
+      } else {
+        if (adminPass.length < 12) {
+          console.warn('[SECURITY] ADMIN_PASSWORD is shorter than 12 chars. Use a stronger password.');
+        }
+        const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
+        const hashedPassword = await bcrypt.hash(adminPass, BCRYPT_ROUNDS);
+        await client.query(`
+          INSERT INTO users (email, password_hash, name, company, plan, plan_status, workers_limit)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [saraEmail, hashedPassword, 'Director', 'Hospital', 'enterprise', 'active', 1000]);
+        console.log('[INIT] Admin user created successfully.');
+      }
     }
 
     client.release();
@@ -287,17 +402,38 @@ function isValidEmail(email) {
 }
 
 // ====== EMAIL CONFIG ======
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER || 'highkeycvsender@gmail.com',
-    pass: process.env.GMAIL_APP_PASSWORD || ''
+// Pool de conexiones SMTP — reutilizable, max 5 simultáneas
+let transporter = null;
+function getTransporter() {
+  if (transporter) return transporter;
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) {
+    console.warn('[EMAIL] GMAIL_USER o GMAIL_APP_PASSWORD no configurados — los envíos fallarán silenciosamente.');
+    return null;
   }
-});
+  transporter = nodemailer.createTransport({
+    service: 'gmail',
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
+    auth: { user, pass }
+  });
+  return transporter;
+}
+
+// Safe wrapper: si no hay transporter configurado, no rompe — solo loguea
+function safeSendMail(opts) {
+  const t = getTransporter();
+  if (!t) {
+    return Promise.reject(new Error('SMTP no configurado'));
+  }
+  return t.sendMail(opts);
+}
 
 // ====== AUTHENTICATION ROUTES ======
 // POST /api/auth/register
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   if (!dbAvailable) return res.status(503).json({ error: 'Base de datos no disponible. Use login directo.' });
   try {
     const { email, password, name, company } = req.body;
@@ -323,8 +459,9 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(409).json({ error: 'Email already exists' });
     }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
+    // Hash password (bcrypt rounds configurable, default 12)
+    const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     // Insert user
     const result = await pool.query(
@@ -356,7 +493,7 @@ const USERNAME_MAP = {
 };
 
 // POST /api/auth/login
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, password, username } = req.body;
 
@@ -371,10 +508,18 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Usuario y contraseña son obligatorios' });
     }
 
-    // No-DB mode: auto-authenticate with localStorage-only fallback
+    // No-DB mode: en producción rechazamos. En dev permitimos auth offline para testing local.
     if (!dbAvailable) {
+      if (IS_PRODUCTION) {
+        return res.status(503).json({ error: 'Servicio no disponible (BD desconectada). Inténtalo de nuevo en unos minutos.' });
+      }
+      // En dev: solo auth offline si la password coincide con DEV_OFFLINE_PASS env var
+      const offlinePass = process.env.DEV_OFFLINE_PASS;
+      if (!offlinePass || password !== offlinePass) {
+        return res.status(503).json({ error: 'BD no disponible y DEV_OFFLINE_PASS no coincide.' });
+      }
       const token = jwt.sign({ id: 1, email: loginEmail }, JWT_SECRET, { expiresIn: '30d' });
-      return res.json({ token, user: { id: 1, email: loginEmail, name: 'Director', company: 'Hospital', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } });
+      return res.json({ token, user: { id: 1, email: loginEmail, name: 'Director', company: 'Hospital (offline)', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } });
     }
 
     // Find user by email
@@ -579,7 +724,7 @@ app.get('/api/data', authMiddleware, async (req, res) => {
 });
 
 // POST /api/data (protected) — Save user's workspace data
-app.post('/api/data', authMiddleware, async (req, res) => {
+app.post('/api/data', writeLimiter, authMiddleware, async (req, res) => {
   if (!dbAvailable) return res.json({ success: true }); // No DB — client uses localStorage
   try {
     const data = req.body;
@@ -667,7 +812,7 @@ app.post('/api/support', authMiddleware, async (req, res) => {
     // Fire-and-forget email (don't block response)
     try {
       if (process.env.GMAIL_APP_PASSWORD) {
-        transporter.sendMail({
+        safeSendMail({
           from: `"Shiftia Support" <${process.env.GMAIL_USER || 'highkeycvsender@gmail.com'}>`,
           to: process.env.SUPPORT_EMAIL || 'highkeycvsender@gmail.com',
           subject: `[Soporte - ${catLabels[cat] || cat}] ${subject}`,
@@ -788,7 +933,7 @@ app.post('/api/contact', async (req, res) => {
     // Fire-and-forget emails (don't block response)
     try {
       if (process.env.GMAIL_APP_PASSWORD) {
-        transporter.sendMail({
+        safeSendMail({
           from: `"Shiftia HUB" <${process.env.GMAIL_USER || 'highkeycvsender@gmail.com'}>`,
           to: process.env.SUPPORT_EMAIL || 'highkeycvsender@gmail.com',
           subject: `Nueva solicitud de demo — ${safeName} (${safeCompany || 'Sin empresa'})`,
@@ -818,7 +963,7 @@ app.post('/api/contact', async (req, res) => {
         }).then(() => console.log('Contact notification email sent'))
           .catch(e => console.warn('Contact notification email failed:', e.message));
 
-        transporter.sendMail({
+        safeSendMail({
           from: `"Shiftia" <${process.env.GMAIL_USER || 'highkeycvsender@gmail.com'}>`,
           to: email,
           subject: 'Hemos recibido tu solicitud — Shiftia',
@@ -932,7 +1077,7 @@ app.post('/api/booking', async (req, res) => {
     try {
       if (process.env.GMAIL_APP_PASSWORD) {
         // 1. Notification to Diego
-        transporter.sendMail({
+        safeSendMail({
           from: `"Shiftia Booking" <${process.env.GMAIL_USER || 'highkeycvsender@gmail.com'}>`,
           to: process.env.SUPPORT_EMAIL || 'highkeycvsender@gmail.com',
           subject: `📞 Nueva llamada agendada — ${esc(name)} (${esc(company || 'N/A')}) — ${prettyDate} ${time}h`,
@@ -962,7 +1107,7 @@ app.post('/api/booking', async (req, res) => {
           .catch(e => console.warn('Booking notification email failed:', e.message));
 
         // 2. Confirmation to client
-        transporter.sendMail({
+        safeSendMail({
           from: `"Shiftia" <${process.env.GMAIL_USER || 'highkeycvsender@gmail.com'}>`,
           to: email,
           subject: `Llamada confirmada — ${prettyDate} a las ${time}h — Shiftia`,
@@ -1088,7 +1233,7 @@ app.post('/api/notify', authMiddleware, async (req, res) => {
         `
       };
 
-      await transporter.sendMail(mailOptions);
+      await safeSendMail(mailOptions);
       res.json({ success: true, message: 'Email enviado correctamente' });
     } else {
       console.log('[Email Notification] To:', workerEmail, 'Coverage:', absentName, '→', shift, 'on', date);
@@ -1278,12 +1423,43 @@ app.post('/api/backups/:id/restore', authMiddleware, async (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '3.0.0', auth: 'enabled', websocket: true, backups: true });
+  res.json({
+    status: 'ok',
+    version: PKG_VERSION,
+    auth: 'enabled',
+    websocket: true,
+    backups: true,
+    db: dbAvailable
+  });
+});
+
+// Version endpoint público — para verificar deploys sin entrar en panel
+app.get('/version', (req, res) => {
+  res.type('text/plain').send(
+    `Shiftia Director v${PKG_VERSION}\n` +
+    `NODE_ENV=${process.env.NODE_ENV || 'development'}\n` +
+    `DB=${dbAvailable ? 'connected' : 'offline'}\n` +
+    `Boot=${new Date().toISOString()}\n`
+  );
+});
+
+// 404 JSON para cualquier /api/* no manejado (mejor que el SPA fallback)
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found', path: req.path });
 });
 
 // SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Global error handler — no filtra stack traces en producción
+app.use((err, req, res, next) => {
+  console.error('[GLOBAL ERROR]', err.message, IS_PRODUCTION ? '' : err.stack);
+  if (res.headersSent) return next(err);
+  res.status(err.status || 500).json({
+    error: IS_PRODUCTION ? 'Error interno del servidor' : err.message
+  });
 });
 
 // ====== DAILY SUMMARY EMAIL (7:00 AM) ======
@@ -1348,7 +1524,7 @@ async function sendDailySummary() {
       `;
 
       try {
-        await transporter.sendMail({
+        await safeSendMail({
           from: `"Shiftia SARA" <${process.env.GMAIL_USER || 'highkeycvsender@gmail.com'}>`,
           to: user.email,
           subject: `📋 Turnos ${dayNames[now.getDay()]} ${now.getDate()}/${now.getMonth() + 1} — Shiftia`,
