@@ -30259,6 +30259,856 @@ function animateNumber(elementId, targetValue, duration) {
   <span>Deshacer última</span>
 </button>
 
+<!-- ====================== v7.0 — SCHEDULE GENERATOR (AUTO-PLANIFICACIÓN COMPLETA) ====================== -->
+<style>
+/* FAB flotante para abrir el generador */
+.scgen-fab {
+  position: fixed; bottom: 24px; right: 24px; z-index: 99993;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 20px 14px 16px; border: none; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(135deg, #0f7a6d 0%, #4ecdc4 100%);
+  color: white; font-family: var(--font, 'Nunito', system-ui, sans-serif);
+  font-size: 13px; font-weight: 700; letter-spacing: -0.01em;
+  box-shadow: 0 8px 24px rgba(15,122,109,0.32), 0 2px 6px rgba(0,0,0,0.08);
+  transition: transform 0.2s cubic-bezier(0.16,1,0.3,1), box-shadow 0.2s;
+}
+.scgen-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 36px rgba(15,122,109,0.4), 0 4px 12px rgba(0,0,0,0.12);
+}
+.scgen-fab svg { width: 16px; height: 16px; }
+
+/* Overlay + modal */
+.scgen-overlay {
+  position: fixed; inset: 0; z-index: 99994;
+  background: rgba(15,15,15,0.5); backdrop-filter: blur(8px);
+  opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+}
+.scgen-overlay.is-open { opacity: 1; pointer-events: auto; }
+.scgen-modal {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -45%) scale(0.96);
+  width: min(880px, 96vw); max-height: 90vh; overflow: hidden;
+  background: white; border-radius: 20px; z-index: 99995;
+  box-shadow: 0 30px 80px rgba(15,15,15,0.36);
+  display: flex; flex-direction: column;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  font-family: var(--font, 'Nunito', system-ui, sans-serif);
+}
+.scgen-modal.is-open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+
+.scgen-header {
+  padding: 22px 28px 18px; border-bottom: 1px solid #f0eee6;
+  background: linear-gradient(135deg, #f7faf9, #ffffff);
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;
+}
+.scgen-title {
+  font-size: 20px; font-weight: 800; color: #0e0f0f; letter-spacing: -0.02em;
+  display: flex; align-items: center; gap: 10px;
+}
+.scgen-title-icon {
+  width: 30px; height: 30px; border-radius: 9px;
+  background: linear-gradient(135deg,#0f7a6d,#4ecdc4); color: white;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.scgen-subtitle { font-size: 12px; color: #6b7280; margin-top: 4px; }
+.scgen-close {
+  width: 34px; height: 34px; border-radius: 9px; border: none; cursor: pointer;
+  background: rgba(15,15,15,0.04); color: #4b5563; font-size: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.scgen-close:hover { background: rgba(15,15,15,0.08); color: #0e0f0f; }
+
+.scgen-body { padding: 22px 28px; overflow-y: auto; flex: 1; }
+.scgen-section { margin-bottom: 22px; }
+.scgen-section-title {
+  font-size: 11px; font-weight: 800; color: #6b7280;
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;
+}
+
+/* Sliders de prioridad */
+.scgen-sliders { display: grid; gap: 12px; }
+.scgen-slider {
+  padding: 12px 14px; background: #fbfaf6;
+  border-radius: 12px; border: 1px solid #ece9df;
+}
+.scgen-slider-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.scgen-slider-name { font-size: 12.5px; font-weight: 700; color: #0e0f0f; }
+.scgen-slider-desc { font-size: 10.5px; color: #6b7280; }
+.scgen-slider-val {
+  font-variant-numeric: tabular-nums;
+  background: #0f7a6d; color: white;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; min-width: 32px; text-align: center;
+}
+.scgen-slider input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 6px; border-radius: 3px;
+  background: linear-gradient(90deg, #0f7a6d 0%, #0f7a6d var(--p, 50%), #e5e7eb var(--p, 50%), #e5e7eb 100%);
+  outline: none;
+}
+.scgen-slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: white; border: 2px solid #0f7a6d; cursor: pointer;
+  box-shadow: 0 2px 6px rgba(15,122,109,0.3);
+}
+.scgen-slider input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: white; border: 2px solid #0f7a6d; cursor: pointer;
+}
+
+/* Plantillas/ciclos */
+.scgen-templates { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.scgen-template-card {
+  padding: 12px 14px; background: white;
+  border: 1.5px solid #ece9df; border-radius: 12px; cursor: pointer;
+  transition: all 0.15s; text-align: left;
+}
+.scgen-template-card:hover {
+  border-color: #0f7a6d; transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(15,122,109,0.12);
+}
+.scgen-template-card.is-selected {
+  border-color: #0f7a6d; background: #f0fdf4;
+  box-shadow: 0 0 0 3px rgba(15,122,109,0.18);
+}
+.scgen-template-name { font-size: 12px; font-weight: 700; color: #0e0f0f; margin-bottom: 4px; }
+.scgen-template-pattern {
+  display: flex; gap: 2px; margin: 6px 0 4px;
+}
+.scgen-template-cell {
+  width: 22px; height: 22px; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; color: white;
+}
+.scgen-template-cell.s-M { background: #2e8b7a; }
+.scgen-template-cell.s-T { background: #4a9dd4; }
+.scgen-template-cell.s-N { background: #c5a832; }
+.scgen-template-cell.s-L { background: #e5e7eb; color: #9ca3af; }
+.scgen-template-desc { font-size: 10px; color: #6b7280; }
+
+/* Botón de generar */
+.scgen-generate-row {
+  display: flex; gap: 10px; padding: 14px 28px;
+  background: #fafaf7; border-top: 1px solid #f0eee6;
+  align-items: center; justify-content: space-between;
+}
+.scgen-generate-info { font-size: 11px; color: #6b7280; }
+.scgen-btn-secondary {
+  padding: 10px 16px; border-radius: 9px; border: 1px solid #d1d5db;
+  background: white; color: #4b5563; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.scgen-btn-primary {
+  padding: 10px 18px; border-radius: 9px; border: none;
+  background: linear-gradient(135deg,#0f7a6d,#4ecdc4); color: white;
+  font-size: 12.5px; font-weight: 700;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+  font-family: inherit;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.scgen-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(15,122,109,0.32);
+}
+.scgen-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Progreso de generación */
+.scgen-progress {
+  display: none; padding: 22px 28px 14px;
+  border-bottom: 1px solid #f0eee6;
+}
+.scgen-progress.is-visible { display: block; }
+.scgen-progress-bar {
+  width: 100%; height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden;
+  margin-bottom: 8px;
+}
+.scgen-progress-fill {
+  height: 100%; background: linear-gradient(90deg, #0f7a6d, #4ecdc4);
+  width: 0%; transition: width 0.15s linear;
+}
+.scgen-progress-text {
+  font-size: 11.5px; color: #4b5563; display: flex; justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Comparador antes/después (diff) */
+.scgen-result { display: none; }
+.scgen-result.is-visible { display: block; }
+.scgen-result-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  margin-bottom: 16px;
+}
+.scgen-stat {
+  padding: 12px 14px; border-radius: 11px;
+  background: #fbfaf6; border: 1px solid #ece9df;
+}
+.scgen-stat-label { font-size: 9.5px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; }
+.scgen-stat-row { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; }
+.scgen-stat-before { font-size: 14px; color: #9ca3af; text-decoration: line-through; }
+.scgen-stat-after { font-size: 22px; font-weight: 800; color: #0f7a6d; font-family: var(--font-display, 'Fraunces', serif); }
+.scgen-stat-delta {
+  font-size: 10.5px; font-weight: 700;
+  padding: 2px 7px; border-radius: 999px;
+}
+.scgen-stat-delta.up { background: #f0fdf4; color: #15803d; }
+.scgen-stat-delta.down { background: #fef2f2; color: #b91c1c; }
+.scgen-stat-delta.same { background: #f3f4f6; color: #6b7280; }
+
+/* Tabla diff: solo muestra los cambios */
+.scgen-diff-list {
+  max-height: 280px; overflow-y: auto;
+  border: 1px solid #ece9df; border-radius: 11px;
+  background: white;
+}
+.scgen-diff-row {
+  display: grid; grid-template-columns: 140px 80px 1fr 1fr;
+  gap: 10px; padding: 8px 12px; font-size: 11.5px;
+  border-bottom: 1px solid #f4f3ee;
+  align-items: center;
+}
+.scgen-diff-row:last-child { border-bottom: none; }
+.scgen-diff-row:hover { background: #fbfaf6; }
+.scgen-diff-name { font-weight: 700; color: #0e0f0f; }
+.scgen-diff-day { font-weight: 600; color: #6b7280; font-variant-numeric: tabular-nums; }
+.scgen-diff-before, .scgen-diff-after {
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.scgen-diff-shift {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 26px; height: 22px; padding: 0 6px; border-radius: 5px;
+  font-size: 10.5px; font-weight: 800;
+}
+.scgen-diff-shift.s-M { background: #d8eee9; color: #2e8b7a; }
+.scgen-diff-shift.s-T { background: #d8e8f5; color: #4a9dd4; }
+.scgen-diff-shift.s-N { background: #f7eed1; color: #93772a; }
+.scgen-diff-shift.s-SP { background: #fef2f2; color: #b91c1c; }
+.scgen-diff-shift.s-L, .scgen-diff-shift.s-empty { background: #f3f4f6; color: #9ca3af; }
+.scgen-diff-arrow { color: #0f7a6d; }
+.scgen-diff-empty {
+  padding: 32px 16px; text-align: center; color: #9ca3af; font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .scgen-fab { bottom: 16px; right: 16px; padding: 12px 16px 12px 14px; font-size: 12px; }
+  .scgen-result-stats { grid-template-columns: 1fr 1fr; }
+  .scgen-diff-row { grid-template-columns: 100px 60px 1fr 1fr; gap: 6px; font-size: 10.5px; }
+}
+</style>
+
+<button id="scgenFab" class="scgen-fab" onclick="window.scgenOpen()" title="Generar el cuadrante completo del mes con IA (simulated annealing). Optimiza cobertura, equidad y descansos legales.">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+  Generar mes con IA
+</button>
+<div class="scgen-overlay" id="scgenOverlay" onclick="window.scgenClose()"></div>
+<div class="scgen-modal" id="scgenModal" role="dialog" aria-modal="true" aria-labelledby="scgenTitle"></div>
+
+<script>
+// ============================================================================
+// v7.0 — SCHEDULE GENERATOR (auto-planificación completa con simulated annealing)
+//
+// Genera el cuadrante mensual entero optimizando:
+//  - Cobertura mínima por planta/turno (PLANT_COVERAGE)
+//  - Equidad (varianza de carga entre trabajadores)
+//  - Convenio (SP_RULES + adyacencias N→M, T→M)
+//
+// Sliders ajustan los pesos. Algoritmo: simulated annealing async (yields cada
+// 200 iter para no bloquear UI). 2500 iteraciones por defecto.
+// ============================================================================
+(function () {
+  'use strict';
+
+  var WORK_SHIFTS = ['M','T','N','MR','M7H','M6R','M55'];
+  var ASSIGNABLE = ['M','T','N']; // turnos que el generador puede asignar
+  var REST_VALUES = ['', 'L']; // libre / vacío
+
+  // Estado del módulo
+  var state = {
+    weights: { coverage: 80, equity: 50, preference: 30 },
+    selectedTemplate: null,
+    iterations: 2500,
+    currentSnapshot: null, // backup del schedule original (para descartar)
+    proposed: null,        // schedule propuesto por la IA
+    proposedDiff: [],      // [{wId, day, before, after}]
+    isRunning: false
+  };
+
+  // Plantillas / ciclos predefinidos (no se aplican como "regla rígida"; le dan
+  // un sesgo al generador para que respete patrones tradicionales)
+  var TEMPLATES = [
+    { id: 'classic', name: 'Clásico (M-T-N rotación)',
+      pattern: ['M','M','T','T','N','N','L'], desc: '6 días + 1 libre, rotando' },
+    { id: 'mt_only', name: 'Solo M y T',
+      pattern: ['M','M','T','T','L','L','L'], desc: 'Sin noches, jornada partida' },
+    { id: 'long_nights', name: 'Pack noches',
+      pattern: ['N','N','L','L','L','M','M'], desc: '2 noches juntas + descanso largo' },
+    { id: 'flat', name: 'Sin patrón (libre IA)',
+      pattern: null, desc: 'La IA decide sin sesgo de plantilla' }
+  ];
+
+  // ===== Utils =====
+  function getCtx() {
+    var m = (typeof appState !== 'undefined') ? appState.currentMonth : new Date();
+    var year = m.getFullYear();
+    var month = m.getMonth();
+    var key = year + '-' + month;
+    if (typeof scheduleData === 'undefined') return null;
+    if (!scheduleData[key]) {
+      if (typeof genSchedule === 'function') scheduleData[key] = genSchedule(year, month);
+      else scheduleData[key] = {};
+    }
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
+    return { key: key, year: year, month: month, daysInMonth: daysInMonth, sch: scheduleData[key] };
+  }
+  function cloneSch(sch) {
+    var out = {};
+    Object.keys(sch || {}).forEach(function (wId) {
+      out[wId] = (sch[wId] || []).slice();
+    });
+    return out;
+  }
+  function getCell(sch, wId, d) {
+    return (sch[wId] && sch[wId][d] || '').toString().trim();
+  }
+  function setCell(sch, wId, d, val) {
+    if (!sch[wId]) sch[wId] = [];
+    sch[wId][d] = val;
+  }
+  function isWorkShift(s) { return WORK_SHIFTS.indexOf(s) !== -1; }
+
+  // Cobertura: cuenta personal que trabaja en (planta, día, turno)
+  function workingCount(sch, plantaId, day, shift) {
+    if (typeof workers === 'undefined') return 0;
+    var n = 0;
+    for (var i = 0; i < workers.length; i++) {
+      var w = workers[i];
+      if (w.planta !== plantaId) continue;
+      var s = getCell(sch, w.id, day);
+      if (s === shift) n++;
+      else if (shift === 'M' && ['MR','M7H','M6R','M55'].indexOf(s) !== -1) n++;
+    }
+    return n;
+  }
+
+  // ===== Función de coste =====
+  // Cuanto MENOR sea el coste, mejor es el cuadrante.
+  function computeCost(ctx, sch, weights) {
+    var cost = 0;
+    if (typeof PLANTAS === 'undefined' || typeof PLANT_COVERAGE === 'undefined' || typeof workers === 'undefined') return cost;
+
+    // 1. COBERTURA — penalty fuerte por cada hueco
+    PLANTAS.forEach(function (p) {
+      if (p.id === 'refuerzo') return;
+      var coverage = PLANT_COVERAGE[p.id];
+      if (!coverage) return;
+      for (var d = 0; d < ctx.daysInMonth; d++) {
+        ASSIGNABLE.forEach(function (sh) {
+          var min = (coverage[sh] && coverage[sh].min) || 0;
+          if (min === 0) return;
+          var w = workingCount(sch, p.id, d, sh);
+          if (w < min) cost += (min - w) * (weights.coverage * 1.0);
+        });
+      }
+    });
+
+    // 2. EQUIDAD — varianza de carga (días trabajados, noches, fines de semana)
+    var loads = [];
+    var nights = [];
+    var weekends = [];
+    workers.forEach(function (w) {
+      if (w.planta === 'refuerzo') return; // refuerzo es flexible
+      var ld = 0, nt = 0, wk = 0;
+      for (var d = 0; d < ctx.daysInMonth; d++) {
+        var s = getCell(sch, w.id, d);
+        if (isWorkShift(s)) {
+          ld++;
+          if (s === 'N') nt++;
+          var dow = new Date(ctx.year, ctx.month, d).getDay();
+          if (dow === 0 || dow === 6) wk++;
+        }
+      }
+      loads.push(ld); nights.push(nt); weekends.push(wk);
+    });
+    cost += variance(loads) * weights.equity;
+    cost += variance(nights) * weights.equity * 1.2;
+    cost += variance(weekends) * weights.equity * 0.8;
+
+    // 3. CONVENIO — penalty MUY fuerte por violaciones
+    workers.forEach(function (w) {
+      if (w.planta === 'refuerzo') return;
+      // Max noches/mes
+      var nightCount = 0;
+      var consecRun = 0, maxConsec = 0;
+      for (var d = 0; d < ctx.daysInMonth; d++) {
+        var s = getCell(sch, w.id, d);
+        if (s === 'N') nightCount++;
+        if (isWorkShift(s)) {
+          consecRun++;
+          if (consecRun > maxConsec) maxConsec = consecRun;
+        } else {
+          consecRun = 0;
+        }
+        // Adyacencias N→M, T→M
+        if (d > 0) {
+          var prev = getCell(sch, w.id, d - 1);
+          var prevEff = ['MR','M7H','M6R','M55'].indexOf(prev) !== -1 ? 'M' : prev;
+          var sEff = ['MR','M7H','M6R','M55'].indexOf(s) !== -1 ? 'M' : s;
+          if (prev === 'N' && (sEff === 'M' || sEff === 'T')) cost += 500;
+          if (prev === 'T' && sEff === 'M') cost += 500;
+        }
+      }
+      var rules = (typeof SP_RULES !== 'undefined') ? SP_RULES : { maxNightsPerMonth: 2, maxConsecutiveDays: 6 };
+      if (nightCount > rules.maxNightsPerMonth) cost += (nightCount - rules.maxNightsPerMonth) * 800;
+      if (maxConsec > rules.maxConsecutiveDays) cost += (maxConsec - rules.maxConsecutiveDays) * 800;
+    });
+
+    return cost;
+  }
+
+  function variance(arr) {
+    if (!arr.length) return 0;
+    var sum = 0; arr.forEach(function (v) { sum += v; });
+    var mean = sum / arr.length;
+    var sq = 0; arr.forEach(function (v) { sq += (v - mean) * (v - mean); });
+    return sq / arr.length;
+  }
+
+  // ===== Operaciones aleatorias =====
+  // Asignar/cambiar un turno random
+  function randomAssign(ctx, sch, template) {
+    if (typeof workers === 'undefined' || workers.length === 0) return null;
+    var w = workers[Math.floor(Math.random() * workers.length)];
+    if (w.planta === 'refuerzo') return null;
+    var d = Math.floor(Math.random() * ctx.daysInMonth);
+    var prev = getCell(sch, w.id, d);
+    // Si tiene turno asignado importado (scheduleImported y no SP), no tocamos
+    if (w.scheduleImported && prev !== 'SP' && prev !== '' && prev !== 'L') return null;
+
+    // Pool de valores posibles: turnos asignables + libre
+    var pool = ASSIGNABLE.slice();
+    pool.push('L'); // libre
+    // Si hay plantilla, sesgar al patrón del día (índice = d % 7)
+    var newVal;
+    if (template && template.pattern) {
+      var weekIdx = d % template.pattern.length;
+      var biased = template.pattern[weekIdx];
+      // 60% de las veces respeta plantilla, 40% libre
+      if (Math.random() < 0.6) newVal = biased;
+      else newVal = pool[Math.floor(Math.random() * pool.length)];
+    } else {
+      newVal = pool[Math.floor(Math.random() * pool.length)];
+    }
+    if (newVal === prev) return null;
+    setCell(sch, w.id, d, newVal);
+    return { wId: w.id, day: d, prev: prev, next: newVal };
+  }
+  function revertOp(sch, op) {
+    if (!op) return;
+    setCell(sch, op.wId, op.day, op.prev);
+  }
+
+  // ===== Simulated Annealing =====
+  function runAnnealing(ctx, options, onProgress, onDone) {
+    var sch = cloneSch(ctx.sch);
+    var template = options.template || null;
+    var weights = options.weights;
+    var iterations = options.iterations || 2500;
+    var T0 = 100, Tmin = 0.5;
+    var T = T0;
+    var alpha = Math.pow(Tmin / T0, 1 / iterations);
+
+    var bestSch = cloneSch(sch);
+    var bestCost = computeCost(ctx, sch, weights);
+    var currentCost = bestCost;
+    var i = 0;
+    var batchSize = 200;
+
+    function step() {
+      var deadline = performance.now() + 16; // ~60fps
+      while (i < iterations && performance.now() < deadline) {
+        var op = randomAssign(ctx, sch, template);
+        if (!op) { i++; continue; }
+        var newCost = computeCost(ctx, sch, weights);
+        var delta = newCost - currentCost;
+        if (delta < 0 || Math.random() < Math.exp(-delta / Math.max(0.1, T))) {
+          currentCost = newCost;
+          if (newCost < bestCost) {
+            bestCost = newCost;
+            bestSch = cloneSch(sch);
+          }
+        } else {
+          revertOp(sch, op);
+        }
+        T *= alpha;
+        i++;
+      }
+      onProgress({ iter: i, total: iterations, bestCost: bestCost });
+      if (i < iterations) {
+        setTimeout(step, 0);
+      } else {
+        onDone({ schedule: bestSch, cost: bestCost });
+      }
+    }
+    step();
+  }
+
+  // ===== KPIs (cobertura % global) =====
+  function computeKPIs(ctx, sch) {
+    if (typeof PLANTAS === 'undefined' || typeof PLANT_COVERAGE === 'undefined' || typeof workers === 'undefined') {
+      return { coverage: 0, equity: 0, conflicts: 0, gaps: 0 };
+    }
+    var covered = 0, required = 0, gaps = 0, conflicts = 0;
+    PLANTAS.forEach(function (p) {
+      if (p.id === 'refuerzo') return;
+      var cov = PLANT_COVERAGE[p.id];
+      if (!cov) return;
+      for (var d = 0; d < ctx.daysInMonth; d++) {
+        ASSIGNABLE.forEach(function (sh) {
+          var min = (cov[sh] && cov[sh].min) || 0;
+          if (min === 0) return;
+          required += min;
+          var w = workingCount(sch, p.id, d, sh);
+          covered += Math.min(w, min);
+          if (w < min) gaps += (min - w);
+        });
+      }
+    });
+    var loads = [];
+    workers.forEach(function (w) {
+      if (w.planta === 'refuerzo') return;
+      var ld = 0;
+      for (var d = 0; d < ctx.daysInMonth; d++) {
+        if (isWorkShift(getCell(sch, w.id, d))) ld++;
+      }
+      loads.push(ld);
+    });
+    var v = variance(loads);
+    var equity = Math.max(0, 100 - Math.round(v * 5));
+    // Conflictos = adyacencias prohibidas
+    workers.forEach(function (w) {
+      if (w.planta === 'refuerzo') return;
+      for (var d = 1; d < ctx.daysInMonth; d++) {
+        var s = getCell(sch, w.id, d);
+        var prev = getCell(sch, w.id, d - 1);
+        var sEff = ['MR','M7H','M6R','M55'].indexOf(s) !== -1 ? 'M' : s;
+        if (prev === 'N' && (sEff === 'M' || sEff === 'T')) conflicts++;
+        if (prev === 'T' && sEff === 'M') conflicts++;
+      }
+    });
+    return {
+      coverage: required === 0 ? 100 : Math.round((covered / required) * 100),
+      equity: equity,
+      conflicts: conflicts,
+      gaps: gaps
+    };
+  }
+
+  // ===== Diff entre snapshot y propuesta =====
+  function computeDiff(snapshot, proposed, ctx) {
+    var diffs = [];
+    if (typeof workers === 'undefined') return diffs;
+    workers.forEach(function (w) {
+      for (var d = 0; d < ctx.daysInMonth; d++) {
+        var b = getCell(snapshot, w.id, d);
+        var a = getCell(proposed, w.id, d);
+        if (b !== a) diffs.push({ wId: w.id, name: w.name, day: d, before: b, after: a });
+      }
+    });
+    return diffs;
+  }
+
+  // ===== UI render =====
+  function renderForm() {
+    var modal = document.getElementById('scgenModal');
+    if (!modal) return;
+    var html = '';
+    html += '<div class="scgen-header">';
+    html += '  <div>';
+    html += '    <div class="scgen-title" id="scgenTitle">';
+    html += '      <span class="scgen-title-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></span>';
+    html += '      Generar mes con IA';
+    html += '    </div>';
+    html += '    <div class="scgen-subtitle">Optimizador simulated annealing · 2500 iter · respeta convenio + cobertura + equidad</div>';
+    html += '  </div>';
+    html += '  <button class="scgen-close" onclick="window.scgenClose()" aria-label="Cerrar">×</button>';
+    html += '</div>';
+
+    // Progreso (oculto inicial)
+    html += '<div class="scgen-progress" id="scgenProgress">';
+    html += '  <div class="scgen-progress-bar"><div class="scgen-progress-fill" id="scgenProgressFill"></div></div>';
+    html += '  <div class="scgen-progress-text"><span id="scgenProgressLabel">Optimizando…</span><span id="scgenProgressPct">0%</span></div>';
+    html += '</div>';
+
+    html += '<div class="scgen-body" id="scgenBody">';
+
+    // Sliders
+    html += '<div class="scgen-section">';
+    html += '  <div class="scgen-section-title">Prioridades del optimizador</div>';
+    html += '  <div class="scgen-sliders">';
+    [
+      { key: 'coverage', name: 'Cobertura mínima', desc: 'Cubrir todos los turnos por planta (PLANT_COVERAGE)' },
+      { key: 'equity',   name: 'Equidad de carga', desc: 'Repartir noches/finde/horas entre el equipo' },
+      { key: 'preference', name: 'Patrón / preferencias', desc: 'Respetar la plantilla seleccionada y huecos importados' }
+    ].forEach(function (s) {
+      var v = state.weights[s.key];
+      html += '<div class="scgen-slider">';
+      html += '  <div class="scgen-slider-head">';
+      html += '    <div><div class="scgen-slider-name">' + s.name + '</div><div class="scgen-slider-desc">' + s.desc + '</div></div>';
+      html += '    <span class="scgen-slider-val" id="scgenVal_' + s.key + '">' + v + '</span>';
+      html += '  </div>';
+      html += '  <input type="range" min="0" max="100" value="' + v + '" oninput="window.scgenSetWeight(' + JSON.stringify(s.key) + ', this.value); this.style.setProperty(\'--p\', this.value + \'%\')" style="--p: ' + v + '%;">';
+      html += '</div>';
+    });
+    html += '  </div>';
+    html += '</div>';
+
+    // Plantillas
+    html += '<div class="scgen-section">';
+    html += '  <div class="scgen-section-title">Plantilla de patrón</div>';
+    html += '  <div class="scgen-templates">';
+    TEMPLATES.forEach(function (t) {
+      var isSel = state.selectedTemplate === t.id;
+      html += '<button class="scgen-template-card ' + (isSel ? 'is-selected' : '') + '" onclick="window.scgenSelectTemplate(' + JSON.stringify(t.id) + ')">';
+      html += '<div class="scgen-template-name">' + escHtml(t.name) + '</div>';
+      if (t.pattern) {
+        html += '<div class="scgen-template-pattern">';
+        t.pattern.forEach(function (p) {
+          html += '<span class="scgen-template-cell s-' + p + '">' + p + '</span>';
+        });
+        html += '</div>';
+      } else {
+        html += '<div class="scgen-template-pattern"><span style="font-size:10px;color:#9ca3af;padding:4px 0;">— sin sesgo —</span></div>';
+      }
+      html += '<div class="scgen-template-desc">' + escHtml(t.desc) + '</div>';
+      html += '</button>';
+    });
+    html += '  </div>';
+    html += '</div>';
+
+    // Resultado / diff (oculto inicial)
+    html += '<div class="scgen-result" id="scgenResult"></div>';
+
+    html += '</div>'; // body
+
+    // Footer
+    html += '<div class="scgen-generate-row">';
+    html += '  <div class="scgen-generate-info" id="scgenInfoFooter">El generador NO tocará turnos importados manualmente (excepto SP).</div>';
+    html += '  <div style="display:flex;gap:8px;">';
+    html += '    <button class="scgen-btn-secondary" onclick="window.scgenClose()">Cerrar</button>';
+    html += '    <button id="scgenRunBtn" class="scgen-btn-primary" onclick="window.scgenRun()">';
+    html += '      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+    html += '      Generar mes';
+    html += '    </button>';
+    html += '  </div>';
+    html += '</div>';
+    modal.innerHTML = html;
+  }
+
+  function renderResult(beforeKPI, afterKPI, diffs) {
+    var resultEl = document.getElementById('scgenResult');
+    var bodyEl = document.getElementById('scgenBody');
+    var infoFooter = document.getElementById('scgenInfoFooter');
+    var runBtn = document.getElementById('scgenRunBtn');
+    if (!resultEl) return;
+
+    function deltaStr(a, b, suffix, isInverse) {
+      var d = b - a;
+      if (d === 0) return { txt: '0' + (suffix || ''), cls: 'same' };
+      var sign = d > 0 ? '+' : '';
+      var cls = (isInverse ? d < 0 : d > 0) ? 'up' : 'down';
+      return { txt: sign + d + (suffix || ''), cls: cls };
+    }
+
+    var html = '';
+    html += '<div class="scgen-section">';
+    html += '  <div class="scgen-section-title">Resultado · antes / después</div>';
+    html += '  <div class="scgen-result-stats">';
+
+    var dCov = deltaStr(beforeKPI.coverage, afterKPI.coverage, 'pp');
+    var dEq = deltaStr(beforeKPI.equity, afterKPI.equity, '');
+    var dGaps = deltaStr(beforeKPI.gaps, afterKPI.gaps, '', true);
+    var dConf = deltaStr(beforeKPI.conflicts, afterKPI.conflicts, '', true);
+
+    html += '<div class="scgen-stat"><div class="scgen-stat-label">Cobertura</div><div class="scgen-stat-row"><span class="scgen-stat-before">' + beforeKPI.coverage + '%</span><span class="scgen-stat-after">' + afterKPI.coverage + '%</span><span class="scgen-stat-delta ' + dCov.cls + '">' + dCov.txt + '</span></div></div>';
+    html += '<div class="scgen-stat"><div class="scgen-stat-label">Equidad</div><div class="scgen-stat-row"><span class="scgen-stat-before">' + beforeKPI.equity + '</span><span class="scgen-stat-after">' + afterKPI.equity + '</span><span class="scgen-stat-delta ' + dEq.cls + '">' + dEq.txt + '</span></div></div>';
+    html += '<div class="scgen-stat"><div class="scgen-stat-label">Huecos</div><div class="scgen-stat-row"><span class="scgen-stat-before">' + beforeKPI.gaps + '</span><span class="scgen-stat-after">' + afterKPI.gaps + '</span><span class="scgen-stat-delta ' + dGaps.cls + '">' + dGaps.txt + '</span></div></div>';
+    html += '<div class="scgen-stat"><div class="scgen-stat-label">Conflictos</div><div class="scgen-stat-row"><span class="scgen-stat-before">' + beforeKPI.conflicts + '</span><span class="scgen-stat-after">' + afterKPI.conflicts + '</span><span class="scgen-stat-delta ' + dConf.cls + '">' + dConf.txt + '</span></div></div>';
+    html += '  </div>';
+    html += '</div>';
+
+    // Diff list
+    html += '<div class="scgen-section">';
+    html += '  <div class="scgen-section-title">Cambios propuestos · ' + diffs.length + '</div>';
+    if (diffs.length === 0) {
+      html += '<div class="scgen-diff-empty">No hay cambios respecto al cuadrante actual.</div>';
+    } else {
+      html += '<div class="scgen-diff-list">';
+      var dowNames = ['Do','Lu','Ma','Mi','Ju','Vi','Sa'];
+      var ctx = getCtx();
+      diffs.slice(0, 200).forEach(function (df) {
+        var dow = ctx ? dowNames[new Date(ctx.year, ctx.month, df.day).getDay()] : '';
+        html += '<div class="scgen-diff-row">';
+        html += '  <div class="scgen-diff-name">' + escHtml(df.name || '—') + '</div>';
+        html += '  <div class="scgen-diff-day">' + dow + ' ' + (df.day + 1) + '</div>';
+        html += '  <div class="scgen-diff-before"><span class="scgen-diff-shift s-' + (df.before || 'empty') + '">' + (df.before || '·') + '</span></div>';
+        html += '  <div class="scgen-diff-after"><span class="scgen-diff-arrow">→</span><span class="scgen-diff-shift s-' + (df.after || 'empty') + '">' + (df.after || '·') + '</span></div>';
+        html += '</div>';
+      });
+      if (diffs.length > 200) {
+        html += '<div class="scgen-diff-empty">… y ' + (diffs.length - 200) + ' cambios más (no mostrados).</div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+
+    resultEl.innerHTML = html;
+    resultEl.classList.add('is-visible');
+
+    // Cambiar footer: Aplicar / Descartar
+    if (infoFooter) infoFooter.textContent = diffs.length + ' celdas cambiarán. Revísalas y decide.';
+    if (runBtn) {
+      runBtn.outerHTML = '<button id="scgenApplyBtn" class="scgen-btn-primary" onclick="window.scgenApply()" ' + (diffs.length === 0 ? 'disabled' : '') + '>'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+        + ' Aplicar al cuadrante</button>';
+      // Añadir botón "Volver a generar"
+      var applyBtn = document.getElementById('scgenApplyBtn');
+      if (applyBtn) {
+        var redoBtn = document.createElement('button');
+        redoBtn.className = 'scgen-btn-secondary';
+        redoBtn.textContent = '↻ Re-generar';
+        redoBtn.onclick = function () { window.scgenRun(); };
+        applyBtn.parentNode.insertBefore(redoBtn, applyBtn);
+      }
+    }
+    // Scroll suave al resultado
+    setTimeout(function () { if (bodyEl) bodyEl.scrollTo({ top: bodyEl.scrollHeight, behavior: 'smooth' }); }, 100);
+  }
+
+  // ===== Acciones públicas =====
+  window.scgenSetWeight = function (key, val) {
+    if (state.weights[key] === undefined) return;
+    state.weights[key] = parseInt(val, 10);
+    var label = document.getElementById('scgenVal_' + key);
+    if (label) label.textContent = val;
+  };
+  window.scgenSelectTemplate = function (tid) {
+    state.selectedTemplate = (state.selectedTemplate === tid) ? null : tid;
+    renderForm();
+  };
+  window.scgenOpen = function () {
+    var ov = document.getElementById('scgenOverlay');
+    var modal = document.getElementById('scgenModal');
+    if (!ov || !modal) return;
+    state.proposed = null;
+    state.proposedDiff = [];
+    renderForm();
+    ov.classList.add('is-open');
+    modal.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', scgenKbListener);
+  };
+  window.scgenClose = function () {
+    var ov = document.getElementById('scgenOverlay');
+    var modal = document.getElementById('scgenModal');
+    if (ov) ov.classList.remove('is-open');
+    if (modal) modal.classList.remove('is-open');
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', scgenKbListener);
+  };
+  window.scgenRun = function () {
+    if (state.isRunning) return;
+    state.isRunning = true;
+    var ctx = getCtx();
+    if (!ctx) { state.isRunning = false; return; }
+
+    state.currentSnapshot = cloneSch(ctx.sch);
+    var beforeKPI = computeKPIs(ctx, state.currentSnapshot);
+
+    var template = TEMPLATES.find(function (t) { return t.id === state.selectedTemplate; }) || null;
+    var prog = document.getElementById('scgenProgress');
+    var fill = document.getElementById('scgenProgressFill');
+    var pct = document.getElementById('scgenProgressPct');
+    var lbl = document.getElementById('scgenProgressLabel');
+    if (prog) prog.classList.add('is-visible');
+
+    runAnnealing(ctx, {
+      template: template,
+      weights: state.weights,
+      iterations: state.iterations
+    },
+    function onProgress(p) {
+      var pctVal = Math.round(p.iter / p.total * 100);
+      if (fill) fill.style.width = pctVal + '%';
+      if (pct) pct.textContent = pctVal + '%';
+      if (lbl) lbl.textContent = 'Optimizando · iter ' + p.iter + ' / ' + p.total + ' · coste ' + Math.round(p.bestCost);
+    },
+    function onDone(res) {
+      state.proposed = res.schedule;
+      state.proposedDiff = computeDiff(state.currentSnapshot, res.schedule, ctx);
+      var afterKPI = computeKPIs(ctx, res.schedule);
+      if (prog) prog.classList.remove('is-visible');
+      renderResult(beforeKPI, afterKPI, state.proposedDiff);
+      if (typeof showToast === 'function') {
+        showToast('Optimización completa · ' + state.proposedDiff.length + ' cambios propuestos', 'success', 2500);
+      }
+      state.isRunning = false;
+    });
+  };
+  window.scgenApply = function () {
+    if (!state.proposed) return;
+    var ctx = getCtx();
+    if (!ctx) return;
+    // Aplicar el schedule propuesto al actual
+    Object.keys(state.proposed).forEach(function (wId) {
+      ctx.sch[wId] = state.proposed[wId].slice();
+    });
+    if (typeof scheduleData !== 'undefined') {
+      scheduleData[ctx.key] = ctx.sch;
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('shiftia_schedule_data', JSON.stringify(scheduleData));
+        }
+      } catch (e) {}
+    }
+    // Sync backend
+    try {
+      var token = (typeof getAuthToken === 'function') ? getAuthToken()
+                : (typeof localStorage !== 'undefined' ? localStorage.getItem('shiftia_auth_token') : null);
+      if (token) {
+        fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ scheduleData: scheduleData })
+        }).catch(function () {});
+      }
+    } catch (e) {}
+    if (typeof showToast === 'function') {
+      showToast('Cuadrante regenerado: ' + state.proposedDiff.length + ' cambios aplicados', 'success', 3200);
+    }
+    try { if (typeof renderSchedule === 'function') renderSchedule(); } catch (e) {}
+    try { if (typeof renderSPManagerContent === 'function') renderSPManagerContent(); } catch (e) {}
+    window.scgenClose();
+  };
+  function scgenKbListener(e) {
+    var modal = document.getElementById('scgenModal');
+    if (!modal || !modal.classList.contains('is-open')) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      window.scgenClose();
+    } else if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+      var t = e.target && e.target.tagName ? e.target.tagName.toUpperCase() : '';
+      if (t === 'INPUT' || t === 'TEXTAREA' || t === 'BUTTON') return;
+      var btn = document.getElementById('scgenRunBtn') || document.getElementById('scgenApplyBtn');
+      if (btn && !btn.disabled) { e.preventDefault(); btn.click(); }
+    }
+  }
+})();
+</script>
+
 <script>
 // ============================================================================
 // v6.3 — IA SUGGEST SP (PRO)

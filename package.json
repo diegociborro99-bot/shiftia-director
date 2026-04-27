@@ -1,6 +1,6 @@
 {
   "name": "shiftia-director",
-  "version": "6.3.0",
+  "version": "7.0.0",
   "description": "Shiftia — Planificador Inteligente de Turnos (Landing + App)",
   "main": "server.js",
   "scripts": {
