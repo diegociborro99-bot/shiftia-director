@@ -624,7 +624,8 @@ app.put('/api/auth/update', authMiddleware, async (req, res) => {
       if (password.length < 8) {
         return res.status(400).json({ error: 'Password must be at least 8 characters' });
       }
-      const passwordHash = await bcrypt.hash(password, 10);
+      const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
+      const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
       updates.push(`password_hash = $${paramCount}`);
       values.push(passwordHash);
       paramCount++;
@@ -666,39 +667,53 @@ async function logAudit(userId, action, details, ip) {
   }
 }
 
-// ====== AUTO-BACKUP LOGIC ======
+// ====== AUTO-BACKUP LOGIC (v7.1: envuelto en transacción para integridad) ======
 async function createAutoBackup(userId) {
+  const client = await pool.connect();
   try {
     // Check last backup time — only backup once per hour max
-    const lastBackup = await pool.query(
+    const lastBackup = await client.query(
       "SELECT created_at FROM schedule_backups WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
       [userId]
     );
     if (lastBackup.rows.length > 0) {
       const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      if (new Date(lastBackup.rows[0].created_at) > hourAgo) return; // Too recent
+      if (new Date(lastBackup.rows[0].created_at) > hourAgo) {
+        client.release();
+        return; // Too recent
+      }
     }
 
-    // Get current data and create snapshot
-    const current = await pool.query('SELECT data FROM schedule_data WHERE user_id = $1', [userId]);
-    if (current.rows.length === 0) return;
+    // Get current data
+    const current = await client.query('SELECT data FROM schedule_data WHERE user_id = $1', [userId]);
+    if (current.rows.length === 0) {
+      client.release();
+      return;
+    }
 
-    await pool.query(
-      'INSERT INTO schedule_backups (user_id, data, backup_type) VALUES ($1, $2, $3)',
-      [userId, JSON.stringify(current.rows[0].data), 'auto']
-    );
-
-    // Keep only last 30 backups per user
-    await pool.query(`
-      DELETE FROM schedule_backups WHERE id IN (
-        SELECT id FROM schedule_backups WHERE user_id = $1
-        ORDER BY created_at DESC OFFSET 30
-      )
-    `, [userId]);
-
-    console.log(`[Backup] Auto-backup created for user ${userId}`);
+    // Transacción: insert + delete viejos atómico
+    await client.query('BEGIN');
+    try {
+      await client.query(
+        'INSERT INTO schedule_backups (user_id, data, backup_type) VALUES ($1, $2, $3)',
+        [userId, JSON.stringify(current.rows[0].data), 'auto']
+      );
+      await client.query(`
+        DELETE FROM schedule_backups WHERE id IN (
+          SELECT id FROM schedule_backups WHERE user_id = $1
+          ORDER BY created_at DESC OFFSET 30
+        )
+      `, [userId]);
+      await client.query('COMMIT');
+      console.log(`[Backup] Auto-backup created for user ${userId}`);
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    }
   } catch (e) {
     console.warn('[Backup] Auto-backup failed:', e.message);
+  } finally {
+    try { client.release(); } catch (_) {}
   }
 }
 
@@ -724,37 +739,77 @@ app.get('/api/data', authMiddleware, async (req, res) => {
 });
 
 // POST /api/data (protected) — Save user's workspace data
+// v7.1: optimistic concurrency control (clientVersion) para evitar race conditions
 app.post('/api/data', writeLimiter, authMiddleware, async (req, res) => {
-  if (!dbAvailable) return res.json({ success: true }); // No DB — client uses localStorage
+  if (!dbAvailable) return res.json({ success: true, version: 0 }); // No DB — client uses localStorage
+  const client = await pool.connect();
   try {
-    const data = req.body;
-
-    if (!data || typeof data !== 'object') {
+    const body = req.body;
+    if (!body || typeof body !== 'object') {
       return res.status(400).json({ error: 'Invalid data format' });
     }
+    // Permite que el cliente envíe `data` y `clientVersion` o solo el body como data legacy
+    var data, clientVersion;
+    if (body.data && (typeof body.clientVersion === 'number' || typeof body.clientVersion === 'string')) {
+      data = body.data;
+      clientVersion = parseInt(body.clientVersion, 10) || 0;
+    } else {
+      data = body;
+      clientVersion = null; // Legacy: cliente no envía versión, no controlamos race
+    }
 
-    // Upsert: insert or update
-    await pool.query(`
+    await client.query('BEGIN');
+    // Lectura con FOR UPDATE para serializar saves concurrentes del mismo user
+    const cur = await client.query(
+      'SELECT data, COALESCE((data->>\'__version\')::int, 0) AS version FROM schedule_data WHERE user_id = $1 FOR UPDATE',
+      [req.user.id]
+    );
+    const serverVersion = cur.rows.length > 0 ? cur.rows[0].version : 0;
+
+    // Si el cliente envía clientVersion y es menor que la del server, rechazamos (otro tab/dispositivo guardó después)
+    if (clientVersion !== null && clientVersion < serverVersion) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'Tus datos están desactualizados. Recarga para obtener la versión más reciente.',
+        code: 'STALE_DATA',
+        serverVersion: serverVersion,
+        clientVersion: clientVersion
+      });
+    }
+
+    // Marcamos la nueva versión en el JSON
+    const newVersion = serverVersion + 1;
+    if (typeof data === 'object' && data !== null) {
+      data.__version = newVersion;
+    }
+
+    // Upsert
+    await client.query(`
       INSERT INTO schedule_data (user_id, data, updated_at)
       VALUES ($1, $2, NOW())
       ON CONFLICT (user_id) DO UPDATE
       SET data = $2, updated_at = NOW()
     `, [req.user.id, JSON.stringify(data)]);
 
-    // Audit log
+    await client.query('COMMIT');
+
+    // Audit log (fuera de transacción)
     const ip = req.ip || req.connection.remoteAddress;
-    logAudit(req.user.id, 'data_save', { size: JSON.stringify(data).length }, ip).catch(() => {});
+    logAudit(req.user.id, 'data_save', { size: JSON.stringify(data).length, version: newVersion }, ip).catch(() => {});
 
     // Auto-backup (max 1/hour)
     createAutoBackup(req.user.id).catch(e => console.warn('[Backup] Failed:', e.message));
 
     // Notify other sessions via WebSocket
-    broadcastToUser(req.user.id, { type: 'data_saved', timestamp: Date.now() });
+    broadcastToUser(req.user.id, { type: 'data_saved', timestamp: Date.now(), version: newVersion });
 
-    res.json({ success: true });
+    res.json({ success: true, version: newVersion });
   } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
     console.error('Save data error:', err.message);
-    res.json({ success: true }); // Don't crash — client uses localStorage
+    res.status(500).json({ error: 'Error al guardar', success: false });
+  } finally {
+    try { client.release(); } catch (_) {}
   }
 });
 
@@ -1194,16 +1249,7 @@ app.post('/api/notify', authMiddleware, async (req, res) => {
     const hasEmail = process.env.SMTP_HOST;
 
     if (hasEmail) {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT || 587,
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        }
-      });
-
+      // v7.1: usar safeSendMail (pool global) en lugar de crear transporter por request
       const mailOptions = {
         from: process.env.SMTP_FROM || 'noreply@hospital.es',
         to: workerEmail,
@@ -1518,14 +1564,15 @@ async function sendDailySummary() {
             <p style="margin:0;color:#555;">${absences.join(', ')}</p>
           </div>` : ''}
           <p style="text-align:center;font-size:11px;color:#aaa;margin-top:20px;">
-            Enviado automáticamente por Shiftia SARA · <a href="${process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : 'http://localhost:3000'}" style="color:#2e8b7a;">Abrir app</a>
+            Enviado automáticamente por Shiftia · <a href="${process.env.APP_PUBLIC_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : '#')}" style="color:#2e8b7a;">Abrir app</a>
           </p>
         </div>
       `;
 
       try {
+        if (!process.env.GMAIL_USER) continue; // sin SMTP configurado, no enviar
         await safeSendMail({
-          from: `"Shiftia SARA" <${process.env.GMAIL_USER || 'highkeycvsender@gmail.com'}>`,
+          from: `"Shiftia" <${process.env.GMAIL_USER}>`,
           to: user.email,
           subject: `📋 Turnos ${dayNames[now.getDay()]} ${now.getDate()}/${now.getMonth() + 1} — Shiftia`,
           html
