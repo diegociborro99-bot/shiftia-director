@@ -8593,6 +8593,7 @@ table.schedule tbody tr:hover {
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 </head>
 <body>
 
@@ -8983,6 +8984,8 @@ table.schedule tbody tr:hover {
         <div id="plantScoringPanel" class="scroll-reveal" style="margin-top:32px;"></div>
         <div id="equipoPlantaPanel" class="scroll-reveal" style="margin-top:32px;"></div>
         <div id="spSuggestionsPanel" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="coverageHeatmap30Container" class="scroll-reveal" style="margin-top:32px;"></div>
+        <div id="coverageRulesEditorContainer" class="scroll-reveal" style="margin-top:32px;"></div>
         <div id="auditLogContainer" class="scroll-reveal" style="margin-top:32px;"></div>
       </div>
     </div>
@@ -9158,10 +9161,16 @@ table.schedule tbody tr:hover {
                ondragleave="this.style.borderColor='var(--text3)';this.style.background='var(--surface)'"
                ondrop="event.preventDefault();this.style.borderColor='var(--text3)';this.style.background='var(--surface)';handleImport(event.dataTransfer.files)">
             <div style="font-size:36px;margin-bottom:12px;opacity:0.4;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-            <div style="font-size:15px;font-weight:500;margin-bottom:6px;">Arrastra los PDFs aquí</div>
-            <div style="color:var(--text3);font-size:12px;margin-bottom:20px;">o haz clic para seleccionar · Formato: Planificación Anual (.pdf)</div>
-            <button style="padding:10px 24px;border-radius:10px;border:none;background:var(--accent);color:white;font-size:13px;font-family:inherit;cursor:pointer;font-weight:500;" onclick="event.stopPropagation();document.getElementById('fileInput').click()">Seleccionar archivos</button>
-            <input type="file" id="fileInput" accept=".pdf" multiple style="display:none;" onchange="handleImport(this.files)">
+            <div style="font-size:15px;font-weight:500;margin-bottom:6px;">Arrastra los PDFs o Excel aquí</div>
+            <div style="color:var(--text3);font-size:12px;margin-bottom:20px;">o haz clic para seleccionar · Formatos: .pdf, .xlsx, .xls, .csv</div>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+              <button style="padding:10px 24px;border-radius:10px;border:none;background:var(--accent);color:white;font-size:13px;font-family:inherit;cursor:pointer;font-weight:500;" onclick="event.stopPropagation();document.getElementById('fileInput').click()">Seleccionar archivos</button>
+              <button style="padding:10px 18px;border-radius:10px;border:1px solid var(--text3);background:transparent;color:var(--text2);font-size:12px;font-family:inherit;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px;" onclick="event.stopPropagation();downloadShiftiaTemplate()" title="Descarga plantilla Excel Shiftia Standard">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Plantilla Excel
+              </button>
+            </div>
+            <input type="file" id="fileInput" accept=".pdf,.xlsx,.xls,.csv" multiple style="display:none;" onchange="handleImport(this.files)">
           </div>
 
           <!-- Processing pipeline -->
@@ -9557,6 +9566,191 @@ const PLANT_COVERAGE = {
   'refuerzo': { M: { min: 0 }, T: { min: 0 }, N: { min: 0 } }
 };
 
+// ============= MEJORA 4: CUSTOM COVERAGE OVERRIDES =============
+// Custom per-planta coverage rules with new shape:
+//   state.customCoverage[plantaId][shift] = number (legacy) | { dow_0..6, holiday, default } per-category {enf,tcae,tec}
+// Falls back to PLANT_COVERAGE legacy shape when no override exists.
+if (typeof window.state === 'undefined') window.state = {};
+if (!window.state.customCoverage) window.state.customCoverage = {};
+const state = window.state;
+
+function _isHolidayDateSafe(date) {
+  try {
+    if (typeof isFestivo === 'function') {
+      const d = (date instanceof Date) ? date : new Date(date);
+      return isFestivo(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+  } catch(e) {}
+  return false;
+}
+
+// Unified getter — works for legacy {min:N} shape AND new per-DOW/per-category shape.
+function getCoverageMin(plantaId, shift, date, category = 'enf') {
+  const rules = (state.customCoverage && state.customCoverage[plantaId]) || PLANT_COVERAGE[plantaId];
+  if (!rules) return 0;
+  const shiftRules = rules[shift];
+  if (shiftRules == null) return 0;
+  // Legacy shape: number
+  if (typeof shiftRules === 'number') return category === 'enf' ? shiftRules : 0;
+  // Legacy shape: { min: N }
+  if (typeof shiftRules.min === 'number' && !shiftRules.dow_0 && !shiftRules.default) {
+    return category === 'enf' ? shiftRules.min : 0;
+  }
+  // New shape: per-DOW + per-category
+  const d = (date instanceof Date) ? date : new Date(date);
+  const dow = d.getDay();
+  const isHol = _isHolidayDateSafe(d);
+  const dayRules = isHol ? shiftRules.holiday : shiftRules['dow_' + dow];
+  if (dayRules && typeof dayRules[category] === 'number') return dayRules[category];
+  if (shiftRules.default && typeof shiftRules.default[category] === 'number') return shiftRules.default[category];
+  return 0;
+}
+
+// Sister-plant helper (NO-OP safe). Used by scoreCandidate for graded plant matching.
+if (typeof window.getSisterPlants !== 'function') {
+  window.getSisterPlants = function(plantaId) {
+    // Heuristic: plants with the same numeric prefix or "n"/"e" wing
+    if (!plantaId) return [];
+    const sisters = {
+      'p1n': ['p2n'],
+      'p2n': ['p1n', 'p2e'],
+      'p2e': ['p2n', 'p3e'],
+      'p3e': ['p2e'],
+      'endo': [],
+      'urg': [],
+      'refuerzo': []
+    };
+    return sisters[plantaId] || [];
+  };
+}
+
+// ============= MEJORAS 1 + 2: UNIFIED CANDIDATE SCORING + FEEDBACK LOOP =============
+// scoreCandidate(worker, gap, ctx, opts) → { score, breakdown, legalIssues, accepted }
+// Single-source scoring used by ALL coverage paths (suggestCoverageAssignment, SP manager,
+// Plans A-D, openSPAutoSuggest). Existing functions still call their own logic;
+// this function is added now and adoption is tracked as TODO.
+function computeHistoryScore(workerId, gap) {
+  if (!Array.isArray(coverageHistory)) return 0;
+  const cutoff = Date.now() - 90 * 24 * 3600 * 1000;
+  const relevant = coverageHistory.filter(h => {
+    if (!h) return false;
+    const wid = h.workerId != null ? h.workerId : h.coverWorker;
+    if (wid !== workerId) return false;
+    if (h.shift && gap.shift && h.shift !== gap.shift) return false;
+    const t = h.ts || h.timestamp || (h.date ? new Date(h.date).getTime() : 0);
+    return t >= cutoff;
+  });
+  if (!relevant.length) return 0;
+  const accepted = relevant.filter(h => h.accepted === true).length;
+  const rejected = relevant.length - accepted;
+  const ratio = (accepted - rejected) / relevant.length; // -1..+1
+  return Math.round(ratio * 35);
+}
+
+// Counts SP shifts already assigned this month to a worker (proxy for "extras")
+function countSPExtras(workerId, dateLike, ctx) {
+  try {
+    const d = (dateLike instanceof Date) ? dateLike : new Date(dateLike);
+    const key = d.getFullYear() + '-' + d.getMonth();
+    const sch = (ctx && ctx.schedule) || scheduleData[key];
+    if (!sch || !sch[workerId]) return 0;
+    let n = 0;
+    sch[workerId].forEach(s => {
+      const v = (s || '').toString().trim();
+      if (v === 'SP') n++;
+    });
+    return n;
+  } catch (e) { return 0; }
+}
+
+// Average SP-extras across the team for the same month (avoid bias toward a single worker)
+function avgSPExtras(ctx) {
+  try {
+    const sch = ctx && ctx.schedule;
+    if (!sch) return 0;
+    let total = 0, count = 0;
+    Object.keys(sch).forEach(wid => {
+      const arr = sch[wid] || [];
+      let n = 0;
+      arr.forEach(s => { if ((s || '').toString().trim() === 'SP') n++; });
+      total += n; count++;
+    });
+    return count > 0 ? total / count : 0;
+  } catch (e) { return 0; }
+}
+
+/**
+ * Unified candidate scoring for ANY coverage gap.
+ * @param worker - {id, name, planta, role, flotante, rules}
+ * @param gap    - {date, shift, planta, category}
+ * @param ctx    - {schedule, allWorkers, plantasMap, monthMeta}
+ * @param opts   - {strict, allowEmergency}
+ * @returns {score, breakdown, legalIssues, accepted}
+ */
+function scoreCandidate(worker, gap, ctx = {}, opts = {}) {
+  const breakdown = { plantMatch: 0, equity: 0, fatigue: 0, history: 0, skills: 0, fairness: 0 };
+  const legalIssues = [];
+  let accepted = true;
+
+  if (!worker || !gap) return { score: -Infinity, breakdown, legalIssues: ['invalid input'], accepted: false };
+
+  // 1) HARD: legal check (convenio). isLegalAssignment is defined inside another function scope,
+  //    so we can't always call it from here — guard with typeof.
+  if (typeof isLegalAssignment === 'function' && gap.dayIdx != null && ctx.virtualSchedule && gap.year != null && gap.month != null) {
+    try {
+      const legal = isLegalAssignment(worker.id, gap.dayIdx, gap.shift, ctx.virtualSchedule, gap.year, gap.month);
+      if (legal && legal.legal === false) {
+        legalIssues.push(legal.reason || 'illegal');
+        accepted = false;
+      }
+    } catch (e) { /* silent */ }
+  }
+
+  // 2) Plant match (graded, not binary)
+  if (worker.planta === gap.planta) breakdown.plantMatch = 100;
+  else if (worker.flotante) breakdown.plantMatch = 70;
+  else if (typeof getSisterPlants === 'function' && getSisterPlants(worker.planta).includes(gap.planta)) breakdown.plantMatch = 40;
+  else breakdown.plantMatch = 0;
+
+  // 3) Equity (uses getMultiMonthEquity if available)
+  if (typeof getMultiMonthEquity === 'function' && gap.date) {
+    try {
+      const d = (gap.date instanceof Date) ? gap.date : new Date(gap.date);
+      const eq = getMultiMonthEquity(worker.id, d.getMonth(), d.getFullYear());
+      // Higher diff = already overloaded → punish
+      const diff = (eq && (eq.nightDiff3m || 0)) + (eq && (eq.hourDiff3m || 0)) * 0.05;
+      breakdown.equity = Math.max(-100, Math.min(100, -diff * 5));
+    } catch (e) {}
+  }
+
+  // 4) Fatigue
+  if (typeof getAccumulatedFatigue === 'function' && gap.date) {
+    try {
+      const d = (gap.date instanceof Date) ? gap.date : new Date(gap.date);
+      const fat = getAccumulatedFatigue(worker.id, d.getDate() - 1, d.getMonth(), d.getFullYear());
+      const fatScore = (fat && fat.totalShifts ? fat.totalShifts : 0) + (fat && fat.totalNights ? fat.totalNights * 1.5 : 0);
+      breakdown.fatigue = Math.max(-100, Math.min(0, -fatScore * 0.8));
+    } catch (e) {}
+  }
+
+  // 5) Feedback history (FROM coverageHistory) — MEJORA 2
+  breakdown.history = computeHistoryScore(worker.id, gap);
+
+  // 6) Skills (TODO — placeholder for future skill matrix per category)
+  breakdown.skills = 0;
+
+  // 7) Fairness boost: fewer SP-extras than team avg → reward
+  const myExtras = countSPExtras(worker.id, gap.date || new Date(), ctx);
+  const avgExtras = avgSPExtras(ctx);
+  if (myExtras < avgExtras) breakdown.fairness = Math.min(40, (avgExtras - myExtras) * 8);
+  else breakdown.fairness = Math.max(-40, (avgExtras - myExtras) * 6);
+
+  const score = Object.values(breakdown).reduce((a, b) => a + b, 0);
+  return { score, breakdown, legalIssues, accepted };
+}
+// TODO (segunda pasada): migrar suggestCoverageAssignment, renderSPManagerContent, planes A-D y
+// openSPAutoSuggest para llamar a scoreCandidate en lugar de calcular su propio scoring.
+
 // Persistent worker memory — survives schedule deletion and reimport
 // Stores subjective conditions, learned preferences, and custom rules
 const workerMemory = {};
@@ -9635,12 +9829,14 @@ function getCoverageGaps(year, month) {
   const gaps = [];
 
   // Use canonical PLANT_COVERAGE as single source of truth
+  // MEJORA 4: read via getCoverageMin so per-planta overrides apply
   for (let dayIdx = 0; dayIdx < daysInMonth; dayIdx++) {
     const shifts = ['M', 'T', 'N'];
+    const dayDate = new Date(year, month, dayIdx + 1);
     shifts.forEach(shift => {
       PLANTAS.forEach(planta => {
         if (planta.id === 'refuerzo') return;
-        const required = (PLANT_COVERAGE[planta.id] || {})[shift]?.min || 0;
+        const required = getCoverageMin(planta.id, shift, dayDate, 'enf');
         if (required === 0) return;
         const plantWorkers = workers.filter(w => w.planta === planta.id);
         let staffed = 0;
@@ -10865,6 +11061,11 @@ function renderDashboard() {
 
   // Render coverage risk gauge
   try { renderCoverageRiskGauge(); } catch(e) { console.warn('[Shiftia] Coverage risk gauge error:', e); }
+
+  // MEJORA 5B: 30-day coverage heatmap
+  try { renderCoverageHeatmap30(); } catch(e) { console.warn('[Shiftia] Heatmap30 error:', e); }
+  // MEJORA 4: coverage rules editor
+  try { renderCoverageRulesEditor(); } catch(e) { console.warn('[Shiftia] Coverage rules editor error:', e); }
 
   // Render weekly shortage rollup
   try { renderWeeklyShortageRollup(); } catch(e) { console.warn('[Shiftia] Weekly shortage rollup error:', e); }
@@ -16653,13 +16854,316 @@ function showImportDetail(idx) {
     </div>`;
 }
 
-async function handleImport(files) {
-  if (!files || files.length === 0) return;
+// ============= MEJORA 3: XLSX IMPORT + TEMPLATE =============
+function parseShiftiaStandardMeta(rows) {
+  const meta = { workerName: '', planta: '', month: '' };
+  if (!rows || !rows[0]) return meta;
+  const r0 = rows[0].map(c => String(c || '').trim().toUpperCase());
+  for (let i = 0; i < r0.length - 1; i++) {
+    if (r0[i] === 'WORKER:' || r0[i] === 'TRABAJADOR:') meta.workerName = String(rows[0][i+1] || '').trim();
+    if (r0[i] === 'PLANTA:' || r0[i] === 'UNIDAD:') meta.planta = String(rows[0][i+1] || '').trim();
+    if (r0[i] === 'MONTH:' || r0[i] === 'MES:')    meta.month = String(rows[0][i+1] || '').trim();
+  }
+  return meta;
+}
 
-  if (typeof pdfjsLib === 'undefined') {
-    showToast('Error: pdf.js no cargado. Recarga la página.');
+// Map common shift-code variants to canonical Shiftia codes used in scheduleData
+function normalizeShiftCode(raw) {
+  if (!raw) return '';
+  const r = String(raw).trim().toUpperCase();
+  // Canonical codes pass through
+  const CANON = ['M','T','N','L','D','V','SP','VAC','VAA','VAN','BAJ','LD','LAC','FOR','CAA','AE','EX','MTC','INT','HF','HS','DLA','CJ','FN','IQF','PM','MR','M7H','M6R','M55'];
+  if (CANON.includes(r)) return r;
+  const map = {
+    'M+': 'M', 'M-': 'M', 'MN': 'M', 'M1': 'M', 'M2': 'M', 'MAÑ': 'M', 'MAN': 'M', 'MAÑANA': 'M',
+    'T+': 'T', 'T-': 'T', 'T1': 'T', 'T2': 'T', 'TAR': 'T', 'TARDE': 'T',
+    'NOCHE': 'N', 'NOC': 'N',
+    'LIBRE': 'L', 'DESC': 'L',
+    'VACACIONES': 'V', 'VACAC': 'V',
+    'SIN PLANIFICAR': 'SP', 'S/P': 'SP', 'SIN-PLAN': 'SP'
+  };
+  return map[r] || r;
+}
+
+async function parseXLSXFile(file) {
+  if (typeof XLSX === 'undefined') {
+    showToast('Librería XLSX no cargada todavía. Reintenta en 2s.', 'error');
+    throw new Error('XLSX library not loaded');
+  }
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  if (!rows.length) {
+    showToast('Excel vacío', 'error');
     return;
   }
+
+  // Try Shiftia Standard meta in row 0
+  const meta = parseShiftiaStandardMeta(rows);
+
+  // Find day-header row: row containing mostly numbers 1..31 (or date cells)
+  let dayHeaderIdx = -1, dayCols = {};
+  for (let i = 0; i < Math.min(rows.length, 8); i++) {
+    const row = rows[i] || [];
+    let candidate = {};
+    let count = 0;
+    row.forEach((c, col) => {
+      // Numeric day
+      if (typeof c === 'number' && c >= 1 && c <= 31 && Number.isInteger(c)) { candidate[col] = c; count++; return; }
+      // String numeric
+      if (typeof c === 'string') {
+        const n = parseInt(String(c).trim(), 10);
+        if (!isNaN(n) && n >= 1 && n <= 31 && String(n) === String(c).trim()) { candidate[col] = n; count++; return; }
+      }
+      // Date object
+      if (c instanceof Date) { candidate[col] = c.getDate(); count++; return; }
+    });
+    if (count >= 15) { dayHeaderIdx = i; dayCols = candidate; break; }
+  }
+  if (dayHeaderIdx === -1) {
+    showToast('No se detectó cabecera de días (1-31) en el Excel', 'error');
+    return;
+  }
+
+  // Find name column: first column where most rows below dayHeader contain a string of length > 3
+  let nameCol = 0;
+  for (let c = 0; c < 5; c++) {
+    let strCount = 0;
+    for (let r = dayHeaderIdx + 1; r < Math.min(rows.length, dayHeaderIdx + 30); r++) {
+      const v = rows[r] && rows[r][c];
+      if (typeof v === 'string' && v.trim().length > 3 && !/^\d+$/.test(v.trim())) strCount++;
+    }
+    if (strCount >= 3) { nameCol = c; break; }
+  }
+
+  // Extract workers
+  const workersOut = [];
+  for (let r = dayHeaderIdx + 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const name = String(row[nameCol] || '').trim();
+    if (!name) continue;
+    if (/^total|^horas|^suma|^firma|^observ/i.test(name)) continue;
+    const calendar = {};
+    Object.entries(dayCols).forEach(([col, day]) => {
+      const cell = row[col];
+      const code = normalizeShiftCode(cell);
+      if (code) calendar[day] = code;
+    });
+    if (Object.keys(calendar).length > 0) workersOut.push({ name, calendar });
+  }
+
+  if (!workersOut.length) {
+    showToast('No se encontraron trabajadores en el Excel', 'error');
+    return;
+  }
+
+  // Detect month from meta or from sheet name
+  let detectedMonth = meta.month || '';
+  if (!detectedMonth) {
+    const sheetName = wb.SheetNames[0] || '';
+    const monthMatch = sheetName.match(/(\d{4})[-\s]?(\d{1,2})/);
+    if (monthMatch) detectedMonth = `${monthMatch[1]}-${monthMatch[2].padStart(2, '0')}`;
+  }
+
+  showImportReviewModal({
+    source: 'xlsx',
+    fileName: file.name,
+    detectedMonth: detectedMonth,
+    detectedPlanta: meta.planta || '',
+    detectedWorkerName: meta.workerName || '',
+    workers: workersOut
+  });
+}
+
+// Download a Shiftia Standard XLSX template
+function downloadShiftiaTemplate() {
+  if (typeof XLSX === 'undefined') {
+    showToast('Librería XLSX no cargada todavía. Reintenta en 2s.', 'error');
+    return;
+  }
+  const wb = XLSX.utils.book_new();
+  const data = [
+    ['WORKER:', '<Nombre Apellido>', 'PLANTA:', '<Nombre planta>', 'MONTH:', '<YYYY-MM>'],
+    ['Trabajador', ...Array.from({length:31}, (_,i) => i+1)],
+    ['<Nombre 1>', ...Array.from({length:31}, () => '')],
+    ['<Nombre 2>', ...Array.from({length:31}, () => '')],
+    ['<Nombre 3>', ...Array.from({length:31}, () => '')]
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:22}, ...Array.from({length:31}, () => ({wch:4}))];
+  XLSX.utils.book_append_sheet(wb, ws, 'Planilla');
+
+  const legend = [
+    ['CÓDIGOS VÁLIDOS DE TURNO'],
+    ['M', 'Mañana'],
+    ['T', 'Tarde'],
+    ['N', 'Noche'],
+    ['L', 'Libre'],
+    ['V / VAC', 'Vacaciones'],
+    ['SP', 'Sin Planificar'],
+    ['LD', 'Libre disposición'],
+    ['FOR', 'Formación'],
+    ['BAJ', 'Baja'],
+    ['MR / M7H / M6R / M55', 'Variantes de mañana reducida'],
+    [''],
+    ['INSTRUCCIONES'],
+    ['1. Rellena la fila META con los datos del mes (opcional pero recomendado).'],
+    ['2. Una fila por trabajador, con su nombre completo en la columna A.'],
+    ['3. Cada celda B-AF es el turno del día 1-31.'],
+    ['4. Códigos vacíos se interpretan como SP (sin planificar).'],
+    ['5. Las celdas con códigos no canónicos se marcarán en la revisión.']
+  ];
+  const wsLegend = XLSX.utils.aoa_to_sheet(legend);
+  wsLegend['!cols'] = [{wch:24}, {wch:36}];
+  XLSX.utils.book_append_sheet(wb, wsLegend, 'Leyenda');
+  XLSX.writeFile(wb, 'shiftia-template.xlsx');
+}
+
+// ============= MEJORA 5A: IMPORT REVIEW MODAL =============
+// Renders an editable preview of the parsed import (XLSX or PDF) before persisting.
+function showImportReviewModal(parsed) {
+  const overlay = document.createElement('div');
+  overlay.id = 'shiftia-import-review-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+  const plantaOptions = (typeof PLANTAS !== 'undefined' ? PLANTAS : [])
+    .map(p => `<option value="${p.id}" ${parsed.detectedPlanta && (p.id === parsed.detectedPlanta || p.name === parsed.detectedPlanta) ? 'selected' : ''}>${p.name}</option>`).join('');
+
+  // Compute per-worker stats (SP count, unknown codes)
+  const KNOWN = new Set(['M','T','N','L','D','V','SP','VAC','VAA','VAN','BAJ','LD','LAC','FOR','CAA','AE','EX','MTC','INT','HF','HS','DLA','CJ','FN','IQF','PM','MR','M7H','M6R','M55']);
+  const workerRows = parsed.workers.map((w, idx) => {
+    const days = Array.from({length:31}, (_,i) => i+1);
+    let spCount = 0, unknownCount = 0;
+    const cells = days.map(d => {
+      const c = w.calendar[d] || '';
+      if (c === 'SP' || c === '') spCount++;
+      const isUnknown = c && !KNOWN.has(c);
+      if (isUnknown) unknownCount++;
+      const bg = !c ? 'transparent' : (c === 'SP' ? 'rgba(196,168,76,0.18)' : (isUnknown ? 'rgba(196,122,122,0.22)' : 'transparent'));
+      const border = isUnknown ? '1px solid var(--danger)' : '1px solid var(--surface2)';
+      return `<td style="text-align:center;font-size:10px;padding:3px 2px;background:${bg};border:${border};color:var(--text);min-width:22px;" title="Día ${d}${isUnknown ? ' (código desconocido)' : ''}">${c}</td>`;
+    }).join('');
+    const status = unknownCount > 0
+      ? `<span style="color:var(--danger);font-weight:600;">⚠ ${unknownCount} desc</span>`
+      : (spCount > 5 ? `<span style="color:var(--accent);">${spCount} SP</span>` : `<span style="color:var(--success);">OK</span>`);
+    return `<tr data-worker-idx="${idx}">
+      <td style="padding:4px 8px;font-size:11px;font-weight:500;white-space:nowrap;border-right:1px solid var(--surface2);">${w.name}</td>
+      ${cells}
+      <td style="padding:4px 8px;font-size:10px;text-align:center;border-left:1px solid var(--surface2);">${status}</td>
+    </tr>`;
+  }).join('');
+
+  const dayHeaderCells = Array.from({length:31}, (_,i) => `<th style="font-size:9px;padding:3px 2px;color:var(--text3);font-weight:500;min-width:22px;">${i+1}</th>`).join('');
+
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,0.35);max-width:1100px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--surface2);">
+      <div style="padding:20px 24px;border-bottom:1px solid var(--surface2);display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <h3 style="margin:0;font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--text);">Revisión de import</h3>
+          <p style="margin:4px 0 0;font-size:12px;color:var(--text3);">${parsed.fileName} · ${parsed.workers.length} trabajadores detectados${parsed.detectedMonth ? ' · ' + parsed.detectedMonth : ''}</p>
+        </div>
+        <button onclick="this.closest('#shiftia-import-review-overlay').remove()" style="background:transparent;border:none;color:var(--text3);font-size:22px;cursor:pointer;line-height:1;">×</button>
+      </div>
+      <div style="padding:14px 24px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--surface2);">
+        <label style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:8px;">
+          Planta:
+          <select id="reviewPlantaSelect" style="padding:6px 10px;border-radius:8px;border:1px solid var(--surface2);background:var(--surface2);color:var(--text);font-family:inherit;font-size:12px;">
+            ${plantaOptions}
+          </select>
+        </label>
+        <label style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:8px;">
+          Rol por defecto:
+          <select id="reviewRoleSelect" style="padding:6px 10px;border-radius:8px;border:1px solid var(--surface2);background:var(--surface2);color:var(--text);font-family:inherit;font-size:12px;">
+            <option value="enf">Enfermero/a (DUE)</option>
+            <option value="tcae">TCAE</option>
+            <option value="tec">Técnico</option>
+          </select>
+        </label>
+        <div style="font-size:11px;color:var(--text3);margin-left:auto;">Celdas con borde rojo = código desconocido. Revisa antes de confirmar.</div>
+      </div>
+      <div style="padding:0 24px;overflow:auto;flex:1;">
+        <table style="width:100%;border-collapse:collapse;margin:14px 0;">
+          <thead style="position:sticky;top:0;background:var(--surface);z-index:1;">
+            <tr style="border-bottom:1px solid var(--surface2);">
+              <th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text3);font-weight:500;">Trabajador</th>
+              ${dayHeaderCells}
+              <th style="text-align:center;padding:6px 8px;font-size:11px;color:var(--text3);font-weight:500;">Estado</th>
+            </tr>
+          </thead>
+          <tbody>${workerRows}</tbody>
+        </table>
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid var(--surface2);display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="this.closest('#shiftia-import-review-overlay').remove()" style="padding:10px 18px;border:1px solid var(--surface2);background:transparent;color:var(--text2);border-radius:10px;font-family:inherit;font-size:13px;cursor:pointer;">Cancelar</button>
+        <button id="reviewConfirmBtn" style="padding:10px 22px;border:none;background:var(--accent);color:white;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;">Confirmar import</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  document.getElementById('reviewConfirmBtn').onclick = () => {
+    const planta = document.getElementById('reviewPlantaSelect').value;
+    const role = document.getElementById('reviewRoleSelect').value;
+    confirmImportFromReview(parsed, planta, role);
+    overlay.remove();
+  };
+}
+
+// Persist a reviewed XLSX import. For each worker:
+//  - find existing or create new
+//  - parse calendar into scheduleData[year-month][workerId]
+function confirmImportFromReview(parsed, plantaId, role) {
+  let year, month;
+  if (parsed.detectedMonth && /^\d{4}-\d{1,2}$/.test(parsed.detectedMonth)) {
+    const [y, m] = parsed.detectedMonth.split('-').map(Number);
+    year = y; month = m - 1;
+  } else {
+    const now = new Date();
+    year = now.getFullYear();
+    month = now.getMonth();
+  }
+  const key = year + '-' + month;
+  if (!scheduleData[key]) scheduleData[key] = {};
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let imported = 0, created = 0;
+  parsed.workers.forEach(w => {
+    let existing = workers.find(x => x.name && x.name.trim().toLowerCase() === w.name.trim().toLowerCase());
+    if (!existing) {
+      existing = {
+        id: nextWorkerId++,
+        name: w.name.trim(),
+        role: role,
+        type: role,
+        planta: plantaId,
+        flotante: false,
+        hours: 0, nights: 0, computoBalance: 0, computoUsed: 0, nightsThisYear: 0,
+        rules: {},
+        scheduleImported: true
+      };
+      workers.push(existing);
+      created++;
+    } else {
+      existing.scheduleImported = true;
+      if (!existing.planta) existing.planta = plantaId;
+    }
+    const arr = new Array(daysInMonth).fill('');
+    Object.entries(w.calendar).forEach(([day, code]) => {
+      const idx = parseInt(day, 10) - 1;
+      if (idx >= 0 && idx < daysInMonth) arr[idx] = code === '' ? 'SP' : code;
+    });
+    scheduleData[key][existing.id] = arr;
+    imported++;
+  });
+
+  try { saveToStorage(); } catch(e) { console.warn('[Shiftia] saveToStorage failed:', e); }
+  try { renderDashboard(); } catch(e) {}
+  showToast('Importados ' + imported + ' trabajadores (' + created + ' nuevos) en ' + (month+1) + '/' + year, 'success');
+}
+
+async function handleImport(files) {
+  if (!files || files.length === 0) return;
 
   const pipeline = document.getElementById('importPipeline');
   pipeline.style.display = 'block';
@@ -16667,6 +17171,27 @@ async function handleImport(files) {
 
   for (let fi = 0; fi < fileArray.length; fi++) {
     const file = fileArray[fi];
+
+    // ROUTE BY EXTENSION — XLSX/CSV vs PDF
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
+      try {
+        await parseXLSXFile(file);
+      } catch (e) {
+        console.warn('[Shiftia XLSX] Error:', e);
+        showToast('Error procesando ' + file.name + ': ' + e.message, 'error');
+      }
+      continue;
+    }
+    if (ext !== 'pdf') {
+      showToast('Formato no soportado: .' + ext, 'error');
+      continue;
+    }
+
+    if (typeof pdfjsLib === 'undefined') {
+      showToast('Error: pdf.js no cargado. Recarga la página.');
+      return;
+    }
 
     // Show processing animation
     pipeline.innerHTML = `<div style="padding:24px;background:var(--surface);border-radius:14px;box-shadow:var(--shadow);">
@@ -18210,7 +18735,8 @@ function saveToStorage() {
       auditLog,
       shiftiaOnboarded,
       plantSupervisors: PLANT_SUPERVISORS,
-      nextWorkerId
+      nextWorkerId,
+      customCoverage: (state && state.customCoverage) || {}   // MEJORA 4
     };
     // Save to localStorage (works offline, instant)
     localStorage.setItem('shiftia_data', JSON.stringify(data));
@@ -18298,6 +18824,11 @@ async function loadFromStorage() {
       if (data.shiftiaOnboarded !== undefined) shiftiaOnboarded = data.shiftiaOnboarded;
       if (data.plantSupervisors) { Object.assign(PLANT_SUPERVISORS, data.plantSupervisors); }
       if (data.nextWorkerId && data.nextWorkerId > nextWorkerId) { nextWorkerId = data.nextWorkerId; }
+      // MEJORA 4: restore custom coverage overrides
+      if (data.customCoverage && typeof data.customCoverage === 'object') {
+        if (!state.customCoverage) state.customCoverage = {};
+        Object.assign(state.customCoverage, data.customCoverage);
+      }
       applyWorkerMeta(data.workerMeta);
       // Restore persistent worker memory
       if (data.workerMemory) {
@@ -28686,20 +29217,277 @@ th.today-head { color: white; background: #2e8b7a; font-weight: 900; }
 }
 
 // ============= FEATURE 3: COVERAGE HISTORY HELPER =============
-function logCoverageHistory(absentWorkerId, coverWorkerId, shift, accepted, timestamp) {
+// MEJORA 2: ensure entries carry workerId + ts so computeHistoryScore can read them.
+function logCoverageHistory(absentWorkerId, coverWorkerId, shift, accepted, timestamp, planta) {
+  const ts = timestamp || Date.now();
   const entry = {
-    date: new Date(timestamp).toISOString(),
+    date: new Date(ts).toISOString(),
     absentWorker: absentWorkerId,
     coverWorker: coverWorkerId,
+    workerId: coverWorkerId,         // MEJORA 2: alias used by computeHistoryScore
     shift: shift,
-    accepted: accepted,
-    timestamp: timestamp,
+    planta: planta || null,
+    accepted: accepted === true,
+    timestamp: ts,
+    ts: ts,                          // MEJORA 2: numeric ts for fast filtering
     acceptedBy: 'Sara'
   };
   coverageHistory.push(entry);
   // Keep only last 500 entries
   if (coverageHistory.length > 500) coverageHistory.shift();
   saveToStorage();
+}
+
+// ============= MEJORA 4: COVERAGE RULES EDITOR (UI) =============
+// Persists per-planta + per-DOW + per-category coverage minimums.
+// Backwards compatible: legacy {min:N} shape is read by getCoverageMin and is used
+// as the default seed when opening the editor for the first time on a planta.
+function renderCoverageRulesEditor() {
+  const container = document.getElementById('coverageRulesEditorContainer');
+  if (!container) return;
+  const plantasList = (typeof PLANTAS !== 'undefined' ? PLANTAS : []).filter(p => p.id !== 'refuerzo');
+  if (!plantasList.length) { container.innerHTML = ''; return; }
+
+  container.innerHTML = `
+    <div style="background:var(--surface);border-radius:14px;padding:24px;box-shadow:var(--shadow);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--text);">Reglas de cobertura editables</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px;">Define mínimos por planta, día de la semana y categoría. Sustituye al valor por defecto.</div>
+        </div>
+        <button onclick="openCoverageRulesEditorModal()" style="padding:10px 20px;background:var(--accent);border:none;color:white;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;">Editar coberturas</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">
+        ${plantasList.map(p => {
+          const overridden = !!(state.customCoverage && state.customCoverage[p.id]);
+          return `<div style="padding:12px;border:1px solid var(--surface2);border-radius:10px;background:var(--surface2);">
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;">${p.name}</div>
+            <div style="font-size:11px;color:${overridden ? 'var(--accent)' : 'var(--text3)'};">${overridden ? 'Override personalizado' : 'Valor por defecto'}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function openCoverageRulesEditorModal() {
+  const overlay = document.createElement('div');
+  overlay.id = 'shiftia-coverage-editor-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+  const plantasList = PLANTAS.filter(p => p.id !== 'refuerzo');
+  const plantaOptions = plantasList.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,0.35);max-width:900px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--surface2);">
+      <div style="padding:20px 24px;border-bottom:1px solid var(--surface2);display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <h3 style="margin:0;font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--text);">Editor de coberturas</h3>
+          <p style="margin:4px 0 0;font-size:12px;color:var(--text3);">Por planta · por día de la semana · por categoría</p>
+        </div>
+        <button onclick="this.closest('#shiftia-coverage-editor-overlay').remove()" style="background:transparent;border:none;color:var(--text3);font-size:22px;cursor:pointer;line-height:1;">×</button>
+      </div>
+      <div style="padding:14px 24px;border-bottom:1px solid var(--surface2);display:flex;align-items:center;gap:10px;">
+        <label style="font-size:12px;color:var(--text2);">Planta:</label>
+        <select id="coverageEditorPlantaSelect" onchange="renderCoverageEditorBody(this.value)" style="padding:6px 10px;border-radius:8px;border:1px solid var(--surface2);background:var(--surface2);color:var(--text);font-family:inherit;font-size:12px;">
+          ${plantaOptions}
+        </select>
+        <button onclick="resetCoverageRulesForCurrent()" style="margin-left:auto;padding:6px 12px;border:1px solid var(--surface2);background:transparent;color:var(--text2);border-radius:8px;font-family:inherit;font-size:11px;cursor:pointer;">Restablecer defaults</button>
+      </div>
+      <div id="coverageEditorBody" style="padding:18px 24px;overflow:auto;flex:1;"></div>
+      <div style="padding:14px 24px;border-top:1px solid var(--surface2);display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="this.closest('#shiftia-coverage-editor-overlay').remove()" style="padding:10px 18px;border:1px solid var(--surface2);background:transparent;color:var(--text2);border-radius:10px;font-family:inherit;font-size:13px;cursor:pointer;">Cerrar</button>
+        <button onclick="saveCoverageRulesFromEditor()" style="padding:10px 22px;border:none;background:var(--accent);color:white;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;">Guardar cambios</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  renderCoverageEditorBody(plantasList[0].id);
+}
+
+function _seedCoverageRulesForPlanta(plantaId) {
+  // Build the new shape from legacy PLANT_COVERAGE so the editor has values to show.
+  const legacy = PLANT_COVERAGE[plantaId] || {};
+  const out = {};
+  ['M','T','N'].forEach(shift => {
+    const baseMin = (legacy[shift] && typeof legacy[shift].min === 'number') ? legacy[shift].min : 0;
+    const perDow = {};
+    for (let d = 0; d < 7; d++) {
+      // Sun/Sat get -1 if shift is M/T (matches existing weekend reduction tendency)
+      const wknd = (d === 0 || d === 6);
+      perDow['dow_' + d] = {
+        enf: wknd && shift !== 'N' ? Math.max(0, baseMin - 1) : baseMin,
+        tcae: 0,
+        tec: 0
+      };
+    }
+    out[shift] = {
+      ...perDow,
+      holiday: { enf: Math.max(0, baseMin - 1), tcae: 0, tec: 0 },
+      default: { enf: baseMin, tcae: 0, tec: 0 }
+    };
+  });
+  return out;
+}
+
+function _getEditorRulesForPlanta(plantaId) {
+  const existing = state.customCoverage && state.customCoverage[plantaId];
+  if (existing) {
+    // Migrate legacy if found
+    let needsSeed = false;
+    ['M','T','N'].forEach(s => {
+      if (existing[s] && typeof existing[s].min === 'number' && !existing[s].dow_0) needsSeed = true;
+    });
+    if (needsSeed) return _seedCoverageRulesForPlanta(plantaId);
+    return JSON.parse(JSON.stringify(existing));
+  }
+  return _seedCoverageRulesForPlanta(plantaId);
+}
+
+function renderCoverageEditorBody(plantaId) {
+  const body = document.getElementById('coverageEditorBody');
+  if (!body) return;
+  const rules = _getEditorRulesForPlanta(plantaId);
+  body._rulesDraft = rules;
+  body._plantaId = plantaId;
+
+  const dowLabels = ['L','M','X','J','V','S','D','Festivo']; // L=Mon...D=Sun → JS getDay() S=6,D=0
+  const dowKeys   = ['dow_1','dow_2','dow_3','dow_4','dow_5','dow_6','dow_0','holiday'];
+  const cats = [
+    { key: 'enf',  label: 'ENF (DUE)' },
+    { key: 'tcae', label: 'TCAE' },
+    { key: 'tec',  label: 'Técnico' }
+  ];
+
+  let html = '<table style="width:100%;border-collapse:collapse;">';
+  html += '<thead><tr><th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--text3);font-weight:500;">Turno / Cat.</th>';
+  dowLabels.forEach(l => { html += `<th style="padding:6px 4px;font-size:11px;color:var(--text3);font-weight:500;text-align:center;">${l}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  ['M','T','N'].forEach(shift => {
+    cats.forEach((cat, ci) => {
+      html += `<tr style="border-top:${ci === 0 ? '1px solid var(--surface2)' : 'none'};">
+        <td style="padding:5px 8px;font-size:11px;color:var(--text2);${ci === 0 ? 'font-weight:600;' : ''}">
+          ${ci === 0 ? '<span style="color:var(--text);">' + shift + '</span> · ' : '<span style="color:transparent;">--</span> · '}${cat.label}
+        </td>`;
+      dowKeys.forEach(k => {
+        const v = (rules[shift] && rules[shift][k] && rules[shift][k][cat.key]) || 0;
+        html += `<td style="padding:3px 4px;text-align:center;">
+          <input type="number" min="0" max="20" value="${v}"
+                 data-shift="${shift}" data-dow="${k}" data-cat="${cat.key}"
+                 style="width:48px;padding:5px 4px;border:1px solid var(--surface2);background:var(--surface);color:var(--text);border-radius:6px;font-family:inherit;font-size:12px;text-align:center;" />
+        </td>`;
+      });
+      html += '</tr>';
+    });
+  });
+  html += '</tbody></table>';
+  body.innerHTML = html;
+}
+
+function saveCoverageRulesFromEditor() {
+  const body = document.getElementById('coverageEditorBody');
+  if (!body) return;
+  const plantaId = body._plantaId;
+  const rules = body._rulesDraft || _seedCoverageRulesForPlanta(plantaId);
+  body.querySelectorAll('input[type="number"]').forEach(inp => {
+    const s = inp.dataset.shift, d = inp.dataset.dow, c = inp.dataset.cat;
+    if (!rules[s]) rules[s] = {};
+    if (!rules[s][d]) rules[s][d] = {};
+    rules[s][d][c] = Math.max(0, parseInt(inp.value, 10) || 0);
+  });
+  if (!state.customCoverage) state.customCoverage = {};
+  state.customCoverage[plantaId] = rules;
+  try { saveToStorage(); } catch(e) {}
+  showToast('Coberturas guardadas para ' + (PLANTAS.find(p => p.id === plantaId) || {}).name, 'success');
+  try { renderCoverageRulesEditor(); } catch(e) {}
+  try { renderCoverageHeatmap30(); } catch(e) {}
+}
+
+function resetCoverageRulesForCurrent() {
+  const body = document.getElementById('coverageEditorBody');
+  if (!body) return;
+  const plantaId = body._plantaId;
+  if (state.customCoverage && state.customCoverage[plantaId]) delete state.customCoverage[plantaId];
+  try { saveToStorage(); } catch(e) {}
+  renderCoverageEditorBody(plantaId);
+  showToast('Cobertura restablecida a defaults', 'info');
+  try { renderCoverageRulesEditor(); } catch(e) {}
+}
+
+// ============= MEJORA 5B: 30-DAY COVERAGE HEATMAP =============
+function countCoverageGapsForDate(d) {
+  if (typeof PLANTAS === 'undefined' || !workers || !workers.length) return 0;
+  const year = d.getFullYear(), month = d.getMonth(), day = d.getDate();
+  const sch = (scheduleData[year + '-' + month]) || (typeof genSchedule === 'function' ? genSchedule(year, month) : null);
+  if (!sch) return 0;
+  const dayIdx = day - 1;
+  let gaps = 0;
+  PLANTAS.forEach(planta => {
+    if (planta.id === 'refuerzo') return;
+    ['M','T','N'].forEach(shift => {
+      const required = getCoverageMin(planta.id, shift, d, 'enf');
+      if (!required) return;
+      const plantWorkers = workers.filter(w => w.planta === planta.id && w.type === 'enf');
+      let onShift = 0;
+      plantWorkers.forEach(w => {
+        const s = sch[w.id] ? (sch[w.id][dayIdx] || '').toString().trim() : '';
+        const eff = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+        if (eff === shift) onShift++;
+      });
+      if (onShift < required) gaps += (required - onShift);
+    });
+  });
+  return gaps;
+}
+
+function renderCoverageHeatmap30() {
+  const container = document.getElementById('coverageHeatmap30Container');
+  if (!container) return;
+  const today = new Date();
+  const cells = [];
+  let maxGaps = 0, totalGaps = 0;
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(today.getTime() + i * 86400000);
+    const gaps = countCoverageGapsForDate(d);
+    if (gaps > maxGaps) maxGaps = gaps;
+    totalGaps += gaps;
+    let color = '#22c55e';
+    if (gaps >= 6) color = '#dc2626';
+    else if (gaps >= 3) color = '#f97316';
+    else if (gaps >= 1) color = '#facc15';
+    cells.push({ day: d.getDate(), month: d.getMonth()+1, dow: d.getDay(), gaps, color });
+  }
+
+  const monthNames = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  container.innerHTML = `
+    <div style="background:var(--surface);border-radius:14px;padding:24px;box-shadow:var(--shadow);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--text);">Mapa de cobertura · próximos 30 días</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:4px;">Cada celda = 1 día. Color = nº de huecos sin cubrir agregando todas las plantas y turnos.</div>
+        </div>
+        <div style="display:flex;gap:14px;font-size:11px;color:var(--text2);align-items:center;flex-wrap:wrap;">
+          <div><strong style="color:var(--text);">${totalGaps}</strong> huecos totales · pico: <strong style="color:var(--text);">${maxGaps}</strong></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:5px;max-width:520px;margin-bottom:14px;">
+        ${cells.map(c => `
+          <div title="Día ${c.day}/${c.month} — ${c.gaps} huecos"
+               style="aspect-ratio:1;background:${c.color};border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:0.7rem;color:#0d1b2a;font-weight:700;line-height:1;">
+            <div style="font-size:0.85rem;">${c.day}</div>
+            <div style="font-size:0.55rem;font-weight:500;opacity:0.7;">${monthNames[c.month-1]}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div style="display:flex;gap:14px;font-size:11px;color:var(--text3);align-items:center;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#22c55e;border-radius:3px;display:inline-block;"></span>OK</div>
+        <div style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#facc15;border-radius:3px;display:inline-block;"></span>1-2 huecos</div>
+        <div style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#f97316;border-radius:3px;display:inline-block;"></span>3-5 huecos</div>
+        <div style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#dc2626;border-radius:3px;display:inline-block;"></span>6+ huecos</div>
+      </div>
+    </div>
+  `;
 }
 
 // ============= FEATURE 10: AUDIT LOG HELPERS =============
@@ -30604,13 +31392,15 @@ function animateNumber(elementId, targetValue, duration) {
     if (typeof PLANTAS === 'undefined' || typeof PLANT_COVERAGE === 'undefined' || typeof workers === 'undefined') return cost;
 
     // 1. COBERTURA — penalty fuerte por cada hueco
+    // MEJORA 4: read coverage min via getCoverageMin (per-DOW + per-category overrides)
     PLANTAS.forEach(function (p) {
       if (p.id === 'refuerzo') return;
-      var coverage = PLANT_COVERAGE[p.id];
-      if (!coverage) return;
       for (var d = 0; d < ctx.daysInMonth; d++) {
+        var dDate = new Date(ctx.year, ctx.month, d + 1);
         ASSIGNABLE.forEach(function (sh) {
-          var min = (coverage[sh] && coverage[sh].min) || 0;
+          var min = (typeof getCoverageMin === 'function')
+            ? getCoverageMin(p.id, sh, dDate, 'enf')
+            : ((PLANT_COVERAGE[p.id] && PLANT_COVERAGE[p.id][sh] && PLANT_COVERAGE[p.id][sh].min) || 0);
           if (min === 0) return;
           var w = workingCount(sch, p.id, d, sh);
           if (w < min) cost += (min - w) * (weights.coverage * 1.0);
@@ -31177,12 +31967,14 @@ function animateNumber(elementId, targetValue, duration) {
 
     PLANTAS.forEach(function (p) {
       if (p.id === 'refuerzo') return; // refuerzo no tiene cobertura mínima
-      var coverage = PLANT_COVERAGE[p.id];
-      if (!coverage) return;
       var workersOfPlanta = workers.filter(function (w) { return w.planta === p.id; });
       for (var d = 0; d < ctx.daysInMonth; d++) {
+        var dDate = new Date(ctx.year, ctx.month, d + 1);
         ASSIGNABLE_SHIFTS.forEach(function (shift) {
-          var min = (coverage[shift] && coverage[shift].min) || 0;
+          // MEJORA 4: per-DOW + per-category override
+          var min = (typeof getCoverageMin === 'function')
+            ? getCoverageMin(p.id, shift, dDate, 'enf')
+            : ((PLANT_COVERAGE[p.id] && PLANT_COVERAGE[p.id][shift] && PLANT_COVERAGE[p.id][shift].min) || 0);
           if (min === 0) return;
           var working = 0;
           workersOfPlanta.forEach(function (w) {
@@ -31324,12 +32116,14 @@ function animateNumber(elementId, targetValue, duration) {
     var covered = 0, required = 0;
     PLANTAS.forEach(function (p) {
       if (p.id === 'refuerzo') return;
-      var coverage = PLANT_COVERAGE[p.id];
-      if (!coverage) return;
       var workersOfPlanta = workers.filter(function (w) { return w.planta === p.id; });
       for (var d = 0; d < ctx.daysInMonth; d++) {
+        var dDate = new Date(ctx.year, ctx.month, d + 1);
         ASSIGNABLE_SHIFTS.forEach(function (shift) {
-          var min = (coverage[shift] && coverage[shift].min) || 0;
+          // MEJORA 4: per-DOW + per-category override
+          var min = (typeof getCoverageMin === 'function')
+            ? getCoverageMin(p.id, shift, dDate, 'enf')
+            : ((PLANT_COVERAGE[p.id] && PLANT_COVERAGE[p.id][shift] && PLANT_COVERAGE[p.id][shift].min) || 0);
           if (min === 0) return;
           required += min;
           var working = 0;
