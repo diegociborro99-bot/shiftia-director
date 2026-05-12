@@ -34,7 +34,7 @@ if (!JWT_SECRET) {
 
 // ====== TRUST PROXY ======
 // Detrás de Railway/Heroku necesario para req.ip real, rate limiting, secure cookies
-app.set('trust proxy', 1);
+if (IS_PRODUCTION) app.set('trust proxy', 1);
 
 // ====== WEBSOCKET SERVER (real-time sync) ======
 const wss = new WebSocket.Server({ server, path: '/ws' });
@@ -80,7 +80,7 @@ wss.on('connection', (ws, req) => {
       if (data.type === 'shift_change') {
         broadcastToUser(ws.userId, { type: 'shift_change', payload: data.payload, from: ws.userEmail }, ws);
       }
-    } catch (e) { /* ignore bad messages */ }
+    } catch (e) { console.warn('[WS] Bad message:', e.message); }
   });
 
   ws.on('close', () => {
@@ -146,6 +146,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' wss: ws:");
   if (IS_PRODUCTION) {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
@@ -211,7 +212,7 @@ const writeLimiter = rateLimit({ max: 60, windowMs: 60000, scope: 'write' });   
 // ====== DATABASE CONFIG ======
 // Filter out undefined values to avoid overriding connectionString
 const poolConfig = process.env.DATABASE_URL
-  ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }
+  ? { connectionString: process.env.DATABASE_URL, ssl: process.env.PGSSLROOTCERT ? { ca: require('fs').readFileSync(process.env.PGSSLROOTCERT) } : { rejectUnauthorized: process.env.NODE_ENV === 'production' } }
   : {
       host: process.env.PGHOST,
       port: process.env.PGPORT || 5432,
@@ -395,11 +396,7 @@ function authMiddleware(req, res, next) {
 }
 
 // ====== HELPER FUNCTIONS ======
-// Validate email format
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
+// isValidEmail defined below (line ~1228)
 
 // ====== EMAIL CONFIG ======
 // Pool de conexiones SMTP — reutilizable, max 5 simultáneas
@@ -440,17 +437,17 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
     // Validate required fields
     if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Email, password, and name are required' });
+      return res.status(400).json({ error: 'Email, contraseña y nombre son obligatorios' });
     }
 
     // Validate email format
     if (!isValidEmail(email)) {
-      return res.status(400).json({ error: 'Invalid email format' });
+      return res.status(400).json({ error: 'Formato de email inválido' });
     }
 
     // Validate password strength (at least 8 chars)
     if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
     }
 
     // Check if email already exists
@@ -477,7 +474,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     const token = jwt.sign(
       { id: user.id, email: user.email },
       JWT_SECRET,
-      { expiresIn: '30d' }
+      { expiresIn: '8h' }
     );
 
     res.status(201).json({ token, user });
@@ -488,9 +485,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 });
 
 // Username → email mapping for single-user mode
-const USERNAME_MAP = {
-  'icueva': 'director@shiftia.es',
-};
+const USERNAME_MAP = process.env.USERNAME_MAP ? JSON.parse(process.env.USERNAME_MAP) : { 'icueva': process.env.ADMIN_EMAIL || 'director@shiftia.es' };
 
 // POST /api/auth/login
 app.post('/api/auth/login', authLimiter, async (req, res) => {
@@ -540,7 +535,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     const token = jwt.sign(
       { id: user.id, email: user.email },
       JWT_SECRET,
-      { expiresIn: '30d' }
+      { expiresIn: '8h' }
     );
 
     // Return user without password_hash
@@ -582,11 +577,23 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
 app.put('/api/auth/update', authMiddleware, async (req, res) => {
   try {
     const { name, email, company, password } = req.body;
+    const { currentPassword } = req.body;
     const userId = req.user.id;
 
     // Validate at least one field
     if (!name && !email && !company && !password) {
       return res.status(400).json({ error: 'At least one field is required' });
+    }
+
+    // Require current password for email or password changes
+    if ((email || password) && !currentPassword) {
+      return res.status(400).json({ error: 'Se requiere la contraseña actual para cambiar email o contraseña' });
+    }
+    if (currentPassword) {
+      const userCheck = await pool.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+      if (userCheck.rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+      const valid = await bcrypt.compare(currentPassword, userCheck.rows[0].password_hash);
+      if (!valid) return res.status(401).json({ error: 'Contraseña actual incorrecta' });
     }
 
     // Start building the update query
@@ -622,7 +629,7 @@ app.put('/api/auth/update', authMiddleware, async (req, res) => {
 
     if (password) {
       if (password.length < 8) {
-        return res.status(400).json({ error: 'Password must be at least 8 characters' });
+        return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
       }
       const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
       const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -679,7 +686,6 @@ async function createAutoBackup(userId) {
     if (lastBackup.rows.length > 0) {
       const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
       if (new Date(lastBackup.rows[0].created_at) > hourAgo) {
-        client.release();
         return; // Too recent
       }
     }
@@ -687,7 +693,6 @@ async function createAutoBackup(userId) {
     // Get current data
     const current = await client.query('SELECT data FROM schedule_data WHERE user_id = $1', [userId]);
     if (current.rows.length === 0) {
-      client.release();
       return;
     }
 
@@ -749,7 +754,7 @@ app.post('/api/data', writeLimiter, authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Invalid data format' });
     }
     // Permite que el cliente envíe `data` y `clientVersion` o solo el body como data legacy
-    var data, clientVersion;
+    let data, clientVersion;
     if (body.data && (typeof body.clientVersion === 'number' || typeof body.clientVersion === 'string')) {
       data = body.data;
       clientVersion = parseInt(body.clientVersion, 10) || 0;
@@ -868,7 +873,7 @@ app.post('/api/support', authMiddleware, async (req, res) => {
     try {
       if (process.env.GMAIL_APP_PASSWORD) {
         safeSendMail({
-          from: `"Shiftia Support" <${process.env.GMAIL_USER || 'highkeycvsender@gmail.com'}>`,
+          from: `"Shiftia Support" <${process.env.GMAIL_USER}>`,
           to: process.env.SUPPORT_EMAIL || 'highkeycvsender@gmail.com',
           subject: `[Soporte - ${catLabels[cat] || cat}] ${subject}`,
           html: `
@@ -902,39 +907,12 @@ app.post('/api/support', authMiddleware, async (req, res) => {
   }
 });
 
-// ====== RATE LIMITING ======
-const rateLimitMap = new Map();
-function isRateLimited(ip, maxPerMinute = 3) {
-  const now = Date.now();
-  const attempts = rateLimitMap.get(ip) || [];
-  const recent = attempts.filter(t => now - t < 60000);
-  if (recent.length === 0) {
-    rateLimitMap.delete(ip); // Clean up empty entries
-  }
-  if (recent.length >= maxPerMinute) return true;
-  recent.push(now);
-  rateLimitMap.set(ip, recent);
-  return false;
-}
-// Periodic cleanup of stale rate limit entries
-setInterval(() => {
-  const now = Date.now();
-  rateLimitMap.forEach((attempts, ip) => {
-    const recent = attempts.filter(t => now - t < 60000);
-    if (recent.length === 0) rateLimitMap.delete(ip);
-    else rateLimitMap.set(ip, recent);
-  });
-}, 300000); // Every 5 minutes
+// Rate limiting for public endpoints — uses the main rateLimit middleware
+const publicLimiter = rateLimit({ max: 3, windowMs: 60000, scope: 'public' });
 
 // ====== CONTACT FORM API ======
-app.post('/api/contact', async (req, res) => {
+app.post('/api/contact', publicLimiter, async (req, res) => {
   try {
-    // Rate limiting
-    const clientIP = req.ip || req.connection.remoteAddress;
-    if (isRateLimited(clientIP)) {
-      return res.status(429).json({ error: 'Demasiadas solicitudes. Espera un momento.' });
-    }
-
     const { name, email, company, workers, department, message } = req.body;
 
     // Validate required fields
@@ -949,7 +927,7 @@ app.post('/api/contact', async (req, res) => {
     }
 
     // Sanitize HTML to prevent XSS in emails
-    const esc = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const esc = escHtmlServer;
     const safeName = esc(name);
     const safeEmail = esc(email);
     const safeCompany = esc(company);
@@ -989,7 +967,7 @@ app.post('/api/contact', async (req, res) => {
     try {
       if (process.env.GMAIL_APP_PASSWORD) {
         safeSendMail({
-          from: `"Shiftia HUB" <${process.env.GMAIL_USER || 'highkeycvsender@gmail.com'}>`,
+          from: `"Shiftia HUB" <${process.env.GMAIL_USER}>`,
           to: process.env.SUPPORT_EMAIL || 'highkeycvsender@gmail.com',
           subject: `Nueva solicitud de demo — ${safeName} (${safeCompany || 'Sin empresa'})`,
           html: `
@@ -1019,7 +997,7 @@ app.post('/api/contact', async (req, res) => {
           .catch(e => console.warn('Contact notification email failed:', e.message));
 
         safeSendMail({
-          from: `"Shiftia" <${process.env.GMAIL_USER || 'highkeycvsender@gmail.com'}>`,
+          from: `"Shiftia" <${process.env.GMAIL_USER}>`,
           to: email,
           subject: 'Hemos recibido tu solicitud — Shiftia',
           html: `
@@ -1058,14 +1036,8 @@ app.post('/api/contact', async (req, res) => {
 });
 
 // ====== CALL BOOKING API ======
-app.post('/api/booking', async (req, res) => {
+app.post('/api/booking', publicLimiter, async (req, res) => {
   try {
-    // Rate limiting
-    const clientIP = req.ip || req.connection.remoteAddress;
-    if (isRateLimited(clientIP)) {
-      return res.status(429).json({ error: 'Demasiadas solicitudes. Espera un momento.' });
-    }
-
     const { name, email, phone, company, workers, department, message, date, time } = req.body;
 
     // Validate required fields
@@ -1079,7 +1051,7 @@ app.post('/api/booking', async (req, res) => {
     }
 
     // Validate date is weekday and not in the past
-    const bookingDate = new Date(date + 'T00:00:00');
+    const bookingDate = new Date(date + 'T00:00:00+02:00'); // Europe/Madrid
     const dow = bookingDate.getDay();
     if (dow === 0 || dow === 6) {
       return res.status(400).json({ error: 'Solo se puede agendar de lunes a viernes' });
@@ -1091,7 +1063,7 @@ app.post('/api/booking', async (req, res) => {
       return res.status(400).json({ error: 'Horario disponible: 8:00 - 18:00' });
     }
 
-    const esc = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const esc = escHtmlServer;
 
     // Save booking to database
     try {
@@ -1133,7 +1105,7 @@ app.post('/api/booking', async (req, res) => {
       if (process.env.GMAIL_APP_PASSWORD) {
         // 1. Notification to Diego
         safeSendMail({
-          from: `"Shiftia Booking" <${process.env.GMAIL_USER || 'highkeycvsender@gmail.com'}>`,
+          from: `"Shiftia Booking" <${process.env.GMAIL_USER}>`,
           to: process.env.SUPPORT_EMAIL || 'highkeycvsender@gmail.com',
           subject: `📞 Nueva llamada agendada — ${esc(name)} (${esc(company || 'N/A')}) — ${prettyDate} ${time}h`,
           html: `
@@ -1163,7 +1135,7 @@ app.post('/api/booking', async (req, res) => {
 
         // 2. Confirmation to client
         safeSendMail({
-          from: `"Shiftia" <${process.env.GMAIL_USER || 'highkeycvsender@gmail.com'}>`,
+          from: `"Shiftia" <${process.env.GMAIL_USER}>`,
           to: email,
           subject: `Llamada confirmada — ${prettyDate} a las ${time}h — Shiftia`,
           html: `
@@ -1246,7 +1218,7 @@ app.post('/api/notify', authMiddleware, async (req, res) => {
     const safeAcceptedBy = escHtmlServer(String(acceptedBy || '').slice(0, 200));
 
     // Configure email (console.log fallback if SMTP not configured)
-    const hasEmail = process.env.SMTP_HOST;
+    const hasEmail = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_HOST;
 
     if (hasEmail) {
       // v7.1: usar safeSendMail (pool global) en lugar de crear transporter por request
@@ -1322,7 +1294,7 @@ app.get('/api/my-shifts', authMiddleware, async (req, res) => {
 
     // Find the worker by name
     const workers = data.workerMeta || [];
-    const worker = workers.find(w => w.name && w.name.toLowerCase().includes(workerName.toLowerCase()));
+    const worker = workers.find(w => w.name && w.name.toLowerCase() === workerName.toLowerCase()) || workers.find(w => w.name && w.name.toLowerCase().includes(workerName.toLowerCase()));
 
     if (!worker) {
       return res.json({ shifts: [], worker: workerName, error: 'Worker not found' });
@@ -1432,55 +1404,61 @@ app.post('/api/backups', authMiddleware, async (req, res) => {
 
 // POST /api/backups/:id/restore — Restore from a backup
 app.post('/api/backups/:id/restore', authMiddleware, async (req, res) => {
+  const client = await pool.connect();
   try {
     const backupId = parseInt(req.params.id, 10);
     if (isNaN(backupId) || backupId <= 0) {
+      client.release();
       return res.status(400).json({ error: 'Invalid backup ID' });
     }
-    const backup = await pool.query(
+
+    await client.query('BEGIN');
+
+    const backup = await client.query(
       'SELECT data FROM schedule_backups WHERE id = $1 AND user_id = $2',
       [backupId, req.user.id]
     );
-    if (backup.rows.length === 0) return res.status(404).json({ error: 'Backup not found' });
+    if (backup.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Backup not found' });
+    }
 
     // Create a backup of current state before restoring
-    const current = await pool.query('SELECT data FROM schedule_data WHERE user_id = $1', [req.user.id]);
+    const current = await client.query('SELECT data FROM schedule_data WHERE user_id = $1', [req.user.id]);
     if (current.rows.length > 0) {
-      await pool.query(
+      await client.query(
         'INSERT INTO schedule_backups (user_id, data, backup_type) VALUES ($1, $2, $3)',
         [req.user.id, JSON.stringify(current.rows[0].data), 'pre_restore']
       );
     }
 
     // Restore
-    await pool.query(`
+    await client.query(`
       INSERT INTO schedule_data (user_id, data, updated_at)
       VALUES ($1, $2, NOW())
       ON CONFLICT (user_id) DO UPDATE SET data = $2, updated_at = NOW()
     `, [req.user.id, JSON.stringify(backup.rows[0].data)]);
 
+    await client.query('COMMIT');
     logAudit(req.user.id, 'restore_backup', { backup_id: backupId }, req.ip);
     res.json({ success: true });
   } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
     console.error('Restore backup error:', err.message);
     res.status(500).json({ error: 'Error restoring backup' });
+  } finally {
+    try { client.release(); } catch (_) {}
   }
 });
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    version: PKG_VERSION,
-    auth: 'enabled',
-    websocket: true,
-    backups: true,
-    db: dbAvailable
-  });
+  res.json({ status: 'ok' });
 });
 
 // Version endpoint público — para verificar deploys sin entrar en panel
 app.get('/version', (req, res) => {
+  if (IS_PRODUCTION) return res.type('text/plain').send('Shiftia Director - OK\n');
   res.type('text/plain').send(
     `Shiftia Director v${PKG_VERSION}\n` +
     `NODE_ENV=${process.env.NODE_ENV || 'development'}\n` +
@@ -1491,7 +1469,7 @@ app.get('/version', (req, res) => {
 
 // 404 JSON para cualquier /api/* no manejado (mejor que el SPA fallback)
 app.use('/api', (req, res) => {
-  res.status(404).json({ error: 'API endpoint not found', path: req.path });
+  res.status(404).json({ error: 'API endpoint not found' });
 });
 
 // SPA fallback
@@ -1531,10 +1509,11 @@ async function sendDailySummary() {
       const shifts = { M: [], T: [], N: [] };
       const absences = [];
 
-      const workersData = data.workers || [];
+      const workersData = data.workerMeta || data.workers || [];
       workersData.forEach(w => {
         const s = sch[w.id]?.[dayIdx] || '';
-        if (shifts[s]) shifts[s].push(escHtmlServer(w.name));
+        const normalized = ['MR','M7H','M6R','M55'].includes(s) ? 'M' : s;
+        if (shifts[normalized]) shifts[normalized].push(escHtmlServer(w.name));
         else if (['VAC','BAJ','FOR','LAC','MTC','HS','CAA','INT'].includes(s)) {
           absences.push(`${escHtmlServer(w.name)} (${s})`);
         }
@@ -1589,16 +1568,23 @@ async function sendDailySummary() {
 
 // Schedule daily at 7:00 AM (Spain timezone)
 function scheduleDailySummary() {
-  const now = new Date();
-  const target = new Date(now);
-  target.setHours(7, 0, 0, 0);
-  if (now >= target) target.setDate(target.getDate() + 1);
-  const delay = target - now;
-  setTimeout(() => {
-    sendDailySummary();
-    setInterval(sendDailySummary, 24 * 60 * 60 * 1000);
-  }, delay);
-  console.log(`[Email] Daily summary scheduled for ${target.toISOString()} (in ${Math.round(delay / 60000)} min)`);
+  function scheduleNext() {
+    const now = new Date();
+    // Calculate 7:00 AM Madrid time
+    const madridNow = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));
+    const target = new Date(madridNow);
+    target.setHours(7, 0, 0, 0);
+    if (madridNow >= target) target.setDate(target.getDate() + 1);
+    // Convert back to UTC delay
+    const madridOffset = madridNow.getTime() - now.getTime();
+    const delay = target.getTime() - madridNow.getTime();
+    setTimeout(() => {
+      sendDailySummary();
+      scheduleNext(); // Recursive instead of setInterval to handle DST
+    }, delay);
+    console.log(`[Email] Daily summary scheduled in ${Math.round(delay / 60000)} min`);
+  }
+  scheduleNext();
 }
 
 // ====== SERVER STARTUP ======

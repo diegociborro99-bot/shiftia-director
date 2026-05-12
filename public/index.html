@@ -5771,25 +5771,7 @@ table.schedule th.month-total-header {
   }
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--surface2);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--text3);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text2);
-}
+/* Scrollbar - see main definition above */
 
 /* FEATURE 1: Daily Briefing Panel */
 .daily-briefing {
@@ -6259,54 +6241,14 @@ html {
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+/* @keyframes spin - see main definition above */
 
 /* Table zebra striping for better readability */
 .schedule-row:nth-child(even) {
   background: rgba(0, 0, 0, 0.02);
 }
 
-/* Auto-save indicator enhancement */
-.save-indicator {
-  position: fixed;
-  bottom: 100px;
-  right: 20px;
-  background: rgba(44, 62, 80, 0.95);
-  color: #fff;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  opacity: 0;
-  transform: translateY(20px);
-  pointer-events: none;
-  z-index: 1000;
-  transition: all 0.3s ease;
-}
-
-.save-indicator.saving {
-  opacity: 1;
-  transform: translateY(0);
-  background: rgba(52, 152, 219, 0.95);
-}
-
-.save-indicator.saved {
-  opacity: 1;
-  transform: translateY(0);
-  background: rgba(46, 139, 87, 0.95);
-}
-
-.save-indicator.hidden {
-  opacity: 0;
-  transform: translateY(20px);
-  pointer-events: none;
-}
-
-.save-text {
-  display: inline-block;
-}
+/* Auto-save indicator - see main definition above */
 
 /* Responsive improvements */
 @media (max-width: 768px) {
@@ -9800,14 +9742,14 @@ function getUnplannedDays(year, month) {
   const key = `${year}-${month}`;
   const sch = scheduleData[key] || genSchedule(year, month);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const unplanedDays = [];
+  const unplannedDays = [];
 
   for (let dayIdx = 0; dayIdx < daysInMonth; dayIdx++) {
     workers.forEach(w => {
       const shift = sch[w.id] ? (sch[w.id][dayIdx] || '').toString().trim() : '';
       // Unplanned = SP or empty on imported worker
       if (shift === 'SP' || (shift === '' && w.scheduleImported)) {
-        unplanedDays.push({
+        unplannedDays.push({
           day: dayIdx + 1,
           workerId: w.id,
           workerName: w.name,
@@ -9818,7 +9760,7 @@ function getUnplannedDays(year, month) {
       }
     });
   }
-  return unplanedDays;
+  return unplannedDays;
 }
 
 // Get coverage gaps per plant per shift for a given month
@@ -10246,7 +10188,7 @@ function showUndoToast(workerId, dayIndex, oldShift, year, month) {
   setTimeout(() => {
     const el = document.getElementById(toastId);
     if (el) el.remove();
-  }, 3000);
+  }, 6000);
 }
 
 function undoShiftChange(workerId, dayIndex, originalShift, year, month) {
@@ -10380,6 +10322,7 @@ const FESTIVOS = {
   '2026-12-6':  'Día de la Constitución',
   '2026-12-8':  'Inmaculada Concepción',
   '2026-12-25': 'Navidad',
+    // TODO: Añadir festivos 2027+ o implementar configuración dinámica
 };
 
 function isFestivo(year, month, day) {
@@ -10671,7 +10614,10 @@ function calcMonthHours(wId, schedule, days) {
   let h = 0;
   const wSch = schedule[wId];
   if (!wSch) return 0;
-  for (let d = 0; d < days; d++) h += RULES.SHIFT_HOURS[wSch[d]] || 0;
+  for (let d = 0; d < days; d++) {
+    const raw = (wSch[d] || '').toString().trim().toUpperCase();
+    h += RULES.SHIFT_HOURS[raw] || 0;
+  }
   return h;
 }
 
@@ -11150,11 +11096,12 @@ function renderAlertsPanel() {
       const s = sch[w.id] ? (sch[w.id][day] || '').toString().trim() : '';
       if (s === 'N') nightCount++;
     }
-    if (nightCount > 7) {
+    const maxNights = (typeof SP_RULES !== 'undefined' && SP_RULES.maxNightsPerMonth) ? SP_RULES.maxNightsPerMonth : 7;
+    if (nightCount > maxNights) {
       alerts.push({
         severity: 'warning',
         title: `${w.name} - Exceso de noches`,
-        description: `${nightCount} turnos de noche este mes (máx. 7)`,
+        description: `${nightCount} turnos de noche este mes (máx. ${maxNights})`,
         workerId: w.id
       });
     }
@@ -14556,11 +14503,11 @@ function openSwapDialogFromSchedule(wid, day, month, year) {
   if (!w) return;
   const s = genSchedule(year, month)[wid] ? genSchedule(year, month)[wid][day] : '';
   if (!s || s === '') {
-    alert('No shift to swap');
+    showToast('No shift to swap', 'warning');
     return;
   }
   // TODO: Implement swap dialog or call existing function
-  alert('Swap functionality for ' + w.name + ' on shift ' + s);
+  showToast('Swap functionality for ' + w.name + ' on shift ' + s, 'info');
 }
 
 // Helper: Clear shift from schedule
@@ -14571,7 +14518,7 @@ function clearShiftFromSchedule(wid, day, month, year) {
   const sch = genSchedule(year, month);
   if (sch[wid] && sch[wid][day]) {
     sch[wid][day] = '';
-    saveSchedule(year, month, sch);
+    saveToStorage();
     renderSchedule();
   }
 }
@@ -15084,8 +15031,9 @@ function pasteShiftPattern(targetWorkerId, targetWorkerName) {
     scheduleData[key] = {};
   }
 
-  // Copy the shifts
-  scheduleData[key][targetWorkerId] = [...sourceShifts];
+  // Copy the shifts, truncated to destination month length
+  const destDays = new Date(targetYear, targetMonth + 1, 0).getDate();
+  scheduleData[key][targetWorkerId] = [...sourceShifts].slice(0, destDays);
 
   // Save to storage
   try {
@@ -15102,6 +15050,11 @@ function pasteShiftPattern(targetWorkerId, targetWorkerName) {
 
   // Log action
   logAudit('shift_pattern_pasted', `Patrón de ${sourceWorkerName} aplicado a ${targetWorkerName}`, null, targetWorkerId);
+
+  // Validar reglas de convenio después de pegar
+  if (typeof detectConflicts === 'function') {
+    setTimeout(() => { try { detectConflicts(); } catch(e) {} }, 100);
+  }
 }
 
 // Render Workers — stats computed live from actual schedule
@@ -15501,7 +15454,8 @@ function renderConflicts() {
       const icon = typeIcons[c.type] || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
       const id = `conflict-${date}-${idx}`;
       const canResolve = c.type === 'coverage' || c.type === 'rest' || c.type === 'restriction';
-      const resolveData = canResolve ? btoa(encodeURIComponent(JSON.stringify({year:c.year,month:c.month,day:c.day,type:c.type,shift:c.shift||'',title:c.title,severity:c.severity}))) : '';
+      let resolveData = '';
+      if (canResolve) { try { resolveData = btoa(encodeURIComponent(JSON.stringify({year:c.year,month:c.month,day:c.day,type:c.type,shift:c.shift||'',title:c.title,severity:c.severity}))); } catch(e) { console.warn('Error encoding conflict data:', e); } }
 
       html += `
         <div class="conflict-card ${c.severity}" id="${id}" style="cursor:pointer;transition:all 0.2s;" onclick="toggleConflictDetail('${id}')">
@@ -15735,7 +15689,8 @@ function renderConflictProposal(conflictId, data, solution) {
     </div>`;
   }
 
-  const solutionData = btoa(encodeURIComponent(JSON.stringify(solution)));
+  let solutionData = '';
+  try { solutionData = btoa(encodeURIComponent(JSON.stringify(solution))); } catch(e) { console.warn('Error encoding solution data:', e); }
 
   html += `<div style="display:flex;gap:8px;margin-top:12px;">
     <button onclick="event.stopPropagation();applyConflictSolution('${conflictId}','${solutionData}')"
@@ -15844,13 +15799,13 @@ function setChatFilter(f) {
 
 function addBotMessage(html, cls = 'chat-msg-bot') {
   const content = document.getElementById('chatContent');
-  content.innerHTML += `<div class="chat-message ${cls}">${html}</div>`;
+  content.insertAdjacentHTML('beforeend', `<div class="chat-message ${cls}">${html}</div>`);
   content.scrollTop = content.scrollHeight;
 }
 
 function addUserMessage(msg) {
   const content = document.getElementById('chatContent');
-  content.innerHTML += `<div class="chat-message chat-msg-user">${escHtml(msg)}</div>`;
+  content.insertAdjacentHTML('beforeend', `<div class="chat-message chat-msg-user">${escHtml(msg)}</div>`);
   content.scrollTop = content.scrollHeight;
 }
 
@@ -15918,7 +15873,7 @@ function sendChatMessage() {
       content.appendChild(sugDiv);
       content.scrollTop = content.scrollHeight;
     }
-  }, 400 + Math.random() * 300);
+  }, 100 + Math.random() * 100);
 }
 
 document.getElementById('chatSend')?.addEventListener('click', sendChatMessage);
@@ -19047,9 +19002,9 @@ function detectConflicts() {
       if (mEnf > 0 && labShortEnf > 0) {
         predictedConflicts.push({
           date: dayStr, year, month, day: d, severity: 'high', type: 'coverage', shift: 'M',
-          title: `Faltan enfermeros manana${covLabel}`,
+          title: `Faltan enfermeros Turno M${covLabel}`,
           desc: `${mEnf} enf (min ${COV.M.enf})`,
-          ai: `Faltan ${labShortEnf} enfermero(s) en manana. Busca cobertura con el Gestor de Cobertura.`
+          ai: `Faltan ${labShortEnf} enfermero(s) en Turno M. Busca cobertura con el Gestor de Cobertura.`
         });
       }
       // LAB tec check
@@ -19058,7 +19013,7 @@ function detectConflicts() {
         const freeTecLab = workers.filter(wx => wx.type === 'tec' && wx.area !== 'micro' && (!sch[wx.id] || !sch[wx.id][d] || sch[wx.id][d] === '' || sch[wx.id][d] === 'D')).length;
         predictedConflicts.push({
           date: dayStr, year, month, day: d, severity: freeTecLab > 0 ? 'medium' : 'high', type: 'coverage', shift: 'M',
-          title: `Faltan técnicos manana${covLabel}`,
+          title: `Faltan técnicos Turno M${covLabel}`,
           desc: `Lab: ${mTec} tec (min ${COV.M.tec})`,
           ai: freeTecLab > 0
             ? `Faltan ${labShortTec} técnicos pero hay ${freeTecLab} libres. Reasigna desde el Gestor de Cobertura.`
@@ -19068,9 +19023,9 @@ function detectConflicts() {
       // === SMART LAB/MICRO REBALANCING (weekdays only) ===
       const MCOV = getMicroCoverageRules(year, month, d + 1);
       if (MCOV.M > 0) {
-        // Rebalancing rule: if lab has >=3 tec AND micro has <=2 → suggest moving 1 lab→micro (not Beatriz)
+        // Rebalancing rule: if lab has >=3 tec AND micro has <=2 → suggest moving 1 lab→micro (not noMicro workers)
         if (mTecLab >= 3 && mTecMicro <= 2) {
-          // Find lab tec who could be moved (not Beatriz id:21, not noMicro)
+          // Find lab tec who could be moved (not noMicro)
           const movableLab = workers.filter(wx => wx.type === 'tec' && wx.area !== 'micro' && !(wx.rules && wx.rules.noMicro) && sch[wx.id] && ['M','MR','M7H','M6R','M55'].includes(sch[wx.id][d]));
           if (movableLab.length > 0) {
             // Find the one with least workload
@@ -19083,7 +19038,7 @@ function detectConflicts() {
               date: dayStr, year, month, day: d, severity: 'medium', type: 'coverage', shift: 'M',
               title: `Micro corta: reubicar 1 tec de lab${covLabel}`,
               desc: `Lab tiene ${mTecLab} tec (sobra${mTecLab > 3 ? 'n' : ''}) · Micro tiene ${mTecMicro} tec (min 3) — mover 1 de lab a micro`,
-              ai: `Microbiologia solo tiene ${mTecMicro} de 3 tecnicos necesarios, pero lab tiene ${mTecLab} (necesita min ${COV.M.tec}). Se puede reubicar a ${escHtml(best.w.name)} (${best.stats.h}h acumuladas) de lab a micro. Beatriz NO es reubicable (lab externo).`
+              ai: `Microbiologia solo tiene ${mTecMicro} de 3 tecnicos necesarios, pero lab tiene ${mTecLab} (necesita min ${COV.M.tec}). Se puede reubicar a ${escHtml(best.w.name)} (${best.stats.h}h acumuladas) de lab a micro. Los trabajadores con restriccion noMicro no son reubicables.`
             });
             // If after rebalancing micro still < 3, also suggest hiring
             if (microAfter < MCOV.M) {
@@ -19095,13 +19050,13 @@ function detectConflicts() {
               });
             }
           } else {
-            // Lab has >=3 tec but none movable to micro (Beatriz noMicro etc.)
+            // Lab has >=3 tec but none movable to micro (noMicro etc.)
             const microShort = MCOV.M - mTecMicro;
             predictedConflicts.push({
               date: dayStr, year, month, day: d, severity: 'low', type: 'hiring',
               title: `Recomendacion: contratacion micro${covLabel}`,
-              desc: `Lab: ${mTecLab} tec (Beatriz inamovible) · Micro: ${mTecMicro} tec (min 3) — nadie reubicable`,
-              ai: `Lab tiene ${mTecLab} tec pero ningun excedente es reubicable a micro (Beatriz es encargada lab externo). Micro tiene ${mTecMicro} de 3 necesarios. Se recomienda contratar ${microShort} persona(s) de apoyo para microbiologia.`
+              desc: `Lab: ${mTecLab} tec (noMicro inamovible) · Micro: ${mTecMicro} tec (min 3) — nadie reubicable`,
+              ai: `Lab tiene ${mTecLab} tec pero ningun excedente es reubicable a micro (hay trabajadores con restriccion noMicro). Micro tiene ${mTecMicro} de 3 necesarios. Se recomienda contratar ${microShort} persona(s) de apoyo para microbiologia.`
             });
           }
         }
@@ -19112,7 +19067,7 @@ function detectConflicts() {
             date: dayStr, year, month, day: d, severity: 'low', type: 'hiring',
             title: `Recomendacion: contratacion apoyo micro${covLabel}`,
             desc: `Lab: ${mTecLab} tec (no sobran para reubicar) · Micro: ${mTecMicro} tec (min 3) — faltan ${microShort}`,
-            ai: `No se puede mover personal de lab a micro porque lab solo tiene ${mTecLab} tec (necesita min ${COV.M.tec}). Microbiologia tiene ${mTecMicro} de 3 necesarios. Se recomienda contratar ${microShort} persona(s) de apoyo para microbiologia. Beatriz no es reubicable (encargada lab externo).`
+            ai: `No se puede mover personal de lab a micro porque lab solo tiene ${mTecLab} tec (necesita min ${COV.M.tec}). Microbiologia tiene ${mTecMicro} de 3 necesarios. Se recomienda contratar ${microShort} persona(s) de apoyo para microbiologia. Los trabajadores noMicro no son reubicables.`
           });
         }
         // Micro short but lab can't help (lab has exactly 2 and micro < 3)
@@ -20804,10 +20759,10 @@ let guardiaHandoffNotes = {}; // { "2026-3-15-T": "Paciente en obs...", ... }
 try {
   const saved = localStorage.getItem('shiftia_handoff_notes');
   if (saved) guardiaHandoffNotes = JSON.parse(saved);
-} catch(e) { /* ignore */ }
+} catch(e) { console.warn('[guardia]', e.message); }
 
 function saveHandoffNotes() {
-  try { localStorage.setItem('shiftia_handoff_notes', JSON.stringify(guardiaHandoffNotes)); } catch(e) { /* ignore */ }
+  try { localStorage.setItem('shiftia_handoff_notes', JSON.stringify(guardiaHandoffNotes)); } catch(e) { console.warn('[guardia]', e.message); }
 }
 
 function guardiaCallIn(wId, shift, dayIdx, year, month) {
@@ -20828,7 +20783,7 @@ function guardiaCallIn(wId, shift, dayIdx, year, month) {
   // Show confirmation
   const toast = document.createElement('div');
   toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#27ae60;color:#fff;padding:12px 24px;border-radius:12px;font-size:13px;font-weight:600;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,0.15);';
-  toast.textContent = escHtml(w.name) + ' asignado al turno ' + shift;
+  toast.textContent = w.name + ' asignado al turno ' + shift;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
 }
@@ -23234,6 +23189,8 @@ function autoAssignSP() {
       if (alreadyAssigned) return;
       if (!isShiftCompatible(spw.w.id, gap.day, gap.shift, assignments)) return;
       if (gap.shift === 'N' && countNights(spw.w.id, assignments) >= SP_RULES.maxNightsPerMonth) return;
+      if (spw.w.rules && spw.w.rules.noNights && normalizeShift(gap.shift) === 'N') return;
+      if (spw.w.rules && spw.w.rules.conciliacion && normalizeShift(gap.shift) === 'N') return;
       if (countConsecutive(spw.w.id, gap.day, assignments) > SP_RULES.maxConsecutiveDays) return;
 
       var score = spw.burnout * 2 + spw.totalShifts * 0.5;
@@ -23309,6 +23266,8 @@ function autoAssignSP() {
       ['M','T','N'].forEach(function(shift) {
         if (!isShiftCompatible(spw.w.id, d, shift, assignments)) return;
         if (shift === 'N' && countNights(spw.w.id, assignments) >= SP_RULES.maxNightsPerMonth) return;
+        if (spw.w.rules && spw.w.rules.noNights && normalizeShift(shift) === 'N') return;
+        if (spw.w.rules && spw.w.rules.conciliacion && normalizeShift(shift) === 'N') return;
         if (countConsecutive(spw.w.id, d, assignments) > SP_RULES.maxConsecutiveDays) return;
 
         var needed = (covReq[shift] || {}).min || 0;
@@ -25171,7 +25130,7 @@ function exportScheduleCSV() {
   csv += ',Total_H\n';
 
   workers.forEach(w => {
-    csv += `"${escHtml(w.name)}",${w.type}`;
+    csv += `"${w.name.replace(/"/g, '""')}",${w.type}`;
     let h = 0;
     for (let d = 0; d < days; d++) {
       const s = sch[w.id] ? sch[w.id][d] : '';
@@ -25305,7 +25264,7 @@ function exportSchedulePDF() {
     predictedConflicts.filter(c => c.month === month && c.year === year).slice(0, 20).forEach(c => {
       const sevCls = c.severity === 'high' ? 'badge-bad' : c.severity === 'medium' ? 'badge-warn' : 'badge-ok';
       const sevLabel = c.severity === 'high' ? 'Grave' : c.severity === 'medium' ? 'Media' : 'Baja';
-      html += `<tr><td>${c.date}</td><td><span class="badge ${sevCls}">${sevLabel}</span></td><td>${c.title}</td></tr>`;
+      html += `<tr><td>${c.date}</td><td><span class="badge ${sevCls}">${sevLabel}</span></td><td>${escHtml(c.title)}</td></tr>`;
     });
     html += '</tbody></table></div>';
   }
@@ -25531,7 +25490,7 @@ function onGestorWorkerChange() {
   if (w.rules && w.rules.conciliacion) rules.push('Conciliación');
   if (w.rules && w.rules.noSwap) rules.push('No intercambia');
   if (w.rules && w.rules.noCover) rules.push('No cubre');
-  if (w.rules.preferredShift) rules.push('Prefiere ' + w.rules.preferredShift);
+  if (w.rules && w.rules.preferredShift) rules.push('Prefiere ' + w.rules.preferredShift);
 
   summaryEl.style.display = 'block';
   summaryEl.innerHTML = `
@@ -25812,7 +25771,7 @@ function analyzeGestor() {
     } catch (err) {
       console.error('Gestor AI Error:', err);
       resultsDiv.innerHTML = `<div style="padding:20px;background:#fee;border:1px solid #c44;border-radius:12px;color:#900;font-size:13px;">
-        <strong>Error en el motor IA:</strong> ${err.message}<br><small>${err.stack}</small>
+        <strong>Error en el motor IA:</strong> ${escHtml(err.message)}<br><small>${escHtml(err.stack)}</small>
       </div>`;
     }
   }, 800);
@@ -28407,25 +28366,18 @@ function showAuthError(formId, message) {
   setTimeout(() => card.classList.remove('login-shake'), 600);
 }
 
-// Offline credentials fallback (hashed — never store plaintext passwords in client code)
-const OFFLINE_USERS = {
-  'icueva': { hash: '80949a4aedb5b911bbc842bc14a27fbe3f4e133614a096bb5a8ff13da299b949', user: { id: 1, email: 'director@shiftia.es', name: 'Iván Cueva — Director de Enfermería', company: 'Fundación Hospital de Jove', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } },
-  'director@shiftia.es': { hash: '80949a4aedb5b911bbc842bc14a27fbe3f4e133614a096bb5a8ff13da299b949', user: { id: 1, email: 'director@shiftia.es', name: 'Iván Cueva — Director de Enfermería', company: 'Fundación Hospital de Jove', plan: 'enterprise', plan_status: 'active', workers_limit: 1000 } }
-};
-
-async function hashPassword(password) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
+// Offline login: use previously cached session token, never verify passwords client-side
 async function offlineLogin(username, password) {
-  const entry = OFFLINE_USERS[username.toLowerCase()];
-  if (!entry) return null;
-  const inputHash = await hashPassword(password);
-  if (entry.hash !== inputHash) return null;
-  return entry.user;
+  try {
+    const cachedUser = localStorage.getItem('shiftia_sara_user');
+    if (cachedUser) {
+      const user = JSON.parse(cachedUser);
+      if (user && (user.email === username.toLowerCase() || user.name.toLowerCase().includes(username.toLowerCase()))) {
+        return user;
+      }
+    }
+  } catch(e) { console.warn('[offline] cached session check failed:', e.message); }
+  return null;
 }
 
 async function handleLogin(e) {
@@ -28484,7 +28436,7 @@ async function handleLogin(e) {
   const offlineUser = await offlineLogin(user, pass);
   if (offlineUser) {
     console.log('[Shiftia] Offline login successful for', offlineUser.name);
-    setAuthToken('offline-token-' + Date.now());
+    setAuthToken('offline-' + Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join(''));
     currentUser = offlineUser;
     isAuthenticated = true;
     try { localStorage.setItem('shiftia_sara_user', JSON.stringify(offlineUser)); } catch(e) {}
@@ -28543,19 +28495,9 @@ function handleLogout() {
 document.addEventListener('keydown', (e) => {
   const isInput = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
 
-  // Ctrl/Cmd + K: Focus chat
-  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-    e.preventDefault();
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput) {
-      document.getElementById('chatBubble').click();
-      setTimeout(() => chatInput.focus(), 100);
-    }
-    return;
-  }
-
   // Ctrl/Cmd + Z: Undo
   if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey && !isInput) {
+    if (document.querySelector('.spia-modal.active, #spiaModal.active, [data-spia-active]')) return; // Let SP-IA handle its own undo
     e.preventDefault();
     globalUndo();
     return;
@@ -28598,11 +28540,6 @@ document.addEventListener('keydown', (e) => {
       return;
     }
 
-    // ?: Show shortcuts help
-    if (e.key === '?' && e.shiftKey === false) {
-      e.preventDefault();
-      showToast('Shortcuts: Ctrl+K=Chat, Ctrl+S=Save, 1-6=Views, Esc=Close Modal, ?=Help', 'info', 4000);
-    }
   }
 });
 
@@ -29578,7 +29515,7 @@ function showOnboarding() {
       <div class="onboarding-title">${step.title}</div>
       <div class="onboarding-text">${step.text}</div>
       <div class="onboarding-buttons">
-        <button class="onboarding-btn onboarding-btn-secondary" onclick="this.parentElement.parentElement.parentElement.lastElementChild.onclick()">Saltar</button>
+        <button class="onboarding-btn onboarding-btn-secondary" onclick="showOnboardingStep(9999)">Saltar</button>
         <button class="onboarding-btn onboarding-btn-primary" onclick="showOnboardingStep(${stepIdx + 1})">Siguiente</button>
       </div>
     `;
@@ -30594,6 +30531,10 @@ function connectWebSocket() {
 
     wsConnection.onopen = () => {
       console.log('[WS] Connected, authenticating...');
+      if (location.protocol === 'https:' && wsConnection.url && !wsConnection.url.startsWith('wss:')) {
+        console.warn('[WS] Refusing to send token over insecure connection');
+        return;
+      }
       wsConnection.send(JSON.stringify({ type: 'auth', token: token }));
       wsReconnectAttempts = 0;
       clearTimeout(wsReconnectTimer);
@@ -31920,7 +31861,7 @@ function animateNumber(elementId, targetValue, duration) {
 
   // Estado del módulo: filtros + historial para undo
   var filters = { plantaId: 'all', shift: 'all', urgency: 'all' };
-  var history = []; // { workerId, dayIdx, shift, prevValue, ts }
+  var spiaHistory = []; // { workerId, dayIdx, shift, prevValue, ts }
   var focusedCardIdx = -1;
 
   // v7.3: throttle global para localStorage.setItem (evita bloquear UI ~80ms en cada save)
@@ -31936,8 +31877,7 @@ function animateNumber(elementId, targetValue, duration) {
         if (!pendingSave) return;
         pendingSave = false;
         try {
-          if (window.scheduleSaveThrottled) window.scheduleSaveThrottled();
-          else if (typeof scheduleData !== 'undefined' && typeof localStorage !== 'undefined') {
+          if (typeof scheduleData !== 'undefined' && typeof localStorage !== 'undefined') {
             localStorage.setItem('shiftia_schedule_data', JSON.stringify(scheduleData));
           }
         } catch (e) { console.warn('[v7.3] localStorage save failed:', e); }
@@ -32012,7 +31952,8 @@ function animateNumber(elementId, targetValue, duration) {
     return n;
   }
   function consecutiveDaysIfAssigned(ctx, wId, dayIdx) {
-    var count = 1;
+    var currentShift = (ctx.sch[wId] && ctx.sch[wId][dayIdx] || '').toString().trim();
+    var count = (WORK_SHIFTS.indexOf(currentShift) !== -1) ? 1 : 0;
     for (var d = dayIdx - 1; d >= 0; d--) {
       var s = (ctx.sch[wId] && ctx.sch[wId][d] || '').toString().trim();
       if (WORK_SHIFTS.indexOf(s) !== -1) count++; else break;
@@ -32103,7 +32044,7 @@ function animateNumber(elementId, targetValue, duration) {
       sevenAhead.setDate(today.getDate() + 7);
       var dayDate = new Date(ctx.year, ctx.month, gap.day);
       // Solo entran si están dentro de 7 días desde hoy (y no en pasado)
-      if (dayDate < today.setHours(0,0,0,0) || dayDate > sevenAhead) return false;
+      var todayStart = new Date(today); todayStart.setHours(0,0,0,0); if (dayDate < todayStart.getTime() || dayDate > sevenAhead) return false;
     }
     return true;
   }
@@ -32218,8 +32159,8 @@ function animateNumber(elementId, targetValue, duration) {
       var prevValue = ctx.sch[workerId][dayIdx] || '';
       ctx.sch[workerId][dayIdx] = shift;
       // Historial para undo
-      history.push({ workerId: workerId, dayIdx: dayIdx, shift: shift, prevValue: prevValue, ts: Date.now() });
-      if (history.length > 50) history.shift(); // cap a 50 ops
+      spiaHistory.push({ workerId: workerId, dayIdx: dayIdx, shift: shift, prevValue: prevValue, ts: Date.now() });
+      if (spiaHistory.length > 50) spiaHistory.shift(); // cap a 50 ops
       updateUndoButton();
       // Persistir
       try {
@@ -32230,7 +32171,7 @@ function animateNumber(elementId, targetValue, duration) {
             localStorage.setItem('shiftia_schedule_data', JSON.stringify(scheduleData));
           }
         }
-      } catch (e) {}
+      } catch (e) { console.warn("[spia]", e.message); }
       // Sync con backend si hay token (skipear durante bulkMode, se hace al final)
       if (!bulkMode) {
         try {
@@ -32243,7 +32184,7 @@ function animateNumber(elementId, targetValue, duration) {
               body: JSON.stringify({ scheduleData: scheduleData })
             }).catch(function () {});
           }
-        } catch (e) {}
+        } catch (e) { console.warn("[spia]", e.message); }
       }
       // Marcar UI con animación de éxito
       if (btnEl) {
@@ -32260,8 +32201,8 @@ function animateNumber(elementId, targetValue, duration) {
       }
       // v7.2: en bulkMode skipeamos los renders pesados (se hacen UNA vez al final)
       if (!bulkMode) {
-        try { if (typeof renderSPManagerContent === 'function') renderSPManagerContent(); } catch (e) {}
-        try { if (typeof renderSchedule === 'function') renderSchedule(); } catch (e) {}
+        try { if (typeof renderSPManagerContent === 'function') renderSPManagerContent(); } catch (e) { console.warn("[spia]", e.message); }
+        try { if (typeof renderSchedule === 'function') renderSchedule(); } catch (e) { console.warn("[spia]", e.message); }
         updateSPBadge();
       }
     } catch (err) {
@@ -32273,11 +32214,12 @@ function animateNumber(elementId, targetValue, duration) {
   // Bulk inteligente: aplica top-1 de cada gap respetando MAX_BULK_PER_WORKER
   // v7.2: bulkMode evita 28 renders + 14 POSTs en cascada. UN render + UN POST al final.
   window.spiaApplyAll = function () {
-    var btn = document.getElementById('spiaApplyAllBtn');
-    if (btn) btn.disabled = true;
     var plan = buildSuggestionPlan();
     if (!plan) return;
     var picks = pickBulkSelection(plan);
+    if (!confirm('¿Aplicar todas las ' + picks.length + ' sugerencias? Esta acción modificará el cuadrante.')) return;
+    var btn = document.getElementById('spiaApplyAllBtn');
+    if (btn) btn.disabled = true;
     var applied = 0;
     bulkMode = true;
     try {
@@ -32289,8 +32231,8 @@ function animateNumber(elementId, targetValue, duration) {
       bulkMode = false;
     }
     // Render + sync UN único POST al backend tras todo el bulk
-    try { if (typeof renderSPManagerContent === 'function') renderSPManagerContent(); } catch (e) {}
-    try { if (typeof renderSchedule === 'function') renderSchedule(); } catch (e) {}
+    try { if (typeof renderSPManagerContent === 'function') renderSPManagerContent(); } catch (e) { console.warn("[spia]", e.message); }
+    try { if (typeof renderSchedule === 'function') renderSchedule(); } catch (e) { console.warn("[spia]", e.message); }
     updateSPBadge();
     try {
       var token = (typeof getAuthToken === 'function') ? getAuthToken()
@@ -32302,7 +32244,7 @@ function animateNumber(elementId, targetValue, duration) {
           body: JSON.stringify({ scheduleData: scheduleData })
         }).catch(function () {});
       }
-    } catch (e) {}
+    } catch (e) { console.warn("[spia]", e.message); }
 
     // Reportar también gaps que se quedaron sin candidato (anti silent skip)
     var missed = plan.perGap.length - picks.length;
@@ -32317,8 +32259,8 @@ function animateNumber(elementId, targetValue, duration) {
 
   // Deshacer la última asignación realizada (de la sesión actual)
   window.spiaUndoLast = function () {
-    if (history.length === 0) return;
-    var last = history.pop();
+    if (spiaHistory.length === 0) return;
+    var last = spiaHistory.pop();
     try {
       var ctx = getCurrentSchedule();
       if (!ctx) return;
@@ -32332,7 +32274,7 @@ function animateNumber(elementId, targetValue, duration) {
             localStorage.setItem('shiftia_schedule_data', JSON.stringify(scheduleData));
           }
         }
-      } catch (e) {}
+      } catch (e) { console.warn("[spia]", e.message); }
       try {
         var token = (typeof getAuthToken === 'function') ? getAuthToken()
                   : (typeof localStorage !== 'undefined' ? localStorage.getItem('shiftia_auth_token') : null);
@@ -32343,9 +32285,9 @@ function animateNumber(elementId, targetValue, duration) {
             body: JSON.stringify({ scheduleData: scheduleData })
           }).catch(function () {});
         }
-      } catch (e) {}
-      try { if (typeof renderSPManagerContent === 'function') renderSPManagerContent(); } catch (e) {}
-      try { if (typeof renderSchedule === 'function') renderSchedule(); } catch (e) {}
+      } catch (e) { console.warn("[spia]", e.message); }
+      try { if (typeof renderSPManagerContent === 'function') renderSPManagerContent(); } catch (e) { console.warn("[spia]", e.message); }
+      try { if (typeof renderSchedule === 'function') renderSchedule(); } catch (e) { console.warn("[spia]", e.message); }
       if (typeof showToast === 'function') {
         showToast('Asignación deshecha (día ' + (last.dayIdx + 1) + ')', 'info', 2200);
       }
@@ -32364,7 +32306,7 @@ function animateNumber(elementId, targetValue, duration) {
   function updateUndoButton() {
     var btn = document.getElementById('spiaUndoFloat');
     if (!btn) return;
-    if (history.length > 0) btn.classList.add('is-visible');
+    if (spiaHistory.length > 0) btn.classList.add('is-visible');
     else btn.classList.remove('is-visible');
   }
 
@@ -32396,13 +32338,13 @@ function animateNumber(elementId, targetValue, duration) {
       }
       existing.textContent = html;
       existing.classList.toggle('is-high', gaps.length >= 10);
-    } catch (e) { /* silent */ }
+    } catch (e) { console.warn("[spia]", e.message); }
   }
   // v7.3: smart polling — solo cuando la pestaña está visible (ahorra batería)
   var badgeInterval = null;
   function startBadgePolling() {
     if (badgeInterval) return;
-    badgeInterval = setInterval(updateSPBadge, 4000);
+    badgeInterval = setInterval(updateSPBadge, 15000);
   }
   function stopBadgePolling() {
     if (badgeInterval) { clearInterval(badgeInterval); badgeInterval = null; }
