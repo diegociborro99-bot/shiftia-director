@@ -9417,6 +9417,63 @@ function normalizeShift(s) {
 
 // Check if a day is "Sin Planificar" — explicit SP or empty day on imported worker
 // Uses appState.currentMonth by default, or accepts explicit year/month
+// ============= FASE 3.5 — Cross-plant assignment helpers =============
+// API mínima para escribir/leer/borrar entradas. Gated por crossPlantVisible.
+// Comportamiento legacy idéntico cuando flag está apagada (siempre retorna null en get).
+function _cpa() {
+  return (typeof crossPlantAssignments !== 'undefined') ? crossPlantAssignments : null;
+}
+function _cpaFlag() {
+  return (typeof FEATURE_FLAGS !== 'undefined' && FEATURE_FLAGS.crossPlantVisible);
+}
+function setCrossPlantAssignment(workerId, year, month, day, plantaId) {
+  if (!_cpaFlag()) return;
+  var t = _cpa();
+  if (!t) return;
+  var key = year + '-' + month;
+  if (!t[key]) t[key] = {};
+  if (!t[key][workerId]) t[key][workerId] = {};
+  t[key][workerId][day] = plantaId;
+}
+function getCrossPlantAssignment(workerId, year, month, day) {
+  if (!_cpaFlag()) return null;
+  var t = _cpa();
+  if (!t) return null;
+  var key = year + '-' + month;
+  if (!t[key] || !t[key][workerId]) return null;
+  var v = t[key][workerId][day];
+  return v || null;
+}
+function clearCrossPlantAssignment(workerId, year, month, day) {
+  if (!_cpaFlag()) return;
+  var t = _cpa();
+  if (!t) return;
+  var key = year + '-' + month;
+  if (!t[key] || !t[key][workerId]) return;
+  delete t[key][workerId][day];
+  // Limpieza de huérfanos
+  if (Object.keys(t[key][workerId]).length === 0) delete t[key][workerId];
+  if (Object.keys(t[key]).length === 0) delete t[key];
+}
+function getEffectivePlantaId(worker, year, month, day) {
+  // Planta efectiva del worker para ese día: override cross-plant si existe, si no, su planta nativa.
+  if (!worker) return null;
+  var override = getCrossPlantAssignment(worker.id, year, month, day);
+  return override || worker.planta || null;
+}
+function getPlantaShortName(plantaId) {
+  if (!plantaId) return '';
+  if (typeof PLANTAS === 'undefined') return plantaId;
+  var p = PLANTAS.find(function (x) { return x.id === plantaId; });
+  return p ? p.short : plantaId;
+}
+function getPlantaFullName(plantaId) {
+  if (!plantaId) return '';
+  if (typeof PLANTAS === 'undefined') return plantaId;
+  var p = PLANTAS.find(function (x) { return x.id === plantaId; });
+  return p ? p.name : plantaId;
+}
+
 function isSP(wId, dayIndex, year, month) {
   if (year === undefined || month === undefined) {
     var m = appState.currentMonth;
@@ -9547,7 +9604,10 @@ const FEATURE_FLAGS = (typeof window !== 'undefined' && window.SHIFTIA_FLAGS)
       proactiveSuggestions: true,
       crossPlantRouting: true,
       skillMatrix: true,
-      criticalPlantToast: true
+      criticalPlantToast: true,
+      // Fase 3.5: persistir + renderizar planta destino cuando SPIA asigna cross-plant.
+      // Kill-switch: window.SHIFTIA_FLAGS = { crossPlantVisible: false }; location.reload();
+      crossPlantVisible: true
     }, window.SHIFTIA_FLAGS)
   : {
       unifiedCoverage: true,
@@ -9559,7 +9619,8 @@ const FEATURE_FLAGS = (typeof window !== 'undefined' && window.SHIFTIA_FLAGS)
       proactiveSuggestions: true,
       crossPlantRouting: true,
       skillMatrix: true,
-      criticalPlantToast: true
+      criticalPlantToast: true,
+      crossPlantVisible: true
     };
 if (typeof window !== 'undefined') window.SHIFTIA_FLAGS = FEATURE_FLAGS;
 
@@ -10585,6 +10646,15 @@ const predictedConflicts = [];
 const rollbackHistory = [];
 
 const scheduleData = {};
+
+// Fase 3.5 — Cross-plant assignment tracking (refuerzos a otra planta).
+// Estructura paralela a scheduleData, NO toca el shape de scheduleData[key][wId][day].
+// Cuando SPIA asigna a un worker de planta A para cubrir un hueco en planta B,
+// se guarda crossPlantAssignments[year-month][workerId][day] = plantaIdDestino.
+// Convivencia: si no hay entry → el worker trabaja en SU planta nativa (legacy).
+// Render: planilla personal + vista equipo por planta consultan esta tabla.
+// Backwards-safe: si data vieja no la trae, queda {} y todo sigue igual.
+const crossPlantAssignments = {};
 
 let lastSyncTime = null;
 
@@ -11873,6 +11943,36 @@ function renderEquipoPlanta(targetId) {
 
   // Get team members — filter by plant and category
   let team = plantaId === 'all' ? workers.slice() : workers.filter(w => w.planta === plantaId);
+  // Fase 3.5 — agregar workers de OTRAS plantas que tienen al menos 1 día de refuerzo en esta planta este mes.
+  // Esto resuelve el bug donde un worker prestado cross-plant no figuraba en la vista de la planta destino.
+  const reinforcementMap = {}; // workerId → [{day, shift}]
+  if (plantaId !== 'all' && typeof crossPlantAssignments !== 'undefined' && (typeof FEATURE_FLAGS === 'undefined' || FEATURE_FLAGS.crossPlantVisible)) {
+    const cpaMonth = crossPlantAssignments[key] || {};
+    Object.keys(cpaMonth).forEach(function (wIdStr) {
+      const wId = parseInt(wIdStr, 10);
+      const w = workers.find(function (x) { return x.id === wId; });
+      if (!w) return;
+      if (w.planta === plantaId) return; // nativo, ya está en team
+      const daysMap = cpaMonth[wIdStr] || {};
+      const matchedDays = [];
+      Object.keys(daysMap).forEach(function (dStr) {
+        if (daysMap[dStr] === plantaId) {
+          const d = parseInt(dStr, 10);
+          const s = sch[wId] ? (sch[wId][d] || '').toString().trim() : '';
+          if (s && ['M','MR','M7H','M6R','M55','T','N'].includes(s)) {
+            matchedDays.push({ day: d + 1, shift: s });
+          }
+        }
+      });
+      if (matchedDays.length > 0) {
+        reinforcementMap[wId] = matchedDays;
+        // Solo lo agregamos si pasa el filtro de categoría (lo aplicamos abajo igualmente)
+        if (!team.find(function (t) { return t.id === wId; })) {
+          team.push(w);
+        }
+      }
+    });
+  }
   if (equipoCategoryFilter !== 'all') {
     team = team.filter(w => w.type === equipoCategoryFilter);
   }
@@ -12048,15 +12148,27 @@ function renderEquipoPlanta(targetId) {
 
       const cardId = 'equipo-card-' + w.id;
 
-      html += '<div id="' + cardId + '" style="margin-bottom:12px;padding:14px;background:var(--surface2);border-radius:12px;border:1px solid var(--border);transition:all 0.2s;">';
+      // Fase 3.5 — ¿es un refuerzo prestado a esta planta?
+      const isReinforcement = !!reinforcementMap[w.id];
+      const reinforcementDays = isReinforcement ? reinforcementMap[w.id] : [];
+      const reinforcementBorder = isReinforcement ? 'border:1.5px dashed #8b5cf6;' : 'border:1px solid var(--border);';
+      const reinforcementBg = isReinforcement ? 'background:linear-gradient(135deg,rgba(139,92,246,0.06),var(--surface2));' : 'background:var(--surface2);';
+
+      html += '<div id="' + cardId + '" style="margin-bottom:12px;padding:14px;' + reinforcementBg + 'border-radius:12px;' + reinforcementBorder + 'transition:all 0.2s;">';
 
       // Worker header row
       html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
       html += '<div style="display:flex;align-items:center;gap:10px;">';
       html += '<div style="width:38px;height:38px;border-radius:50%;background:' + typeColor + '18;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:' + typeColor + ';">' + escHtml(w.name.charAt(0)) + '</div>';
       html += '<div>';
-      html += '<div style="font-size:13px;font-weight:700;color:var(--text);">' + escHtml(w.name) + '</div>';
-      html += '<div style="font-size:10px;color:var(--text3);">' + typeLabel + (w.area ? ' · ' + w.area : '') + '</div>';
+      html += '<div style="font-size:13px;font-weight:700;color:var(--text);">' + escHtml(w.name);
+      if (isReinforcement) {
+        var nativePlantaName = (typeof getPlantaFullName === 'function') ? getPlantaFullName(w.planta) : (w.planta || '');
+        var daysLabel = reinforcementDays.map(function (rd) { return 'D' + rd.day + ' ' + rd.shift; }).join(' · ');
+        html += ' <span style="margin-left:6px;font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(139,92,246,0.15);color:#7c3aed;vertical-align:middle;" title="Refuerzo desde ' + escHtml(nativePlantaName) + ' — ' + escHtml(daysLabel) + '">REFUERZO · ' + reinforcementDays.length + 'd</span>';
+      }
+      html += '</div>';
+      html += '<div style="font-size:10px;color:var(--text3);">' + typeLabel + (w.area ? ' · ' + w.area : '') + (isReinforcement ? ' · desde ' + escHtml((typeof getPlantaShortName === 'function') ? getPlantaShortName(w.planta) : (w.planta || '')) : '') + '</div>';
       html += '</div></div>';
       html += '<button onclick="toggleEquipoSubjective(' + w.id + ')" style="padding:4px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:9px;font-weight:600;color:var(--text2);cursor:pointer;transition:all 0.2s;" title="Datos subjetivos / notas IA">';
       html += (Object.keys(subj).length > 0 ? shiftiaIcon('pencil', 11, 'currentColor') + ' Editado' : '+ Notas IA') + '</button>';
@@ -12666,6 +12778,14 @@ function acceptSPSuggestion(wId, day, shift, plantaId) {
   scheduleData[key][wId][day] = shift;
 
   const w = workers.find(x => x.id === wId);
+  // Fase 3.5 — si la sugerencia SP venía con plantaId distinta a la nativa del worker, persistir override.
+  try {
+    if (w && plantaId && w.planta !== plantaId && typeof setCrossPlantAssignment === 'function') {
+      setCrossPlantAssignment(wId, year, month, day, plantaId);
+    } else if (typeof clearCrossPlantAssignment === 'function') {
+      clearCrossPlantAssignment(wId, year, month, day);
+    }
+  } catch (e) { console.warn('[acceptSP cpa]', e.message); }
   if (typeof logShiftChange === 'function') {
     logShiftChange(wId, day, month, year, oldShift, shift, 'SP-sugerencia');
   }
@@ -13029,6 +13149,14 @@ function assignSPFromManager(wId, day, shift, plantaId) {
   scheduleData[key][wId][day] = shift;
 
   const w = workers.find(x => x.id === wId);
+  // Fase 3.5 — gestor SP manual con planta destino: persistir override si cross-plant.
+  try {
+    if (w && plantaId && w.planta !== plantaId && typeof setCrossPlantAssignment === 'function') {
+      setCrossPlantAssignment(wId, year, month, day, plantaId);
+    } else if (typeof clearCrossPlantAssignment === 'function') {
+      clearCrossPlantAssignment(wId, year, month, day);
+    }
+  } catch (e) { console.warn('[assignSP cpa]', e.message); }
   if (typeof logShiftChange === 'function') {
     logShiftChange(wId, day, month, year, oldShift, shift, 'SP-gestor');
   }
@@ -15085,10 +15213,23 @@ function renderSchedule() {
         wH += RULES.SHIFT_HOURS[s] || 0;
       }
       if (s && s !== '') {
-        const tooltip = getShiftTooltip(s, w.name, dd.day, dd.month, dd.year);
+        // Fase 3.5 — chequear override cross-plant para enriquecer tooltip + marker visual.
+        const cpaPlantaId = (typeof getCrossPlantAssignment === 'function') ? getCrossPlantAssignment(w.id, dd.year, dd.month, dd.dayIdx) : null;
+        const isCrossPlant = !!(cpaPlantaId && cpaPlantaId !== w.planta);
+        let tooltip = getShiftTooltip(s, w.name, dd.day, dd.month, dd.year);
+        if (isCrossPlant) {
+          const fullName = (typeof getPlantaFullName === 'function') ? getPlantaFullName(cpaPlantaId) : cpaPlantaId;
+          tooltip += ' · Refuerzo en ' + fullName;
+        }
         const shiftLabel = shiftNames[s] || s;
-        const ariaLabel = `${escHtml(w.name)} — ${shiftLabel} día ${dd.day}`;
-        html += `<td class="${cls}" style="${ovfBorder}${ovfOpacity}"><span class="shift-pill shift-${s}" role="button" aria-label="${ariaLabel}" data-tooltip="${tooltip}" data-wid="${w.id}" data-day="${dd.dayIdx}" data-month="${dd.month}" data-year="${dd.year}" draggable="true" ondragstart="dragShift(event,${w.id},${dd.dayIdx})" ondragover="dragOverShift(event)" ondragenter="dragEnterShift(event)" ondragleave="dragLeaveShift(event)" ondrop="dropShift(event,${w.id},${dd.dayIdx})" onclick="openShiftEditorScheduleView(${w.id}, ${dd.dayIdx})">${s}</span></td>`;
+        const ariaLabel = isCrossPlant
+          ? `${escHtml(w.name)} — ${shiftLabel} día ${dd.day} — refuerzo en ${escHtml((typeof getPlantaFullName === 'function') ? getPlantaFullName(cpaPlantaId) : cpaPlantaId)}`
+          : `${escHtml(w.name)} — ${shiftLabel} día ${dd.day}`;
+        // Marker discreto: dot violeta + texto corto de planta destino (3 chars max). No cambia paleta del shift.
+        const cpaMarker = isCrossPlant
+          ? `<sup style="font-size:8px;font-weight:700;color:#8b5cf6;margin-left:2px;letter-spacing:0;" title="Refuerzo en ${escHtml((typeof getPlantaFullName === 'function') ? getPlantaFullName(cpaPlantaId) : cpaPlantaId)}">→${escHtml((typeof getPlantaShortName === 'function') ? getPlantaShortName(cpaPlantaId) : cpaPlantaId)}</sup>`
+          : '';
+        html += `<td class="${cls}" style="${ovfBorder}${ovfOpacity}"><span class="shift-pill shift-${s}" role="button" aria-label="${ariaLabel}" data-tooltip="${tooltip}" data-wid="${w.id}" data-day="${dd.dayIdx}" data-month="${dd.month}" data-year="${dd.year}" draggable="true" ondragstart="dragShift(event,${w.id},${dd.dayIdx})" ondragover="dragOverShift(event)" ondragenter="dragEnterShift(event)" ondragleave="dragLeaveShift(event)" ondrop="dropShift(event,${w.id},${dd.dayIdx})" onclick="openShiftEditorScheduleView(${w.id}, ${dd.dayIdx})">${s}${cpaMarker}</span></td>`;
       } else {
         const emptyAriaLabel = `${escHtml(w.name)} — Sin asignación, día ${dd.day}`;
         html += `<td class="${cls}" style="${ovfBorder}${ovfOpacity}"><span class="shift-pill" role="button" aria-label="${emptyAriaLabel}" style="color:var(--text3);opacity:0.25;font-weight:400;font-size:13px;letter-spacing:0;" data-wid="${w.id}" data-day="${dd.dayIdx}" data-month="${dd.month}" data-year="${dd.year}" draggable="true" ondragstart="dragShift(event,${w.id},${dd.dayIdx})" ondragover="dragOverShift(event)" ondragenter="dragEnterShift(event)" ondragleave="dragLeaveShift(event)" ondrop="dropShift(event,${w.id},${dd.dayIdx})" onclick="openShiftEditorScheduleView(${w.id}, ${dd.dayIdx})">–</span></td>`;
@@ -18891,7 +19032,12 @@ function openWorkerPanel(wId) {
     else if (s === 'D') { bg = 'rgba(204,68,68,0.1)'; color = '#a03333'; }
     else if (['VAC','VAA'].includes(s)) { bg = 'rgba(154,106,191,0.15)'; color = '#9a6abf'; }
     else if (['BAJ','INT','LAC','MTC'].includes(s)) { bg = 'rgba(230,126,34,0.15)'; color = '#d35400'; }
-    miniCalHtml += `<div class="mc-day" style="background:${bg};color:${color};" title="${s || '-'}">${d}</div>`;
+    // Fase 3.5 — marcar día cross-plant con un borde violeta y tooltip enriquecido.
+    const cpaPid = (typeof getCrossPlantAssignment === 'function') ? getCrossPlantAssignment(wId, year, month, d - 1) : null;
+    const isCpa = cpaPid && cpaPid !== w.planta && s && ['M','MR','M7H','M6R','M55','T','N'].includes(s);
+    const cpaBorder = isCpa ? 'box-shadow:inset 0 0 0 2px #8b5cf6;' : '';
+    const tipExtra = isCpa ? ' — Refuerzo en ' + ((typeof getPlantaFullName === 'function') ? getPlantaFullName(cpaPid) : cpaPid) : '';
+    miniCalHtml += `<div class="mc-day" style="background:${bg};color:${color};${cpaBorder}" title="${(s || '-') + tipExtra}">${d}</div>`;
   }
 
   panel.innerHTML = `
@@ -19125,7 +19271,9 @@ function saveToStorage() {
       shiftiaOnboarded,
       plantSupervisors: PLANT_SUPERVISORS,
       nextWorkerId,
-      customCoverage: (state && state.customCoverage) || {}   // MEJORA 4
+      customCoverage: (state && state.customCoverage) || {},   // MEJORA 4
+      // Fase 3.5: tabla de overrides cross-plant. Si vacía, persiste {} sin romper schema.
+      crossPlantAssignments: (typeof crossPlantAssignments !== 'undefined' ? crossPlantAssignments : {})
     };
     // Save to localStorage (works offline, instant)
     localStorage.setItem('shiftia_data', JSON.stringify(data));
@@ -19214,6 +19362,10 @@ async function loadFromStorage() {
 
     if (data) {
       for (const key in (data.scheduleData || {})) scheduleData[key] = data.scheduleData[key];
+      // Fase 3.5 — restaurar overrides cross-plant. Si no existe (data vieja), queda vacío. Sin migración destructiva.
+      if (data.crossPlantAssignments && typeof data.crossPlantAssignments === 'object' && typeof crossPlantAssignments !== 'undefined') {
+        for (const cpKey in data.crossPlantAssignments) crossPlantAssignments[cpKey] = data.crossPlantAssignments[cpKey];
+      }
       if (data.importedFiles) { importedFiles.length = 0; data.importedFiles.forEach(f => importedFiles.push(f)); }
       if (data.incidents) { incidents.length = 0; data.incidents.forEach(i => incidents.push(i)); }
       if (data.shiftHistory) { shiftHistory.length = 0; data.shiftHistory.forEach(h => shiftHistory.push(h)); }
@@ -22031,6 +22183,9 @@ function renderWorkerMonthlySummary() {
   const summaries = workers.map(w => {
     let mC = 0, tC = 0, nC = 0, dC = 0, absC = 0, horas = 0;
     const absTypes = {};
+    // Fase 3.5 — contabilizar días asignados a OTRA planta (refuerzos).
+    let crossPlantCount = 0;
+    const crossPlantDays = []; // [{ day, plantaId, shift }]
     for (let d = 0; d < days; d++) {
       const s = sch[w.id] ? (sch[w.id][d] || '').toString().trim() : '';
       if (['M','MR','M7H','M6R','M55'].includes(s)) { mC++; horas += (s === 'M7H' ? 7 : s === 'M6R' || s === 'M55' ? 6 : 7); }
@@ -22038,10 +22193,18 @@ function renderWorkerMonthlySummary() {
       else if (s === 'N') { nC++; horas += 10; }
       else if (s === 'D' || s === '' || !s) { dC++; }
       else { absC++; absTypes[s] = (absTypes[s] || 0) + 1; }
+      // Cross-plant: solo días con turno real (M/T/N/MR/etc), excluye D y ausencias.
+      if (s && ['M','MR','M7H','M6R','M55','T','N'].includes(s)) {
+        const cpaPid = (typeof getCrossPlantAssignment === 'function') ? getCrossPlantAssignment(w.id, year, month, d) : null;
+        if (cpaPid && cpaPid !== w.planta) {
+          crossPlantCount++;
+          crossPlantDays.push({ day: d + 1, plantaId: cpaPid, shift: s });
+        }
+      }
     }
     const totalShifts = mC + tC + nC;
     const nightPct = totalShifts > 0 ? Math.round((nC / totalShifts) * 100) : 0;
-    return { ...w, mC, tC, nC, dC, absC, horas, nightPct, totalShifts, absTypes };
+    return { ...w, mC, tC, nC, dC, absC, horas, nightPct, totalShifts, absTypes, crossPlantCount, crossPlantDays };
   });
 
   // Sort: nurses first, then technicians, alphabetical within
@@ -22066,6 +22229,7 @@ function renderWorkerMonthlySummary() {
       <th style="text-align:center;padding:10px 6px;font-weight:600;color:var(--danger);border-bottom:1px solid var(--border);">Aus</th>
       <th style="text-align:center;padding:10px 6px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);">Horas</th>
       <th style="text-align:center;padding:10px 6px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);">%Noche</th>
+      <th style="text-align:center;padding:10px 6px;font-weight:600;color:#8b5cf6;border-bottom:1px solid var(--border);" title="Días asignados como refuerzo a otra planta">Refuerzos</th>
     </tr></thead><tbody>`;
 
   let lastType = null;
@@ -22074,12 +22238,18 @@ function renderWorkerMonthlySummary() {
       lastType = w.type;
       const label = w.type === 'enf' ? 'ENFERMERÍA' : 'TÉCNICOS';
       const color = w.type === 'enf' ? '#2e8b7a' : '#4a9dd4';
-      html += `<tr><td colspan="8" style="padding:8px 12px;font-size:10px;font-weight:700;color:${color};letter-spacing:1px;background:${color}08;border-bottom:1px solid var(--border);border-left:3px solid ${color};">${label}</td></tr>`;
+      html += `<tr><td colspan="9" style="padding:8px 12px;font-size:10px;font-weight:700;color:${color};letter-spacing:1px;background:${color}08;border-bottom:1px solid var(--border);border-left:3px solid ${color};">${label}</td></tr>`;
     }
     const nightBar = `<div style="display:flex;align-items:center;gap:4px;">
       <div style="width:40px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;"><div style="width:${w.nightPct}%;height:100%;background:${w.nightPct > 40 ? 'var(--danger)' : w.nightPct > 25 ? 'var(--night)' : 'var(--success)'};border-radius:3px;"></div></div>
       <span style="font-size:10px;color:var(--text3);">${w.nightPct}%</span></div>`;
     const absDetail = Object.entries(w.absTypes).map(([k,v]) => k + ':' + v).join(' ');
+    // Fase 3.5 — celda de refuerzos cross-plant (badge + tooltip detallado por día/planta)
+    let cpaCell = '<span style="color:var(--text3);font-size:11px;">–</span>';
+    if (w.crossPlantCount > 0) {
+      const detail = w.crossPlantDays.map(cp => 'D' + cp.day + ' ' + cp.shift + '→' + ((typeof getPlantaShortName === 'function') ? getPlantaShortName(cp.plantaId) : cp.plantaId)).join(' · ');
+      cpaCell = '<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:rgba(139,92,246,0.12);color:#7c3aed;font-weight:700;font-size:11px;" title="' + escHtml(detail) + '">' + w.crossPlantCount + '</span>';
+    }
     html += `<tr style="border-bottom:1px solid var(--border);">
       <td style="padding:8px 12px;font-weight:500;white-space:nowrap;">${escHtml(w.name)}</td>
       <td style="text-align:center;padding:8px 6px;color:var(--morning);font-weight:600;">${w.mC}</td>
@@ -22089,6 +22259,7 @@ function renderWorkerMonthlySummary() {
       <td style="text-align:center;padding:8px 6px;color:var(--danger);" title="${absDetail}">${w.absC || '–'}</td>
       <td style="text-align:center;padding:8px 6px;font-weight:600;">${w.horas}h</td>
       <td style="text-align:center;padding:8px 6px;">${nightBar}</td>
+      <td style="text-align:center;padding:8px 6px;">${cpaCell}</td>
     </tr>`;
   });
 
@@ -32876,15 +33047,31 @@ function animateNumber(elementId, targetValue, duration) {
   // v7.2: en bulk apply, evitamos cascada de renders + sync backend hasta el final
   var bulkMode = false;
   // Aplica una asignación: escribe shift en el schedule, registra historial, refresca UI
-  window.spiaApplyAssignment = function (workerId, dayIdx, shift, btnEl, suppressToast) {
+  // Fase 3.5: el último parámetro opcional `gapPlantaId` registra la planta destino cuando
+  // SPIA mete a un worker de otra planta como refuerzo. Si llega null/undefined, comportamiento legacy.
+  window.spiaApplyAssignment = function (workerId, dayIdx, shift, btnEl, suppressToast, gapPlantaId) {
     try {
       var ctx = getCurrentSchedule();
       if (!ctx) return;
       if (!ctx.sch[workerId]) ctx.sch[workerId] = [];
       var prevValue = ctx.sch[workerId][dayIdx] || '';
       ctx.sch[workerId][dayIdx] = shift;
-      // Historial para undo
-      spiaHistory.push({ workerId: workerId, dayIdx: dayIdx, shift: shift, prevValue: prevValue, ts: Date.now() });
+      // Fase 3.5 — Cross-plant tracking. Si el worker NO pertenece a la planta del gap, persistir override.
+      var prevCpa = null;
+      try {
+        if (typeof getCrossPlantAssignment === 'function') {
+          prevCpa = getCrossPlantAssignment(workerId, ctx.year, ctx.month, dayIdx);
+        }
+        var w = (typeof workers !== 'undefined') ? workers.find(function (x) { return x.id === workerId; }) : null;
+        if (w && gapPlantaId && w.planta !== gapPlantaId && typeof setCrossPlantAssignment === 'function') {
+          setCrossPlantAssignment(workerId, ctx.year, ctx.month, dayIdx, gapPlantaId);
+        } else if (typeof clearCrossPlantAssignment === 'function') {
+          // No es cross-plant (misma planta o no recibido) → limpiar cualquier override previo del día.
+          clearCrossPlantAssignment(workerId, ctx.year, ctx.month, dayIdx);
+        }
+      } catch (e) { console.warn('[spia cpa]', e.message); }
+      // Historial para undo (incluye prevCpa para restaurar en undo)
+      spiaHistory.push({ workerId: workerId, dayIdx: dayIdx, shift: shift, prevValue: prevValue, prevCpa: prevCpa, gapPlantaId: gapPlantaId || null, ts: Date.now() });
       if (spiaHistory.length > 50) spiaHistory.shift(); // cap a 50 ops
       updateUndoButton();
       // Persistir
@@ -32949,7 +33136,7 @@ function animateNumber(elementId, targetValue, duration) {
     bulkMode = true;
     try {
       picks.forEach(function (pk) {
-        window.spiaApplyAssignment(pk.candidate.w.id, pk.gap.day, pk.gap.shift, null, true);
+        window.spiaApplyAssignment(pk.candidate.w.id, pk.gap.day, pk.gap.shift, null, true, pk.gap.plantaId || null);
         applied++;
       });
     } finally {
@@ -32991,6 +33178,16 @@ function animateNumber(elementId, targetValue, duration) {
       if (!ctx) return;
       if (!ctx.sch[last.workerId]) ctx.sch[last.workerId] = [];
       ctx.sch[last.workerId][last.dayIdx] = last.prevValue;
+      // Fase 3.5 — restaurar override cross-plant previo (puede ser null = no había).
+      try {
+        var undoYear = (typeof last.year === 'number') ? last.year : ctx.year;
+        var undoMonth = (typeof last.month === 'number') ? last.month : ctx.month;
+        if (last.prevCpa && typeof setCrossPlantAssignment === 'function') {
+          setCrossPlantAssignment(last.workerId, undoYear, undoMonth, last.dayIdx, last.prevCpa);
+        } else if (typeof clearCrossPlantAssignment === 'function') {
+          clearCrossPlantAssignment(last.workerId, undoYear, undoMonth, last.dayIdx);
+        }
+      } catch (e) { console.warn('[spia undo cpa]', e.message); }
       try {
         if (typeof scheduleData !== 'undefined') {
           scheduleData[ctx.key] = ctx.sch;
@@ -33223,7 +33420,7 @@ function animateNumber(elementId, targetValue, duration) {
             html += '    <span class="spia-cand-score ' + scoreClass + '">' + c.score + '</span>';
             html += tooltipHtml;
             html += '  </span>';
-            html += '  <button class="spia-cand-btn" onclick="window.spiaApplyAssignment(' + JSON.stringify(c.w.id) + ',' + g.day + ',' + JSON.stringify(g.shift) + ',this)">Asignar</button>';
+            html += '  <button class="spia-cand-btn" onclick="window.spiaApplyAssignment(' + JSON.stringify(c.w.id) + ',' + g.day + ',' + JSON.stringify(g.shift) + ',this,false,' + JSON.stringify(g.plantaId || null) + ')">Asignar</button>';
             html += '</div>';
           });
         }
@@ -33371,7 +33568,7 @@ function animateNumber(elementId, targetValue, duration) {
           html += '    <span class="spia-cand-score ' + scoreClass + '">' + c.score + '</span>';
           html += '  </span>';
           // El apply usa la fecha real del gap → key del scheduleData del mes que corresponde.
-          html += '  <button class="spia-cand-btn" onclick="window.spiaApplyProactive(' + JSON.stringify(c.w.id) + ',' + meta.year + ',' + meta.month + ',' + meta.dayIdx + ',' + JSON.stringify(meta.shift) + ',this)">Asignar</button>';
+          html += '  <button class="spia-cand-btn" onclick="window.spiaApplyProactive(' + JSON.stringify(c.w.id) + ',' + meta.year + ',' + meta.month + ',' + meta.dayIdx + ',' + JSON.stringify(meta.shift) + ',this,' + JSON.stringify((entry.gap && entry.gap.plantaId) || null) + ')">Asignar</button>';
           html += '</div>';
         });
       }
@@ -33401,7 +33598,8 @@ function animateNumber(elementId, targetValue, duration) {
   // Apply single proactive suggestion: el gap puede ser de otro mes que el actual.
   // Reusa spiaApplyAssignment cuando coincide con el mes actual; si no, escribe directo
   // sobre scheduleData[<key>] respetando MAX_BULK_PER_WORKER y registra historial.
-  window.spiaApplyProactive = function (workerId, year, month, dayIdx, shift, btnEl) {
+  // Fase 3.5: gapPlantaId opcional registra planta destino cross-plant.
+  window.spiaApplyProactive = function (workerId, year, month, dayIdx, shift, btnEl, gapPlantaId) {
     try {
       var key = year + '-' + month;
       if (typeof scheduleData === 'undefined') return;
@@ -33413,7 +33611,20 @@ function animateNumber(elementId, targetValue, duration) {
       if (!sch[workerId]) sch[workerId] = [];
       var prev = (sch[workerId][dayIdx] || '').toString();
       sch[workerId][dayIdx] = shift;
-      spiaHistory.push({ workerId: workerId, year: year, month: month, dayIdx: dayIdx, shift: shift, prevValue: prev, ts: Date.now() });
+      // Fase 3.5 — cross-plant tracking en escritura directa (mes distinto al actual).
+      var prevCpa = null;
+      try {
+        if (typeof getCrossPlantAssignment === 'function') {
+          prevCpa = getCrossPlantAssignment(workerId, year, month, dayIdx);
+        }
+        var wProactive = (typeof workers !== 'undefined') ? workers.find(function (x) { return x.id === workerId; }) : null;
+        if (wProactive && gapPlantaId && wProactive.planta !== gapPlantaId && typeof setCrossPlantAssignment === 'function') {
+          setCrossPlantAssignment(workerId, year, month, dayIdx, gapPlantaId);
+        } else if (typeof clearCrossPlantAssignment === 'function') {
+          clearCrossPlantAssignment(workerId, year, month, dayIdx);
+        }
+      } catch (e) { console.warn('[spia proactive cpa]', e.message); }
+      spiaHistory.push({ workerId: workerId, year: year, month: month, dayIdx: dayIdx, shift: shift, prevValue: prev, prevCpa: prevCpa, gapPlantaId: gapPlantaId || null, ts: Date.now() });
       if (typeof window.scheduleSaveThrottled === 'function') window.scheduleSaveThrottled();
       if (btnEl) {
         btnEl.disabled = true;
@@ -33461,7 +33672,20 @@ function animateNumber(elementId, targetValue, duration) {
       if (!sch[pick.w.id]) sch[pick.w.id] = [];
       var prev = (sch[pick.w.id][meta.dayIdx] || '').toString();
       sch[pick.w.id][meta.dayIdx] = meta.shift;
-      spiaHistory.push({ workerId: pick.w.id, year: meta.year, month: meta.month, dayIdx: meta.dayIdx, shift: meta.shift, prevValue: prev, ts: Date.now() });
+      // Fase 3.5 — cross-plant tracking en el bulk proactive
+      var prevCpaBulk = null;
+      try {
+        var bulkGapPlantaId = (entry.gap && entry.gap.plantaId) || null;
+        if (typeof getCrossPlantAssignment === 'function') {
+          prevCpaBulk = getCrossPlantAssignment(pick.w.id, meta.year, meta.month, meta.dayIdx);
+        }
+        if (bulkGapPlantaId && pick.w.planta !== bulkGapPlantaId && typeof setCrossPlantAssignment === 'function') {
+          setCrossPlantAssignment(pick.w.id, meta.year, meta.month, meta.dayIdx, bulkGapPlantaId);
+        } else if (typeof clearCrossPlantAssignment === 'function') {
+          clearCrossPlantAssignment(pick.w.id, meta.year, meta.month, meta.dayIdx);
+        }
+      } catch (e) { console.warn('[spia bulk proactive cpa]', e.message); }
+      spiaHistory.push({ workerId: pick.w.id, year: meta.year, month: meta.month, dayIdx: meta.dayIdx, shift: meta.shift, prevValue: prev, prevCpa: prevCpaBulk, gapPlantaId: (entry.gap && entry.gap.plantaId) || null, ts: Date.now() });
       applied++;
     });
     if (typeof window.scheduleSaveThrottled === 'function') window.scheduleSaveThrottled();
