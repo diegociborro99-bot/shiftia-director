@@ -1,5 +1,13 @@
 const express = require('express');
+const multer = require('multer');
+const { PDFParse } = require('pdf-parse');
 const { matchWorker, normalizeName } = require('../engine/name-matcher');
+const { parsePlanningPdfText } = require('../engine/pdf-parser');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 200 }
+});
 
 // ============================================================================
 // Shiftia Import — endpoint para subir planillas anuales en lote desde la
@@ -52,6 +60,77 @@ function buildImportRouter({ pool, authMiddleware }) {
       );
     } catch (err) {
       console.error('[import.pdf-batch] save:', err);
+      return res.status(500).json({ error: 'No se pudo guardar la data del usuario' });
+    }
+
+    const summary = {
+      processed: items.length,
+      updated: items.filter(i => i.status === 'updated').length,
+      created: items.filter(i => i.status === 'created').length,
+      pending: items.filter(i => i.status === 'pending').length,
+      failed: items.filter(i => i.status === 'failed').length
+    };
+    res.json({ ok: true, summary, items });
+  });
+
+  // ============================================================================
+  // POST /api/import/pdf-upload (multipart/form-data, campo `files`)
+  // Sube N PDFs de planificación anual. El backend extrae texto con pdf-parse,
+  // parsea con engine/pdf-parser, y mergea cada planilla con la misma lógica
+  // que /pdf-batch (matchWorker + merge idempotente).
+  // ============================================================================
+  router.post('/pdf-upload', upload.array('files', 200), async (req, res) => {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'Sin archivos. Envía files[] como multipart/form-data.' });
+    }
+
+    let data;
+    try {
+      const result = await pool.query('SELECT data FROM schedule_data WHERE user_id = $1', [req.user.id]);
+      data = result.rows[0]?.data || {};
+    } catch (err) {
+      console.error('[import.pdf-upload] load:', err);
+      return res.status(500).json({ error: 'No se pudo cargar la data del usuario' });
+    }
+    if (!data.workerMeta) data.workerMeta = [];
+    if (!data.scheduleData) data.scheduleData = {};
+
+    let nextId = data.workerMeta.reduce((m, w) => Math.max(m, parseInt(w.id, 10) || 0), 0) + 1;
+    const items = [];
+
+    for (const file of req.files) {
+      try {
+        const { text } = await new PDFParse({ data: file.buffer }).getText();
+        const parsed = parsePlanningPdfText(text);
+        if (!parsed.ok) {
+          items.push({ filename: file.originalname, status: 'failed', reason: parsed.error });
+          continue;
+        }
+        const sched = {
+          filename: file.originalname,
+          workerName: parsed.workerName,
+          year: parsed.year,
+          role: parsed.role,
+          plantaHint: parsed.plantaHint,
+          categoria: parsed.categoria,
+          scheduleByMonth: parsed.scheduleByMonth
+        };
+        const item = processSchedule(data, sched, () => nextId++);
+        items.push(item);
+      } catch (err) {
+        console.error('[import.pdf-upload] file:', file.originalname, err);
+        items.push({ filename: file.originalname, status: 'failed', reason: err.message || 'Error de parsing' });
+      }
+    }
+
+    try {
+      await pool.query(
+        `INSERT INTO schedule_data (user_id, data) VALUES ($1, $2)
+         ON CONFLICT (user_id) DO UPDATE SET data = $2`,
+        [req.user.id, data]
+      );
+    } catch (err) {
+      console.error('[import.pdf-upload] save:', err);
       return res.status(500).json({ error: 'No se pudo guardar la data del usuario' });
     }
 
