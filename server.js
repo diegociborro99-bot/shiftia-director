@@ -216,7 +216,7 @@ const poolConfig = process.env.DATABASE_URL
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.PGSSLROOTCERT
         ? { ca: require('fs').readFileSync(process.env.PGSSLROOTCERT), rejectUnauthorized: true }
-        : (IS_PRODUCTION ? { rejectUnauthorized: true } : false),
+        : (IS_PRODUCTION ? { rejectUnauthorized: false } : false),
     }
   : {
       host: process.env.PGHOST,

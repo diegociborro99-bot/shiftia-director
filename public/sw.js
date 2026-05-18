@@ -24,12 +24,13 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ws')) return;
 
   event.respondWith(
     fetch(request)
       .then((response) => {
-        if (response && response.ok && url.origin === self.location.origin) {
+        if (response && response.ok) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy).catch(() => {}));
         }
