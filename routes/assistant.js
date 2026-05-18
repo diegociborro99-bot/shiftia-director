@@ -30,10 +30,14 @@ const SHIFT_CODES = ['M', 'T', 'N'];
 // ===== Helpers =====
 function ymKey(year, month) { return `${year}-${month}`; }
 function cellOf(data, year, month, wId, day) {
-  return data?.scheduleData?.[ymKey(year, month)]?.[wId]?.[day] ?? '';
+  const arr = data?.scheduleData?.[ymKey(year, month)]?.[wId];
+  if (!Array.isArray(arr) || day < 0 || day >= arr.length) return '';
+  return arr[day] ?? '';
 }
 function workerById(data, id) {
-  return (data?.workers || []).find(w => String(w.id) === String(id));
+  const all = (data?.workerMeta || data?.workers || []);
+  // Match by id (legacy SARA autoincrement) OR by actaisId (cross-ref with Actais hospital ID)
+  return all.find(w => String(w.id) === String(id) || String(w.actaisId || '') === String(id));
 }
 function getEffectivePlanta(data, wId, year, month, day) {
   const override = data?.crossPlantAssignments?.[ymKey(year, month)]?.[wId]?.[day];
@@ -258,8 +262,10 @@ function buildAssistantRouter({ pool, authMiddleware }) {
   });
 
   router.post('/suggestReplacement', async (req, res) => {
+    // Alias semantico de whoCovers — extraido como funcion para evitar
+    // depender de router.handle (que requiere next y rompe el contrato Express).
     req.url = '/whoCovers';
-    router.handle(req, res);
+    return router.handle(req, res, () => {});
   });
 
   router.post('/librar', async (req, res) => {
@@ -274,7 +280,8 @@ function buildAssistantRouter({ pool, authMiddleware }) {
       const monthSchedules = data?.scheduleData?.[ymKey(p.year, p.month)] || {};
       let coveringNow = 0;
       for (const wId of Object.keys(monthSchedules)) {
-        if (monthSchedules[wId][p.day] === originalShift && getEffectivePlanta(data, wId, p.year, p.month, p.day) === targetPlanta) coveringNow++;
+        const arr = monthSchedules[wId] || [];
+        if (arr[p.day] === originalShift && getEffectivePlanta(data, wId, p.year, p.month, p.day) === targetPlanta) coveringNow++;
       }
       const required = PLANT_COVERAGE[targetPlanta]?.[originalShift] ?? 0;
       const willBecomeCritical = (coveringNow - 1) < required;
@@ -313,10 +320,11 @@ function buildAssistantRouter({ pool, authMiddleware }) {
       if (!worker) return res.json({ ok: false, error: 'Trabajador no identificado' });
       const monthSchedules = data?.scheduleData?.[ymKey(p.year, p.month)] || {};
       const targetShift = p.shift || cellOf(data, p.year, p.month, worker.id, p.day);
-      const swapPartners = (data.workers || [])
+      const swapPartners = (data?.workerMeta || data?.workers || [])
         .filter(w => w.id !== worker.id)
         .map(w => {
-          const otherShift = monthSchedules[w.id]?.[p.day];
+          const arr = monthSchedules[w.id] || [];
+          const otherShift = arr[p.day];
           if (!otherShift || !SHIFT_CODES.includes(otherShift) || otherShift === targetShift) return null;
           const legA = checkLegality(data, worker, p.year, p.month, p.day, otherShift);
           const legB = checkLegality(data, w, p.year, p.month, p.day, targetShift);
@@ -372,6 +380,8 @@ function buildAssistantRouter({ pool, authMiddleware }) {
       const data = await loadData(pool, req.user.id);
       const p = parseCell(req.body);
       const worker = resolveWorker(data, p);
+      // p.day llega 0-based (detector ya envia day-1). El constructor Date()
+      // tambien usa day 1-based en su tercer argumento, asi que sumamos +1.
       const dateISO = new Date(p.year, p.month, p.day + 1).toISOString().slice(0, 10);
       const text = tplWhatsApp(worker, dateISO, p.shift || 'M', p.plantaId || worker?.planta, req.user?.name);
       res.json({ text });

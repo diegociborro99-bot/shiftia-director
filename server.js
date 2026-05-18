@@ -159,15 +159,17 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
   const allowed = (process.env.CORS_ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
   const origin = req.headers.origin;
-  // Si no hay configuración explícita: same-origin only (no CORS)
-  if (origin && allowed.includes(origin)) {
+  // Allow Chrome extension origins (extension talks to backend from chrome-extension://<id>)
+  const isExtension = origin && origin.startsWith('chrome-extension://');
+  const isAllowed = origin && (allowed.includes(origin) || isExtension);
+  if (isAllowed) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
     res.setHeader('Vary', 'Origin');
   }
-  if (req.method === 'OPTIONS' && origin && allowed.includes(origin)) return res.status(204).end();
+  if (req.method === 'OPTIONS' && isAllowed) return res.status(204).end();
   next();
 });
 
