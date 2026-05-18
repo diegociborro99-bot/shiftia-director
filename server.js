@@ -1478,6 +1478,10 @@ app.get('/version', (req, res) => {
 const { buildAssistantRouter } = require('./routes/assistant');
 app.use('/api/assistant', buildAssistantRouter({ pool, authMiddleware }));
 
+// Shiftia Import — bulk PDF batch import desde la extensión
+const { buildImportRouter } = require('./routes/import');
+app.use('/api/import', buildImportRouter({ pool, authMiddleware }));
+
 // 404 JSON para cualquier /api/* no manejado (mejor que el SPA fallback)
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
