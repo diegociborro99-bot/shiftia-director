@@ -414,6 +414,56 @@ function buildAssistantRouter({ pool, authMiddleware }) {
     } catch (err) { res.status(500).json({ error: 'Error interno' }); console.error('[assistant.weeklySummary]', err); }
   });
 
+  // Volcar cambio que la super ha hecho directamente en Actais (sin pasar
+  // por el menú IA). El detector relee la celda y manda { workerId, year,
+  // month, day, shift, shiftLabel }. Aquí escribimos en scheduleData del
+  // user. No tocamos Actais (es lectura privada).
+  router.post('/syncCellChange', async (req, res) => {
+    try {
+      const p = parseCell(req.body);
+      if (!p.shift) return res.status(400).json({ ok: false, error: 'Falta shift' });
+
+      // Cargar y resolver worker
+      const dataResult = await pool.query('SELECT data FROM schedule_data WHERE user_id = $1', [req.user.id]);
+      const data = dataResult.rows[0]?.data || { workerMeta: [], scheduleData: {} };
+      if (!data.workerMeta) data.workerMeta = [];
+      if (!data.scheduleData) data.scheduleData = {};
+
+      const worker = resolveWorker(data, p);
+      if (!worker) {
+        return res.json({ ok: false, error: 'Trabajador no identificado en Shiftia. Importa primero su planilla.' });
+      }
+
+      const key = ymKey(p.year, p.month);
+      if (!data.scheduleData[key]) data.scheduleData[key] = {};
+      if (!data.scheduleData[key][worker.id]) data.scheduleData[key][worker.id] = new Array(31).fill('');
+
+      const arr = data.scheduleData[key][worker.id];
+      const prev = arr[p.day] || '';
+      arr[p.day] = p.shift;
+
+      await pool.query(
+        `INSERT INTO schedule_data (user_id, data) VALUES ($1, $2)
+         ON CONFLICT (user_id) DO UPDATE SET data = $2`,
+        [req.user.id, data]
+      );
+
+      res.json({
+        ok: true,
+        worker: worker.name,
+        date: { year: p.year, month: p.month, day: p.day },
+        previousShift: prev,
+        newShift: p.shift,
+        message: prev === p.shift
+          ? 'Sin cambios: el turno ya era ' + p.shift
+          : `Volcado: ${prev || 'vacío'} → ${p.shift}`
+      });
+    } catch (err) {
+      console.error('[assistant.syncCellChange]', err);
+      res.status(500).json({ error: 'Error interno al volcar el cambio' });
+    }
+  });
+
   router.post('/conv_maxNights', (req, res) => res.json({ value: SP_RULES.maxNightsPerMonth, label: 'Máximo de noches por mes', source: 'Convenio interno (configurable por trabajador)' }));
   router.post('/conv_weeklyRest', (req, res) => res.json({ value: SP_RULES.minWeeklyRestDays, label: 'Días de descanso semanal mínimo', source: 'Convenio' }));
   router.post('/conv_consecDays', (req, res) => res.json({ value: SP_RULES.maxConsecutiveDays, label: 'Días consecutivos trabajados máximo', source: 'Convenio' }));
