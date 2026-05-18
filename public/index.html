@@ -8729,6 +8729,9 @@ table.schedule tbody tr:hover {
 
         <div id="emptyStateBanner" style="display:none;"></div>
 
+        <!-- Fase 3.3: Banner de plantas fragiles (proactive) -->
+        <div id="fragilePlantasBanner" style="display:none;margin-bottom:20px;"></div>
+
         <!-- 4 Action Cards Grid -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 48px;">
           <!-- Card 1: Importar Planillas -->
@@ -9508,6 +9511,134 @@ const PLANT_COVERAGE = {
   'refuerzo': { M: { min: 0 }, T: { min: 0 }, N: { min: 0 } }
 };
 
+// ============= FEATURE FLAGS (revert kill-switch) =============
+// Para revertir a comportamiento legacy en runtime sin redeploy, en la consola del navegador:
+//   window.SHIFTIA_FLAGS = { unifiedCoverage: false, unifiedScoring: false,
+//     saScaledPenalty: false, saSwapNeighbor: false, saReheat: false, saCrossMonth: false,
+//     proactiveSuggestions: false, crossPlantRouting: false, skillMatrix: false,
+//     criticalPlantToast: false };
+//   location.reload();
+// Mientras esten en true, todos los paths usan COVERAGE_MATRIX + scoreCandidate global +
+// SA con penalty escalado de convenio + swap-neighbor + reheat + cross-month adjacency +
+// IA proactiva con cross-plant routing y banner de plantas fragiles.
+// Fase 2 (SA hardening):
+//   - saScaledPenalty: penalty de violacion de convenio sube de 500/800 a 100000 (no compensa
+//     matematicamente con cobertura, evita guardar planillas ilegales).
+//   - saSwapNeighbor: 30% de los neighbors son swaps (intercambio entre 2 workers el mismo dia),
+//     70% sigue siendo randomAssign single-cell. Sale de optimos locales sin alterar conteo total.
+//   - saReheat: si pasan 500 iter sin mejora, T *= 5 (clamp a T0). Re-explora.
+//   - saCrossMonth: chequea adyacencia N->M, T->M cruzando frontera de mes (dia 0 vs ultimo dia
+//     del mes anterior, ultimo dia vs dia 0 del mes siguiente).
+// Fase 3 (IA proactiva + cross-plant):
+//   - proactiveSuggestions: habilita el modo 'proactive' en buildSuggestionPlan (escanea N dias).
+//   - crossPlantRouting: permite que workers SP de otra planta cubran huecos si la conocen.
+//   - skillMatrix: usa w.plantasConocidas si esta presente; fallback legacy (planta propia /
+//     todas si flotante) cuando esta apagado o el campo no existe.
+//   - criticalPlantToast: muestra banner discreto en dashboard cuando hay plantas fragiles.
+const FEATURE_FLAGS = (typeof window !== 'undefined' && window.SHIFTIA_FLAGS)
+  ? Object.assign({
+      unifiedCoverage: true,
+      unifiedScoring: true,
+      saScaledPenalty: true,
+      saSwapNeighbor: true,
+      saReheat: true,
+      saCrossMonth: true,
+      proactiveSuggestions: true,
+      crossPlantRouting: true,
+      skillMatrix: true,
+      criticalPlantToast: true
+    }, window.SHIFTIA_FLAGS)
+  : {
+      unifiedCoverage: true,
+      unifiedScoring: true,
+      saScaledPenalty: true,
+      saSwapNeighbor: true,
+      saReheat: true,
+      saCrossMonth: true,
+      proactiveSuggestions: true,
+      crossPlantRouting: true,
+      skillMatrix: true,
+      criticalPlantToast: true
+    };
+if (typeof window !== 'undefined') window.SHIFTIA_FLAGS = FEATURE_FLAGS;
+
+// ============= COVERAGE_MATRIX (unified single source of truth) =============
+// Consolida PLANT_COVERAGE (per-planta total enf) + RULES.COVERAGE / RULES.COVERAGE_WEEKEND
+// (per-categoria enf/tec, sin per-planta) en una sola matriz tridimensional:
+//   COVERAGE_MATRIX[plantaId][dayType][shift][category]
+// dayType: 'weekday' | 'weekend' | 'holiday'
+// category: 'enf' | 'tec'
+// Valores derivados EXCLUSIVAMENTE de PLANT_COVERAGE actual (es la fuente vigente que usan SA, SP
+// manager, SPIA, dashboard y plan generator). Para weekend/holiday se replican los mismos minimos
+// porque PLANT_COVERAGE no diferencia hoy — replicar es lo unico que preserva el comportamiento
+// observable. Para 'tec' se usa 0 porque PLANT_COVERAGE nunca exigio tec a nivel planta.
+// TODO: confirmar con Diego si fin de semana / festivo deberian relajar minimos per-planta
+// (hoy RULES.COVERAGE_WEEKEND si lo hace para Sistema C, pero PLANT_COVERAGE no, y los 5 paths
+// que leen PLANT_COVERAGE jamas relajaban). Mantener uniforme evita regresion.
+const COVERAGE_MATRIX = {
+  'p1n': {
+    weekday: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 2, tec: 0 } },
+    weekend: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 2, tec: 0 } },
+    holiday: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 2, tec: 0 } }
+  },
+  'p2n': {
+    weekday: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 2, tec: 0 } },
+    weekend: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 2, tec: 0 } },
+    holiday: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 2, tec: 0 } }
+  },
+  'p2e': {
+    weekday: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 2, tec: 0 } },
+    weekend: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 2, tec: 0 } },
+    holiday: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 2, tec: 0 } }
+  },
+  'p3e': {
+    weekday: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 2, tec: 0 } },
+    weekend: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 2, tec: 0 } },
+    holiday: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 2, tec: 0 } }
+  },
+  'endo': {
+    weekday: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 0, tec: 0 } },
+    weekend: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 0, tec: 0 } },
+    holiday: { M: { enf: 2, tec: 0 }, T: { enf: 2, tec: 0 }, N: { enf: 0, tec: 0 } }
+  },
+  'urg': {
+    weekday: { M: { enf: 3, tec: 0 }, T: { enf: 3, tec: 0 }, N: { enf: 2, tec: 0 } },
+    weekend: { M: { enf: 3, tec: 0 }, T: { enf: 3, tec: 0 }, N: { enf: 2, tec: 0 } },
+    holiday: { M: { enf: 3, tec: 0 }, T: { enf: 3, tec: 0 }, N: { enf: 2, tec: 0 } }
+  },
+  'refuerzo': {
+    weekday: { M: { enf: 0, tec: 0 }, T: { enf: 0, tec: 0 }, N: { enf: 0, tec: 0 } },
+    weekend: { M: { enf: 0, tec: 0 }, T: { enf: 0, tec: 0 }, N: { enf: 0, tec: 0 } },
+    holiday: { M: { enf: 0, tec: 0 }, T: { enf: 0, tec: 0 }, N: { enf: 0, tec: 0 } }
+  }
+};
+
+// Resuelve dayType segun fecha (festivo > fin de semana > weekday)
+function _resolveDayType(date) {
+  try {
+    const d = (date instanceof Date) ? date : new Date(date);
+    if (typeof isFestivo === 'function' && isFestivo(d.getFullYear(), d.getMonth(), d.getDate())) return 'holiday';
+    const dow = d.getDay();
+    return (dow === 0 || dow === 6) ? 'weekend' : 'weekday';
+  } catch (e) { return 'weekday'; }
+}
+
+// Lectura unificada del minimo de cobertura. Si se omite category, devuelve el total (enf + tec).
+// Esta es la NUEVA fuente unica; getCoverageMin y getCoverageRules la usan cuando
+// FEATURE_FLAGS.unifiedCoverage = true.
+function getCoverageRequirement(plantaId, shift, date, category) {
+  const plant = COVERAGE_MATRIX[plantaId];
+  if (!plant) return 0;
+  const dayType = _resolveDayType(date);
+  const dayRules = plant[dayType] || plant.weekday;
+  if (!dayRules) return 0;
+  const shiftRules = dayRules[shift];
+  if (!shiftRules) return 0;
+  if (category) return shiftRules[category] || 0;
+  // Sin category: total enf + tec
+  return (shiftRules.enf || 0) + (shiftRules.tec || 0);
+}
+
 // ============= MEJORA 4: CUSTOM COVERAGE OVERRIDES =============
 // Custom per-planta coverage rules with new shape:
 //   state.customCoverage[plantaId][shift] = number (legacy) | { dow_0..6, holiday, default } per-category {enf,tcae,tec}
@@ -9527,8 +9658,17 @@ function _isHolidayDateSafe(date) {
 }
 
 // Unified getter — works for legacy {min:N} shape AND new per-DOW/per-category shape.
+// FEATURE_FLAGS.unifiedCoverage=true → delega a getCoverageRequirement (COVERAGE_MATRIX)
+// excepto cuando hay override per-planta en state.customCoverage (esos siguen ganando).
 function getCoverageMin(plantaId, shift, date, category = 'enf') {
-  const rules = (state.customCoverage && state.customCoverage[plantaId]) || PLANT_COVERAGE[plantaId];
+  // El override custom siempre gana (UI de editor de cobertura permite overrides puntuales)
+  const customRules = state.customCoverage && state.customCoverage[plantaId];
+  if (!customRules) {
+    if (FEATURE_FLAGS.unifiedCoverage) {
+      return getCoverageRequirement(plantaId, shift, date, category);
+    }
+  }
+  const rules = customRules || PLANT_COVERAGE[plantaId];
   if (!rules) return 0;
   const shiftRules = rules[shift];
   if (shiftRules == null) return 0;
@@ -9690,8 +9830,139 @@ function scoreCandidate(worker, gap, ctx = {}, opts = {}) {
   const score = Object.values(breakdown).reduce((a, b) => a + b, 0);
   return { score, breakdown, legalIssues, accepted };
 }
-// TODO (segunda pasada): migrar suggestCoverageAssignment, renderSPManagerContent, planes A-D y
-// openSPAutoSuggest para llamar a scoreCandidate en lugar de calcular su propio scoring.
+// Expose para que IIFEs aislados (ej: SPIA) puedan llamarla cuando FEATURE_FLAGS.unifiedScoring=true
+if (typeof window !== 'undefined') window.scoreCandidateGlobal = scoreCandidate;
+// Sub-fase 1.1 (parcial): scoreCandidate global adoptado en:
+//  - suggestCoverageAssignment (Sistema A trivial)
+//  - scoreSPCandidate (renderSPManagerContent / Sistema X)
+//  - scoreCandidate local de SPIA (Sistema D, via window.scoreCandidateGlobal)
+// NO migrados (con razón documentada):
+//  - findCoverageCandidates (Sistema A profundo) — convención sort invertida (menor=mejor) + UI
+//    consume scoreBreakdown con formato específico. Migración cambiaría orden de candidatos.
+//  - greedyAssign (Sistema C) — scoring per-strategy (balance/impact/multiday) con futureImpact,
+//    consecutiveDays, extrasCoverage. No es candidate↔gap puro; es candidate-en-plan-con-historial.
+//  - generateChainSwapPlan (Sistema C swap chain) — scoring entre dos workers, no candidato↔gap.
+//  - autoAssignSP Fase 1 (legacy) — scoring trivial (burnout+totalShifts) sin gap formal.
+//  - equityScore de renderSPManagerContent (ranking per-worker sin gap específico).
+
+// ============= FASE 3.4 — SKILL MATRIX (cross-plant eligibility, fallback safe) =============
+// Devuelve el array de plantaIds que un worker conoce y puede cubrir.
+// Modelo opcional: w.plantasConocidas: string[]  (campo NUEVO, no rompe data existente).
+// - skillMatrix OFF  → comportamiento legacy: planta propia, o todas si flotante.
+// - skillMatrix ON   → si w.plantasConocidas existe y tiene items, lo usa.
+//                      Si no, cae al fallback (propia o todas si flotante).
+// Esto significa que setear w.plantasConocidas en un worker concreto lo vuelve elegible
+// para esas plantas SIN tocar el resto del modelo.
+function getWorkerKnownPlantas(w) {
+  if (!w) return [];
+  if (typeof FEATURE_FLAGS === 'undefined' || !FEATURE_FLAGS.skillMatrix) {
+    if (w.flotante) return (typeof COVERAGE_MATRIX !== 'undefined') ? Object.keys(COVERAGE_MATRIX) : [];
+    return w.planta ? [w.planta] : [];
+  }
+  if (Array.isArray(w.plantasConocidas) && w.plantasConocidas.length > 0) {
+    return w.plantasConocidas.slice();
+  }
+  if (w.flotante) return (typeof COVERAGE_MATRIX !== 'undefined') ? Object.keys(COVERAGE_MATRIX) : [];
+  return w.planta ? [w.planta] : [];
+}
+if (typeof window !== 'undefined') window.getWorkerKnownPlantas = getWorkerKnownPlantas;
+
+// ============= FASE 3.1 — DETECTOR DE PLANTAS FRAGILES (read-only) =============
+// Escanea los proximos `daysAhead` dias y mide deficit de cobertura por planta-dia-turno.
+// NO modifica nada. Devuelve un ranking ordenado por fragilityScore desc.
+// fragilityScore = totalDeficit*10 + criticalShifts*20 + dayCount*5
+// (criticalShifts cuenta turnos N con deficit con doble peso)
+//
+// Output:
+//   [{ plantaId, plantaName, fragilityScore, totalDeficit, dayCount,
+//      criticalGaps: [{day: Date, dayIdx, shift, deficit, monthKey}] }]
+function detectFragilePlantas(ctxOrOpts, daysAhead) {
+  // Acepta firma flexible: detectFragilePlantas(daysAhead) o detectFragilePlantas(ctx, daysAhead)
+  var days = 30;
+  if (typeof ctxOrOpts === 'number') days = ctxOrOpts;
+  else if (typeof daysAhead === 'number') days = daysAhead;
+
+  if (typeof PLANTAS === 'undefined' || typeof workers === 'undefined') return [];
+  if (typeof scheduleData === 'undefined') return [];
+
+  var WORK_M_EQUIV = ['MR','M7H','M6R','M55'];
+  var SHIFTS_TO_CHECK = ['M','T','N'];
+  var perPlanta = {}; // plantaId -> {totalDeficit, dayCount, criticalShifts, criticalGaps, daySet}
+  var today = new Date(); today.setHours(0,0,0,0);
+
+  for (var offset = 0; offset < days; offset++) {
+    var dDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
+    var y = dDate.getFullYear();
+    var m = dDate.getMonth();
+    var dayIdx = dDate.getDate() - 1;
+    var key = y + '-' + m;
+    var sch = scheduleData[key];
+    if (!sch) {
+      if (typeof genSchedule === 'function') {
+        try { sch = genSchedule(y, m); } catch (e) { sch = null; }
+      }
+    }
+    if (!sch) continue;
+
+    PLANTAS.forEach(function (p) {
+      if (p.id === 'refuerzo') return;
+      var plantWorkers = workers.filter(function (w) { return w.planta === p.id; });
+
+      SHIFTS_TO_CHECK.forEach(function (shift) {
+        var min = 0;
+        try {
+          if (typeof getCoverageRequirement === 'function') {
+            var req = getCoverageRequirement(p.id, shift, dDate, 'enf');
+            min = (req && typeof req.min === 'number') ? req.min : 0;
+          } else if (typeof getCoverageMin === 'function') {
+            min = getCoverageMin(p.id, shift, dDate, 'enf') || 0;
+          }
+        } catch (e) { min = 0; }
+        if (min === 0) return;
+
+        var working = 0;
+        plantWorkers.forEach(function (w) {
+          var s = (sch[w.id] && sch[w.id][dayIdx] || '').toString().trim();
+          if (s === shift) working++;
+          else if (shift === 'M' && WORK_M_EQUIV.indexOf(s) !== -1) working++;
+        });
+        var deficit = min - working;
+        if (deficit <= 0) return;
+
+        if (!perPlanta[p.id]) {
+          perPlanta[p.id] = {
+            plantaId: p.id,
+            plantaName: p.short || p.name || p.id,
+            totalDeficit: 0,
+            dayCount: 0,
+            criticalShifts: 0,
+            criticalGaps: [],
+            daySet: {}
+          };
+        }
+        var entry = perPlanta[p.id];
+        entry.totalDeficit += deficit;
+        if (shift === 'N') entry.criticalShifts += 1;
+        var daySig = y + '-' + m + '-' + dayIdx;
+        if (!entry.daySet[daySig]) { entry.daySet[daySig] = true; entry.dayCount += 1; }
+        entry.criticalGaps.push({
+          day: dDate, dayIdx: dayIdx, year: y, month: m, monthKey: key,
+          shift: shift, deficit: deficit, min: min, working: working
+        });
+      });
+    });
+  }
+
+  var arr = Object.keys(perPlanta).map(function (k) {
+    var e = perPlanta[k];
+    delete e.daySet;
+    e.fragilityScore = e.totalDeficit * 10 + e.criticalShifts * 20 + e.dayCount * 5;
+    return e;
+  });
+  arr.sort(function (a, b) { return b.fragilityScore - a.fragilityScore; });
+  return arr;
+}
+if (typeof window !== 'undefined') window.detectFragilePlantas = detectFragilePlantas;
 
 // Persistent worker memory — survives schedule deletion and reimport
 // Stores subjective conditions, learned preferences, and custom rules
@@ -9818,12 +10089,37 @@ function suggestCoverageAssignment(gap, unplannedWorkers) {
       score: 0
     }));
 
-  // Scoring: prefer same plant, then flotante for cross-plant
-  candidates.forEach(c => {
-    if (c.workerPlanta === gap.planta) c.score += 100; // same plant bonus
-    if (c.workerFlotante) c.score += 80; // flotante bonus
-    c.score += Math.random() * 10; // tiebreaker
-  });
+  // FEATURE_FLAGS.unifiedScoring → global scoreCandidate(worker, gap, ctx)
+  // Si esta off, mantenemos el scoring legacy de este path tal cual.
+  if (FEATURE_FLAGS.unifiedScoring) {
+    candidates.forEach(c => {
+      try {
+        const workerObj = workers.find(w => w.id === c.workerId) || {
+          id: c.workerId, planta: c.workerPlanta, flotante: c.workerFlotante
+        };
+        const gapForScore = {
+          date: new Date(),
+          shift: gap.shift,
+          planta: gap.planta,
+          category: 'enf'
+        };
+        const r = scoreCandidate(workerObj, gapForScore, {}, {});
+        c.score = (r && typeof r.score === 'number' && isFinite(r.score)) ? r.score : 0;
+      } catch (e) {
+        // Fallback al legacy si scoreCandidate fallara
+        if (c.workerPlanta === gap.planta) c.score += 100;
+        if (c.workerFlotante) c.score += 80;
+        c.score += Math.random() * 10;
+      }
+    });
+  } else {
+    // Scoring legacy: prefer same plant, then flotante for cross-plant
+    candidates.forEach(c => {
+      if (c.workerPlanta === gap.planta) c.score += 100; // same plant bonus
+      if (c.workerFlotante) c.score += 80; // flotante bonus
+      c.score += Math.random() * 10; // tiebreaker
+    });
+  }
 
   return candidates.sort((a, b) => b.score - a.score).slice(0, 3);
 }
@@ -10332,7 +10628,7 @@ function isFestivo(year, month, day) {
 // Scheduling Engine
 const RULES = {
   MAX_CONSECUTIVE_NIGHTS: 2,
-  MIN_REST_HOURS: 12,
+  // MIN_REST_HOURS removed (dead code) — actual rest enforcement is in isLegalAssignment via post-N whitelist
   ANNUAL_HOURS: 1519,
   NIGHT_COMPUTO_HOURS: 2.1,
   SHIFT_HOURS: { M:7, T:7, N:10, D:0, MR:5.5, VAC:0, LD:0, FOR:0, CAA:0, AE:0, EX:0, BAJ:0, CJ:0, FN:0, LAC:0, MTC:0, INT:0, HF:0, HS:0, VAA:0, DLA:0, M7H:7, M6R:6.5, M55:5, VAN:0, IQF:0, PM:0, SP:0 },
@@ -10344,6 +10640,13 @@ const RULES = {
 };
 
 // Get coverage requirements for a specific date (weekends/holidays = reduced)
+// DEPRECATED — usar getCoverageRequirement(plantaId, shift, date, category).
+// Esta funcion retorna umbrales GLOBALES (no per-planta) que son arbitrarios respecto
+// de PLANT_COVERAGE — por eso PLANT_COVERAGE y RULES.COVERAGE diferian en gaps.
+// Para no romper Sistema C / Planes A-D, cuando unifiedCoverage esta activo seguimos
+// devolviendo los MISMOS valores legacy (RULES.COVERAGE / RULES.COVERAGE_WEEKEND).
+// El flag NO altera el output de getCoverageRules. La unificacion real ocurre via
+// getCoverageRequirement directamente desde callers per-planta.
 function getCoverageRules(year, month, day) {
   const dow = new Date(year, month, day).getDay();
   const isWeekendOrHoliday = dow === 0 || dow === 6 || isFestivo(year, month, day);
@@ -11048,6 +11351,82 @@ function renderDashboard() {
 
   // Update notifications
   try { updateNotifPanel(); } catch(e) {}
+
+  // Fase 3.3: Banner de plantas fragiles (proactive). NO render si no hay riesgo.
+  try { renderFragilePlantasBanner(); } catch(e) { console.warn('[Shiftia] Fragile plantas banner error:', e); }
+  // Fase 3.5: Toast critico opcional, una vez por sesion.
+  try { maybeShowCriticalPlantToast(); } catch(e) { console.warn('[Shiftia] Critical plant toast error:', e); }
+}
+
+// ========= FASE 3.3 — BANNER DE PLANTAS FRAGILES (dashboard, próximos 7 días) =========
+// Llama detectFragilePlantas(7), filtra las que superan el umbral y renderiza un banner
+// discreto en el dashboard. Si no hay riesgo, oculta el banner (sin ruido).
+// Color: amarillo si 1-2 plantas, rojo si 3+. Click abre SPIA en modo proactive.
+function renderFragilePlantasBanner() {
+  var banner = document.getElementById('fragilePlantasBanner');
+  if (!banner) return;
+  if (typeof FEATURE_FLAGS === 'undefined' || !FEATURE_FLAGS.criticalPlantToast) {
+    banner.style.display = 'none';
+    return;
+  }
+  if (typeof detectFragilePlantas !== 'function') {
+    banner.style.display = 'none';
+    return;
+  }
+  var ranking = [];
+  try { ranking = detectFragilePlantas(7) || []; } catch(e) { ranking = []; }
+  var THRESHOLD = 50;
+  var atRisk = ranking.filter(function (p) { return p.fragilityScore > THRESHOLD; });
+  if (atRisk.length === 0) {
+    banner.style.display = 'none';
+    banner.innerHTML = '';
+    return;
+  }
+  var totalSuggestions = atRisk.reduce(function (acc, p) { return acc + (p.criticalGaps ? p.criticalGaps.length : 0); }, 0);
+  var critical = atRisk.length >= 3;
+  var bg = critical ? 'rgba(220,38,38,0.06)' : 'rgba(234,179,8,0.08)';
+  var border = critical ? '#dc2626' : '#eab308';
+  var fg = critical ? '#991b1b' : '#854d0e';
+  var names = atRisk.slice(0, 3).map(function (p) { return p.plantaName; }).join(', ');
+  if (atRisk.length > 3) names += ' +' + (atRisk.length - 3);
+  var safeNames = (typeof escHtml === 'function') ? escHtml(names) : names;
+  var openHandler = "if(typeof window.openSPAutoSuggest==='function'){window.__spiaPreferProactive=true;window.openSPAutoSuggest();}";
+  banner.style.display = 'block';
+  banner.innerHTML =
+    '<div role="button" tabindex="0" onclick="' + openHandler + '" ' +
+    'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + openHandler + '}" ' +
+    'style="cursor:pointer;display:flex;align-items:center;gap:14px;padding:14px 18px;' +
+    'background:' + bg + ';border:1px solid ' + border + ';border-radius:12px;' +
+    'color:' + fg + ';font-size:13px;font-weight:600;transition:transform 0.15s ease;" ' +
+    'onmouseover="this.style.transform=\'translateY(-1px)\'" ' +
+    'onmouseout="this.style.transform=\'\'">' +
+    '<span style="font-size:18px;line-height:1;">' + (critical ? '⚠' : '⚠') + '</span>' +
+    '<span style="flex:1;">' + totalSuggestions + ' sugerencia' + (totalSuggestions !== 1 ? 's' : '') +
+    ' para esta semana — ' + safeNames + ' en riesgo</span>' +
+    '<span style="font-size:12px;opacity:0.85;">Ver →</span>' +
+    '</div>';
+}
+
+// ========= FASE 3.5 — TOAST CRITICO (anti-spam, una vez por sesion) =========
+// Si hay alguna planta con fragilityScore > 100 y aun no se mostro este toast en esta sesion,
+// dispara un toast informativo. Persiste timestamp en sessionStorage para no spamear.
+function maybeShowCriticalPlantToast() {
+  if (typeof FEATURE_FLAGS === 'undefined' || !FEATURE_FLAGS.criticalPlantToast) return;
+  if (typeof detectFragilePlantas !== 'function' || typeof showToast !== 'function') return;
+  var SESSION_KEY = 'shiftia_lastCriticalToastSeen';
+  try {
+    var seen = sessionStorage.getItem(SESSION_KEY);
+    if (seen) return; // ya mostrado en esta sesion
+  } catch (e) { /* sessionStorage puede no estar disponible */ }
+
+  var ranking = [];
+  try { ranking = detectFragilePlantas(7) || []; } catch (e) { ranking = []; }
+  var THRESHOLD_CRITICAL = 100;
+  var critical = ranking.filter(function (p) { return p.fragilityScore > THRESHOLD_CRITICAL; });
+  if (critical.length === 0) return;
+  var first = critical[0];
+  showToast('🚨 Planta ' + first.plantaName + ' en riesgo crítico próximos 7 días', 'warning', 5000);
+  try { sessionStorage.setItem(SESSION_KEY, String(Date.now())); } catch (e) { /* noop */ }
 }
 
 // ========= ALERTS PANEL =========
@@ -12007,9 +12386,29 @@ function renderSPSuggestions() {
 
   // ── 3. Equity-Aware Candidate Scoring ──
   function scoreSPCandidate(wId, day, shift) {
-    let score = 100;
     const w = workers.find(x => x.id === wId);
     if (!w) return 0;
+
+    // FEATURE_FLAGS.unifiedScoring → global scoreCandidate.
+    // Hardgates (noNights, post-N) se conservan abajo en el legacy fallback porque
+    // devuelven -1 (descalificado); el global no necesariamente los descalifica con -1.
+    if (FEATURE_FLAGS.unifiedScoring) {
+      try {
+        // Pre-gate de seguridad para mantener los rechazos duros del legacy
+        if (shift === 'N' && w.rules && w.rules.noNights) return -1;
+        if (day > 0) {
+          const prev = sch[wId] ? (sch[wId][day-1] || '').toString().trim() : '';
+          if (prev === 'N' && (shift === 'M' || shift === 'T')) return -1;
+        }
+        const dateObj = new Date(year, month, day + 1);
+        const gapObj = { date: dateObj, shift: shift, planta: w.planta, category: 'enf', dayIdx: day, year: year, month: month };
+        const r = scoreCandidate(w, gapObj, { schedule: sch }, {});
+        if (!r || !isFinite(r.score)) return 0;
+        return Math.max(0, Math.round(r.score));
+      } catch (e) { /* cae al legacy abajo */ }
+    }
+
+    let score = 100;
 
     // Fatigue penalty (0-100 scale, higher = more tired = lower score)
     try {
@@ -17977,6 +18376,39 @@ function saveShiftChange() {
   const sch = genSchedule(m.getFullYear(), m.getMonth());
   const reason = document.getElementById('seReason').value.trim();
   const date = new Date(m.getFullYear(), m.getMonth(), day + 1);
+  const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+
+  // HARD GATE: re-check convenio before persisting (alerts in the UI are visual only)
+  const hardViolations = [];
+  if (selectedShift === 'N' && w && w.rules && w.rules.noNights) {
+    hardViolations.push(`${w.name} tiene restricción médica: NO puede hacer noches.`);
+  }
+  if (selectedShift === 'N') {
+    let consec = 0;
+    if (day > 0 && sch[wId] && sch[wId][day-1] === 'N') consec++;
+    if (day > 1 && sch[wId] && sch[wId][day-2] === 'N') consec++;
+    if (day < daysInMonth - 1 && sch[wId] && sch[wId][day+1] === 'N') consec++;
+    if (consec >= 2) {
+      hardViolations.push(`Quedarían ${consec + 1} noches consecutivas (máximo 2 por convenio).`);
+    }
+    if (day > 0 && sch[wId] && sch[wId][day-1] === 'T') {
+      hardViolations.push('No se puede asignar noche tras tarde (0h de descanso, mínimo 12h por convenio).');
+    }
+  }
+  if (selectedShift === 'M' || selectedShift === 'MR' || selectedShift === 'T') {
+    if (day > 0 && sch[wId] && sch[wId][day-1] === 'N') {
+      const restH = selectedShift === 'T' ? 7 : 0;
+      hardViolations.push(`No se puede asignar ${selectedShift === 'T' ? 'tarde' : 'mañana'} tras noche (sólo ${restH}h de descanso, mínimo 12h por convenio).`);
+    }
+  }
+  if (hardViolations.length > 0) {
+    if (typeof showToast === 'function') {
+      showToast('Cambio bloqueado por convenio: ' + hardViolations[0], 'error', 5000);
+    } else {
+      alert('Cambio bloqueado por convenio:\n\n' + hardViolations.join('\n'));
+    }
+    return;
+  }
 
   // Push undo state before applying
   pushUndo({ type: 'shift_change', wId, dayIdx: day, oldShift: originalShift, newShift: selectedShift, year: m.getFullYear(), month: m.getMonth() });
@@ -17999,9 +18431,10 @@ function saveShiftChange() {
   }
 
   // Recalc hours
-  const days = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+  const days = daysInMonth;
   let totalH = 0;
   for (let d = 0; d < days; d++) totalH += RULES.SHIFT_HOURS[(sch[wId] && sch[wId][d]) || ''] || 0;
+  w.hours = parseFloat(totalH.toFixed(1));
 
   // Log incident
   const typeMap = { 'VAC':'vac', 'LD':'ld', 'FOR':'for', 'AE':'ae', 'BAJ':'baja', 'CAA':'ae', 'EX':'ae' };
@@ -18828,7 +19261,7 @@ async function loadFromStorage() {
 const _origIntegrate = integratePDFData;
 integratePDFData = function(pd, mw) { const r = _origIntegrate(pd, mw); saveToStorage(); detectConflicts(); return r; };
 const _origSave = saveShiftChange;
-saveShiftChange = function() { _origSave(); saveToStorage(); detectConflicts(); };
+saveShiftChange = function() { _origSave(); detectConflicts(); };
 // deleteImport now uses purgeWorkerData which handles save+detect internally
 
 // Generate proactive coverage alerts for the next 14 days
@@ -24888,7 +25321,7 @@ try {
     const parsed = JSON.parse(customF);
     Object.assign(FESTIVOS, parsed);
   }
-} catch(e) {}
+} catch(e) { console.warn('[festivos] load from localStorage failed:', e); }
 
 // ========== COMPARATIVA MES A MES ==========
 function renderComparativa() {
@@ -31372,6 +31805,32 @@ function animateNumber(elementId, targetValue, duration) {
     cost += variance(weekends) * weights.equity * 0.8;
 
     // 3. CONVENIO — penalty MUY fuerte por violaciones
+    // FASE 2.1: penalty escalado. Antes 500/800 era compensable por cobertura
+    // (8 huecos a -640 vs +500 violacion neto -140 → SE ACEPTA y guarda planilla ilegal).
+    // Con 100000 ninguna cobertura razonable compensa una violacion de convenio.
+    // Flag saScaledPenalty=false revierte a 500/800 legacy.
+    var SCALED = (typeof FEATURE_FLAGS !== 'undefined' && FEATURE_FLAGS.saScaledPenalty);
+    var CONV_PENALTY = SCALED ? 100000 : 500;
+    var NIGHTS_PENALTY = SCALED ? 100000 : 800;
+    // FASE 2.4: cross-month adjacency. Mira el ultimo dia del mes anterior para day 0,
+    // y el dia 0 del mes siguiente para el ultimo dia del mes. Flag saCrossMonth=false revierte.
+    var CROSS = (typeof FEATURE_FLAGS !== 'undefined' && FEATURE_FLAGS.saCrossMonth);
+    var MR_LIKE = ['MR','M7H','M6R','M55'];
+
+    // Helper local: obtiene shift de un worker en (year, month, day) desde scheduleData.
+    // Devuelve '' si no existe (silently skip, no asumir vacio como problema).
+    function _getCrossCell(wId, year, month, day) {
+      try {
+        if (typeof scheduleData === 'undefined') return '';
+        var k = year + '-' + month;
+        var monthSch = scheduleData[k];
+        if (!monthSch) return '';
+        var arr = monthSch[wId];
+        if (!arr || day < 0 || day >= arr.length) return '';
+        return (arr[day] || '').toString().trim();
+      } catch (e) { return ''; }
+    }
+
     workers.forEach(function (w) {
       if (w.planta === 'refuerzo') return;
       // Max noches/mes
@@ -31386,18 +31845,44 @@ function animateNumber(elementId, targetValue, duration) {
         } else {
           consecRun = 0;
         }
-        // Adyacencias N→M, T→M
+        // Adyacencias N→M, T→M (intra-mes)
         if (d > 0) {
           var prev = getCell(sch, w.id, d - 1);
-          var prevEff = ['MR','M7H','M6R','M55'].indexOf(prev) !== -1 ? 'M' : prev;
-          var sEff = ['MR','M7H','M6R','M55'].indexOf(s) !== -1 ? 'M' : s;
-          if (prev === 'N' && (sEff === 'M' || sEff === 'T')) cost += 500;
-          if (prev === 'T' && sEff === 'M') cost += 500;
+          var sEff = MR_LIKE.indexOf(s) !== -1 ? 'M' : s;
+          if (prev === 'N' && (sEff === 'M' || sEff === 'T')) cost += CONV_PENALTY;
+          if (prev === 'T' && sEff === 'M') cost += CONV_PENALTY;
         }
       }
+
+      // FASE 2.4: cross-month adjacency
+      if (CROSS) {
+        // (a) day 0 del mes actual vs ultimo dia del mes anterior
+        var prevYear = ctx.month === 0 ? ctx.year - 1 : ctx.year;
+        var prevMonth = ctx.month === 0 ? 11 : ctx.month - 1;
+        var prevDaysInMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
+        var prevLastShift = _getCrossCell(w.id, prevYear, prevMonth, prevDaysInMonth - 1);
+        if (prevLastShift) {
+          var first = getCell(sch, w.id, 0);
+          var firstEff = MR_LIKE.indexOf(first) !== -1 ? 'M' : first;
+          if (prevLastShift === 'N' && (firstEff === 'M' || firstEff === 'T')) cost += CONV_PENALTY;
+          if (prevLastShift === 'T' && firstEff === 'M') cost += CONV_PENALTY;
+        }
+        // (b) ultimo dia del mes actual vs day 0 del mes siguiente
+        var nextYear = ctx.month === 11 ? ctx.year + 1 : ctx.year;
+        var nextMonth = ctx.month === 11 ? 0 : ctx.month + 1;
+        var nextFirstShift = _getCrossCell(w.id, nextYear, nextMonth, 0);
+        if (nextFirstShift) {
+          var last = getCell(sch, w.id, ctx.daysInMonth - 1);
+          // last es el del schedule en optimizacion (sch), no de scheduleData global.
+          var nextEff = MR_LIKE.indexOf(nextFirstShift) !== -1 ? 'M' : nextFirstShift;
+          if (last === 'N' && (nextEff === 'M' || nextEff === 'T')) cost += CONV_PENALTY;
+          if (last === 'T' && nextEff === 'M') cost += CONV_PENALTY;
+        }
+      }
+
       var rules = (typeof SP_RULES !== 'undefined') ? SP_RULES : { maxNightsPerMonth: 2, maxConsecutiveDays: 6 };
-      if (nightCount > rules.maxNightsPerMonth) cost += (nightCount - rules.maxNightsPerMonth) * 800;
-      if (maxConsec > rules.maxConsecutiveDays) cost += (maxConsec - rules.maxConsecutiveDays) * 800;
+      if (nightCount > rules.maxNightsPerMonth) cost += (nightCount - rules.maxNightsPerMonth) * NIGHTS_PENALTY;
+      if (maxConsec > rules.maxConsecutiveDays) cost += (maxConsec - rules.maxConsecutiveDays) * NIGHTS_PENALTY;
     });
 
     return cost;
@@ -31438,12 +31923,62 @@ function animateNumber(elementId, targetValue, duration) {
     }
     if (newVal === prev) return null;
     setCell(sch, w.id, d, newVal);
-    return { wId: w.id, day: d, prev: prev, next: newVal };
+    return { type: 'single', wId: w.id, day: d, prev: prev, next: newVal };
   }
-  function revertOp(sch, op) {
-    if (!op) return;
-    setCell(sch, op.wId, op.day, op.prev);
+
+  // FASE 2.2: swap-neighbor. Intercambia el valor de 2 workers en el MISMO dia.
+  // Preserva conteo total de turnos por dia (cobertura agregada estable),
+  // ataca varianza entre workers. Sale de optimos locales donde single-cell-move no puede.
+  // Respeta misma restriccion de imported-no-SP que randomAssign.
+  function swapAssign(ctx, sch) {
+    if (typeof workers === 'undefined' || workers.length < 2) return null;
+    // Filtramos workers no-refuerzo una sola vez
+    var pool = [];
+    for (var i = 0; i < workers.length; i++) {
+      if (workers[i].planta !== 'refuerzo') pool.push(workers[i]);
+    }
+    if (pool.length < 2) return null;
+
+    var d = Math.floor(Math.random() * ctx.daysInMonth);
+    // Hasta 8 intentos de encontrar par valido (workers distintos, no imported-no-SP, valores distintos)
+    for (var attempt = 0; attempt < 8; attempt++) {
+      var ia = Math.floor(Math.random() * pool.length);
+      var ib = Math.floor(Math.random() * pool.length);
+      if (ia === ib) continue;
+      var wA = pool[ia];
+      var wB = pool[ib];
+      var vA = getCell(sch, wA.id, d);
+      var vB = getCell(sch, wB.id, d);
+      // Ambos no-vacios (al menos uno cambia algo significativo)
+      if (vA === '' && vB === '') continue;
+      if (vA === vB) continue;
+      // Ninguno de los dos puede ser imported-no-SP (mismo guard que randomAssign)
+      if (wA.scheduleImported && vA !== 'SP' && vA !== '' && vA !== 'L') continue;
+      if (wB.scheduleImported && vB !== 'SP' && vB !== '' && vB !== 'L') continue;
+      setCell(sch, wA.id, d, vB);
+      setCell(sch, wB.id, d, vA);
+      return {
+        type: 'swap',
+        wA: wA.id, dayA: d, oldA: vA, newA: vB,
+        wB: wB.id, dayB: d, oldB: vB, newB: vA
+      };
+    }
+    return null;
   }
+
+  // FASE 2.2: revertChange unificado. Sabe revertir 'single' y 'swap'.
+  // Mantenemos revertOp como alias hacia revertChange para no romper nada interno.
+  function revertChange(sch, change) {
+    if (!change) return;
+    if (change.type === 'swap') {
+      setCell(sch, change.wA, change.dayA, change.oldA);
+      setCell(sch, change.wB, change.dayB, change.oldB);
+      return;
+    }
+    // single (default por retrocompat con ops legacy sin .type)
+    setCell(sch, change.wId, change.day, change.prev);
+  }
+  function revertOp(sch, op) { revertChange(sch, op); }
 
   // ===== Simulated Annealing =====
   function runAnnealing(ctx, options, onProgress, onDone) {
@@ -31463,10 +31998,23 @@ function animateNumber(elementId, targetValue, duration) {
     var i = 0;
     var batchSize = 200;
 
+    // FASE 2.3: reheat. Cuenta iter sin mejora del bestCost. Cuando supera REHEAT_THRESHOLD
+    // y FEATURE_FLAGS.saReheat, T *= REHEAT_FACTOR (clamp a T0) y se resetea el contador.
+    // Permite re-explorar despues de quedar atrapado en optimo local.
+    var itersSinceImprovement = 0;
+    var REHEAT_THRESHOLD = 500;
+    var REHEAT_FACTOR = 5;
+    var REHEAT_ENABLED = (typeof FEATURE_FLAGS !== 'undefined' && FEATURE_FLAGS.saReheat);
+
+    // FASE 2.2: swap-neighbor. 30% swap, 70% single-cell, condicionado a flag.
+    var SWAP_ENABLED = (typeof FEATURE_FLAGS !== 'undefined' && FEATURE_FLAGS.saSwapNeighbor);
+    var SWAP_PROB = 0.3;
+
     function step() {
       var deadline = performance.now() + 16; // ~60fps
       while (i < iterations && performance.now() < deadline) {
-        var op = randomAssign(ctx, sch, template);
+        var useSwap = SWAP_ENABLED && Math.random() < SWAP_PROB;
+        var op = useSwap ? swapAssign(ctx, sch) : randomAssign(ctx, sch, template);
         if (!op) { i++; continue; }
         var newCost = computeCost(ctx, sch, weights);
         var delta = newCost - currentCost;
@@ -31475,9 +32023,23 @@ function animateNumber(elementId, targetValue, duration) {
           if (newCost < bestCost) {
             bestCost = newCost;
             bestSch = cloneSch(sch);
+            itersSinceImprovement = 0;
+          } else {
+            itersSinceImprovement++;
           }
         } else {
-          revertOp(sch, op);
+          revertChange(sch, op);
+          itersSinceImprovement++;
+        }
+        // FASE 2.3: reheat condicional
+        if (REHEAT_ENABLED && itersSinceImprovement >= REHEAT_THRESHOLD) {
+          var prevT = T;
+          T = Math.min(T0, T * REHEAT_FACTOR);
+          itersSinceImprovement = 0;
+          // console.debug para diagnostico sin spamear
+          if (typeof console !== 'undefined' && console.debug) {
+            console.debug('[SA reheat] iter=' + i + ' T:' + prevT.toFixed(3) + '→' + T.toFixed(3) + ' bestCost=' + bestCost.toFixed(2));
+          }
         }
         T *= alpha;
         i++;
@@ -31810,7 +32372,7 @@ function animateNumber(elementId, targetValue, duration) {
         else if (typeof localStorage !== 'undefined') {
           localStorage.setItem('shiftia_schedule_data', JSON.stringify(scheduleData));
         }
-      } catch (e) {}
+      } catch (e) { console.warn('[scgenApply] localStorage save failed:', e); }
     }
     // Sync backend
     try {
@@ -31821,9 +32383,9 @@ function animateNumber(elementId, targetValue, duration) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
           body: JSON.stringify({ scheduleData: scheduleData })
-        }).catch(function () {});
+        }).catch(function (err) { console.warn('[scgenApply] backend sync failed:', err); });
       }
-    } catch (e) {}
+    } catch (e) { console.warn('[scgenApply] backend sync threw:', e); }
     if (typeof showToast === 'function') {
       showToast('Cuadrante regenerado: ' + state.proposedDiff.length + ' cambios aplicados', 'success', 3200);
     }
@@ -31863,6 +32425,9 @@ function animateNumber(elementId, targetValue, duration) {
   var filters = { plantaId: 'all', shift: 'all', urgency: 'all' };
   var spiaHistory = []; // { workerId, dayIdx, shift, prevValue, ts }
   var focusedCardIdx = -1;
+  // Fase 3.3: modo del modal — 'manual' (default) o 'proactive' (auto-asistente).
+  var spiaMode = 'manual';
+  var PROACTIVE_DAYS = 7;
 
   // v7.3: throttle global para localStorage.setItem (evita bloquear UI ~80ms en cada save)
   // expuesto en window para que SCGEN lo reuse
@@ -32003,7 +32568,33 @@ function animateNumber(elementId, targetValue, duration) {
   }
 
   // Scoring: prioriza menor uso (equidad). Devuelve {score, breakdown}.
+  // FEATURE_FLAGS.unifiedScoring → delega al scoreCandidate global y adapta breakdown
+  // al shape esperado por la UI ([{label, value, detail?, isTotal?}]).
   function scoreCandidate(ctx, w, dayIdx, shift, gap) {
+    if (typeof FEATURE_FLAGS !== 'undefined' && FEATURE_FLAGS.unifiedScoring && typeof window.scoreCandidateGlobal === 'function') {
+      try {
+        var dateObj = new Date(ctx.year, ctx.month, dayIdx + 1);
+        var gapForGlobal = {
+          date: dateObj, shift: shift, planta: gap.plantaId, category: 'enf',
+          dayIdx: dayIdx, year: ctx.year, month: ctx.month
+        };
+        var ctxForGlobal = { schedule: ctx.sch, virtualSchedule: ctx.sch };
+        var r = window.scoreCandidateGlobal(w, gapForGlobal, ctxForGlobal, {});
+        if (r && typeof r.score === 'number' && isFinite(r.score)) {
+          // Normalizar a 0..100 para preservar comparabilidad visual con el legacy
+          var normScore = Math.max(0, Math.min(100, Math.round(r.score)));
+          var bd = [];
+          if (r.breakdown) {
+            Object.keys(r.breakdown).forEach(function(k) {
+              var v = r.breakdown[k];
+              if (typeof v === 'number' && v !== 0) bd.push({ label: k, value: (v > 0 ? '+' : '') + Math.round(v) });
+            });
+          }
+          bd.push({ label: 'Score final', value: normScore, isTotal: true });
+          return { score: normScore, breakdown: bd };
+        }
+      } catch (e) { /* cae al legacy */ }
+    }
     var workedDays = 0;
     var nightsCount = 0;
     for (var d = 0; d < ctx.daysInMonth; d++) {
@@ -32109,8 +32700,26 @@ function animateNumber(elementId, targetValue, duration) {
     return { before: before, after: after, willApply: Object.keys(usage).length };
   }
 
-  // Genera el plan completo (respeta filtros)
-  function buildSuggestionPlan() {
+  // ============= FASE 3.2 — buildSuggestionPlan: modo proactive + cross-plant =============
+  // Firma extendida (retrocompatible):
+  //   buildSuggestionPlan()
+  //     → modo manual, comportamiento idéntico al previo (gaps del mes actual + filtros UI).
+  //   buildSuggestionPlan({ mode: 'proactive', daysAhead: 7, useCrossPlant: true })
+  //     → escanea N días desde hoy via detectFragilePlantas, expande pool con workers SP de
+  //       otras plantas si la conocen (getWorkerKnownPlantas), aplica scoreCandidate global con
+  //       penalty cross-plant de -5 si el worker no es de la misma planta.
+  //
+  // NO cambia validateAssignment, NO cambia el scoring de la rama manual.
+  function buildSuggestionPlan(options) {
+    var mode = (options && options.mode) || 'manual';
+    var daysAhead = (options && typeof options.daysAhead === 'number') ? options.daysAhead : 7;
+    var useCrossPlant = !!(options && options.useCrossPlant);
+
+    if (mode === 'proactive' && typeof FEATURE_FLAGS !== 'undefined' && FEATURE_FLAGS.proactiveSuggestions) {
+      return buildProactivePlan({ daysAhead: daysAhead, useCrossPlant: useCrossPlant });
+    }
+
+    // ----- Modo manual (comportamiento original) -----
     var ctx = getCurrentSchedule();
     if (!ctx) return null;
     var allGaps = findCoverageGaps(ctx);
@@ -32127,8 +32736,114 @@ function animateNumber(elementId, targetValue, duration) {
       candidates.sort(function (a, b) { return b.score - a.score; });
       return { gap: g, candidates: candidates.slice(0, 3) };
     });
-    return { ctx: ctx, gaps: gaps, allGaps: allGaps, perGap: perGap };
+    return { mode: 'manual', ctx: ctx, gaps: gaps, allGaps: allGaps, perGap: perGap };
   }
+
+  // Helper: ctx aislado para una fecha arbitraria (cruza meses).
+  // Devuelve el shape esperado por scoreCandidate/validateAssignment locales del IIFE.
+  function getScheduleCtxForDate(dDate) {
+    if (typeof scheduleData === 'undefined') return null;
+    var y = dDate.getFullYear();
+    var m = dDate.getMonth();
+    var key = y + '-' + m;
+    if (!scheduleData[key]) {
+      if (typeof genSchedule === 'function') {
+        try { scheduleData[key] = genSchedule(y, m); } catch (e) { scheduleData[key] = {}; }
+      } else {
+        scheduleData[key] = {};
+      }
+    }
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
+    return { key: key, year: y, month: m, daysInMonth: daysInMonth, sch: scheduleData[key] };
+  }
+
+  // Pool extendido: SP en el día d + opcionalmente workers de OTRAS plantas que conocen
+  // la planta del gap. Mantiene el comportamiento legal: cada candidato se valida después.
+  function findSPWorkersForGapCrossPlant(ctx, dayIdx, plantaId, useCrossPlant) {
+    if (typeof workers === 'undefined' || typeof isSP !== 'function') return [];
+    return workers.filter(function (w) {
+      var sp = false;
+      try { sp = isSP(w.id, dayIdx, ctx.year, ctx.month); } catch (e) { sp = false; }
+      if (!sp) return false;
+      // Misma planta: siempre elegible (comportamiento histórico).
+      if (w.planta === plantaId) return true;
+      // Otra planta: solo si cross-plant routing activo Y conoce la planta del gap.
+      if (!useCrossPlant) return false;
+      if (typeof FEATURE_FLAGS !== 'undefined' && !FEATURE_FLAGS.crossPlantRouting) return false;
+      var known = (typeof window !== 'undefined' && typeof window.getWorkerKnownPlantas === 'function')
+        ? window.getWorkerKnownPlantas(w)
+        : (w.flotante ? [plantaId] : [w.planta]);
+      return Array.isArray(known) && known.indexOf(plantaId) !== -1;
+    });
+  }
+
+  // Plan proactivo: escanea daysAhead, prioriza por fragilityScore, cruza con SP pool extendido.
+  function buildProactivePlan(opts) {
+    var daysAhead = (opts && opts.daysAhead) || 7;
+    var useCrossPlant = !!(opts && opts.useCrossPlant);
+    if (typeof window === 'undefined' || typeof window.detectFragilePlantas !== 'function') {
+      return { mode: 'proactive', plantsAtRisk: [], perGap: [], totalSuggestions: 0, daysAhead: daysAhead };
+    }
+
+    var ranking = window.detectFragilePlantas(daysAhead);
+    var perGap = [];
+    var totalSuggestions = 0;
+
+    ranking.forEach(function (planta) {
+      planta.criticalGaps.forEach(function (gapMeta) {
+        var dateCtx = getScheduleCtxForDate(gapMeta.day);
+        if (!dateCtx) return;
+        // Adaptamos al shape esperado por scoreCandidate/validateAssignment locales:
+        // gap.day = dayIdx dentro del mes del gap; ctx debe ser del MES del gap.
+        var localGap = {
+          plantaId: planta.plantaId,
+          day: gapMeta.dayIdx,
+          shift: gapMeta.shift,
+          deficit: gapMeta.deficit,
+          min: gapMeta.min,
+          working: gapMeta.working
+        };
+        var pool = findSPWorkersForGapCrossPlant(dateCtx, gapMeta.dayIdx, planta.plantaId, useCrossPlant);
+        var candidates = [];
+        pool.forEach(function (w) {
+          var v = validateAssignment(dateCtx, w, gapMeta.dayIdx, gapMeta.shift);
+          if (!v.ok) return;
+          var sc = scoreCandidate(dateCtx, w, gapMeta.dayIdx, gapMeta.shift, localGap);
+          var finalScore = sc.score;
+          var crossPlant = (w.planta !== planta.plantaId);
+          // Penalty cross-plant para preferir misma planta cuando empatan.
+          if (crossPlant) finalScore = Math.max(0, finalScore - 5);
+          candidates.push({
+            w: w,
+            score: finalScore,
+            breakdown: sc.breakdown,
+            crossPlant: crossPlant
+          });
+        });
+        candidates.sort(function (a, b) { return b.score - a.score; });
+        if (candidates.length > 0) totalSuggestions++;
+        perGap.push({
+          gap: localGap,
+          gapMeta: gapMeta,
+          plantaName: planta.plantaName,
+          fragilityScore: planta.fragilityScore,
+          candidates: candidates.slice(0, 3),
+          dateCtx: dateCtx
+        });
+      });
+    });
+
+    return {
+      mode: 'proactive',
+      daysAhead: daysAhead,
+      useCrossPlant: useCrossPlant,
+      plantsAtRisk: ranking,
+      perGap: perGap,
+      totalSuggestions: totalSuggestions
+    };
+  }
+  // Expose para uso externo (banner dashboard, etc.)
+  if (typeof window !== 'undefined') window.spiaBuildProactivePlan = buildProactivePlan;
 
   // Selecciona top-1 de cada gap respetando MAX_BULK_PER_WORKER (anti-burnout)
   function pickBulkSelection(plan) {
@@ -32360,6 +33075,10 @@ function animateNumber(elementId, targetValue, duration) {
   function renderSuggestionsModal() {
     var modal = document.getElementById('spiaModal');
     if (!modal) return;
+    // Fase 3.3: si el modo es proactive y la flag esta activa, renderizamos la vista alternativa.
+    if (spiaMode === 'proactive' && typeof FEATURE_FLAGS !== 'undefined' && FEATURE_FLAGS.proactiveSuggestions) {
+      return renderProactiveSuggestionsModal();
+    }
     var plan = buildSuggestionPlan();
     if (!plan) {
       modal.innerHTML = '<div class="spia-body"><div class="spia-empty">Sin datos disponibles. Asegúrate de tener un mes cargado.</div></div>';
@@ -32383,6 +33102,7 @@ function animateNumber(elementId, targetValue, duration) {
     html += '</div>';
 
     html += '<div class="spia-body">';
+    html += renderModeTabs('manual');
 
     // ===== Filtros =====
     html += '<div class="spia-filters">';
@@ -32526,10 +33246,229 @@ function animateNumber(elementId, targetValue, duration) {
     updateUndoButton();
   }
 
+  // ============= FASE 3.3 — Tabs Manual / Auto-asistente =============
+  function renderModeTabs(activeMode) {
+    if (typeof FEATURE_FLAGS === 'undefined' || !FEATURE_FLAGS.proactiveSuggestions) return '';
+    var isManual = activeMode === 'manual';
+    var isAuto = activeMode === 'proactive';
+    var base = 'cursor:pointer;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;border:1px solid transparent;background:transparent;font-family:inherit;transition:all 0.15s ease;';
+    var active = 'background:#0f7a6d;color:white;box-shadow:0 2px 6px rgba(15,122,109,0.25);';
+    var inactive = 'color:#4b5563;border-color:#e5e7eb;background:#fff;';
+    var html = '';
+    html += '<div role="tablist" aria-label="Modo SPIA" style="display:inline-flex;gap:6px;padding:4px;background:#f3f4f6;border-radius:10px;margin-bottom:14px;">';
+    html += '  <button role="tab" aria-selected="' + isManual + '" onclick="window.spiaSetMode(\'manual\')" style="' + base + (isManual ? active : inactive) + '">Manual (mes actual)</button>';
+    html += '  <button role="tab" aria-selected="' + isAuto + '" onclick="window.spiaSetMode(\'proactive\')" style="' + base + (isAuto ? active : inactive) + '">Auto-asistente · ' + PROACTIVE_DAYS + ' días</button>';
+    html += '</div>';
+    return html;
+  }
+
+  window.spiaSetMode = function (mode) {
+    spiaMode = (mode === 'proactive') ? 'proactive' : 'manual';
+    renderSuggestionsModal();
+  };
+
+  function renderProactiveSuggestionsModal() {
+    var modal = document.getElementById('spiaModal');
+    if (!modal) return;
+    var plan = null;
+    try {
+      plan = buildSuggestionPlan({ mode: 'proactive', daysAhead: PROACTIVE_DAYS, useCrossPlant: true });
+    } catch (e) {
+      plan = null;
+    }
+
+    var html = '';
+    html += '<div class="spia-header">';
+    html += '  <div>';
+    html += '    <div class="spia-title" id="spiaTitle">';
+    html += '      <span class="spia-title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></span>';
+    html += '      Auto-asistente · Próximos ' + PROACTIVE_DAYS + ' días';
+    html += '    </div>';
+    html += '    <div class="spia-subtitle">IA cruza huecos futuros con SP disponibles · Incluye plantas que el worker conoce (cross-plant)</div>';
+    html += '  </div>';
+    html += '  <button class="spia-close" onclick="closeSPAutoSuggest()" aria-label="Cerrar">×</button>';
+    html += '</div>';
+
+    html += '<div class="spia-body">';
+    html += renderModeTabs('proactive');
+
+    if (!plan || !plan.plantsAtRisk || plan.plantsAtRisk.length === 0) {
+      html += '<div class="spia-empty">';
+      html += '  <div class="spia-empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>';
+      html += '  <div style="font-weight:700;color:#0e0f0f;">Sin plantas en riesgo</div>';
+      html += '  <div style="margin-top:6px;">Cobertura cumple los mínimos en los próximos ' + PROACTIVE_DAYS + ' días.</div>';
+      html += '</div>';
+      html += '</div>';
+      html += '<div class="spia-actions"><div class="left">Modo: Auto-asistente</div><div><button class="spia-btn-secondary" onclick="closeSPAutoSuggest()">Cerrar</button></div></div>';
+      modal.innerHTML = html;
+      return;
+    }
+
+    // Ranking de plantas frágiles
+    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">';
+    plan.plantsAtRisk.forEach(function (p) {
+      var sev = p.fragilityScore > 100 ? '#dc2626' : (p.fragilityScore > 50 ? '#eab308' : '#6b7280');
+      var bg = p.fragilityScore > 100 ? 'rgba(220,38,38,0.06)' : (p.fragilityScore > 50 ? 'rgba(234,179,8,0.08)' : '#f9fafb');
+      html += '<span style="display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border-radius:999px;background:' + bg + ';border:1px solid ' + sev + ';color:' + sev + ';font-size:11px;font-weight:700;">';
+      html += escHtml(p.plantaName) + ' · score ' + p.fragilityScore + ' · −' + p.totalDeficit;
+      html += '</span>';
+    });
+    html += '</div>';
+
+    var totalGaps = plan.perGap.length;
+    var coverable = plan.totalSuggestions;
+    html += '<div class="spia-stats">';
+    html += '  <div class="spia-stat"><div class="spia-stat-num">' + totalGaps + '</div><div class="spia-stat-label">huecos próximos ' + PROACTIVE_DAYS + ' días</div></div>';
+    html += '  <div class="spia-stat"><div class="spia-stat-num">' + coverable + '</div><div class="spia-stat-label">cubribles ahora</div></div>';
+    html += '  <div class="spia-stat"><div class="spia-stat-num">' + plan.plantsAtRisk.length + '</div><div class="spia-stat-label">plantas en riesgo</div></div>';
+    html += '</div>';
+
+    var monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    var dowNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    var displayed = plan.perGap.slice(0, 12);
+    displayed.forEach(function (entry) {
+      var meta = entry.gapMeta;
+      var dDate = meta.day;
+      var dayLabel = dowNames[dDate.getDay()] + ' ' + (meta.dayIdx + 1) + ' ' + monthNames[meta.month].substring(0,3).toLowerCase();
+      html += '<div class="spia-group">';
+      html += '  <div class="spia-group-head">';
+      html += '    <span class="spia-pill-day">' + escHtml(dayLabel) + '</span>';
+      html += '    <span style="color:#9ca3af;">·</span>';
+      html += '    <span style="color:#1f2937;font-weight:800;">' + escHtml(entry.plantaName) + '</span>';
+      html += '    <span class="spia-pill-shift s-' + meta.shift + '">' + meta.shift + '</span>';
+      html += '    <span class="spia-pill-gap">−' + meta.deficit + ' falta' + (meta.deficit > 1 ? 'n' : '') + '</span>';
+      html += '  </div>';
+
+      if (entry.candidates.length === 0) {
+        html += '<div style="font-size:11.5px;color:#92580a;background:#fff7ed;padding:8px 10px;border-radius:8px;border:1px solid #fed7aa;">Sin candidatos válidos: nadie con SP ese día (ni cross-plant) respeta el convenio para este turno.</div>';
+      } else {
+        entry.candidates.forEach(function (c, i) {
+          var scoreClass = c.score >= 70 ? '' : c.score >= 40 ? 'med' : 'low';
+          var pName = (typeof PLANTAS !== 'undefined') ? PLANTAS.find(function(p){ return p.id === c.w.planta; }) : null;
+          var pShort = pName ? pName.short : (c.w.planta || '');
+          var typeBadge = c.w.type === 'enf' ? 'Enf' : (c.w.type === 'tec' ? 'Téc' : (c.w.type || ''));
+          var badgeColor = c.crossPlant ? '#8b5cf6' : '#0f7a6d';
+          var badgeBg = c.crossPlant ? 'rgba(139,92,246,0.10)' : 'rgba(15,122,109,0.10)';
+          var badgeLabel = c.crossPlant ? 'Cross-plant' : 'Misma planta';
+          html += '<div class="spia-cand" data-card-idx="' + i + '">';
+          html += '  <div style="flex:1;min-width:0;">';
+          html += '    <div class="spia-cand-name">' + escHtml(c.w.name || '—') + '</div>';
+          html += '    <div class="spia-cand-meta">' + escHtml(typeBadge) + ' · ' + escHtml(pShort);
+          html += '      <span style="margin-left:6px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;color:' + badgeColor + ';background:' + badgeBg + ';">' + badgeLabel + '</span>';
+          html += '    </div>';
+          html += '  </div>';
+          html += '  <span class="spia-score-wrap" tabindex="0" aria-label="Score">';
+          html += '    <span class="spia-cand-score ' + scoreClass + '">' + c.score + '</span>';
+          html += '  </span>';
+          // El apply usa la fecha real del gap → key del scheduleData del mes que corresponde.
+          html += '  <button class="spia-cand-btn" onclick="window.spiaApplyProactive(' + JSON.stringify(c.w.id) + ',' + meta.year + ',' + meta.month + ',' + meta.dayIdx + ',' + JSON.stringify(meta.shift) + ',this)">Asignar</button>';
+          html += '</div>';
+        });
+      }
+      html += '</div>';
+    });
+    if (plan.perGap.length > 12) {
+      html += '<div style="text-align:center;font-size:11px;color:#6b7280;padding:8px;">… y ' + (plan.perGap.length - 12) + ' huecos más. Aplica algunos y vuelve a abrir.</div>';
+    }
+    html += '</div>'; // body
+
+    html += '<div class="spia-actions">';
+    html += '  <div class="left">Modo: Auto-asistente · ' + plan.perGap.length + ' hueco' + (plan.perGap.length !== 1 ? 's' : '') + ' · cross-plant ' + (plan.useCrossPlant ? 'ON' : 'OFF') + '</div>';
+    html += '  <div style="display:flex;gap:8px;">';
+    html += '    <button class="spia-btn-secondary" onclick="closeSPAutoSuggest()">Cerrar</button>';
+    if (coverable > 0) {
+      html += '    <button id="spiaApplyAllBtn" class="spia-btn-primary" onclick="window.spiaApplyAllProactive()">';
+      html += '      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      html += '      Aplicar todas (' + coverable + ')';
+      html += '    </button>';
+    }
+    html += '  </div>';
+    html += '</div>';
+
+    modal.innerHTML = html;
+  }
+
+  // Apply single proactive suggestion: el gap puede ser de otro mes que el actual.
+  // Reusa spiaApplyAssignment cuando coincide con el mes actual; si no, escribe directo
+  // sobre scheduleData[<key>] respetando MAX_BULK_PER_WORKER y registra historial.
+  window.spiaApplyProactive = function (workerId, year, month, dayIdx, shift, btnEl) {
+    try {
+      var key = year + '-' + month;
+      if (typeof scheduleData === 'undefined') return;
+      if (!scheduleData[key]) {
+        if (typeof genSchedule === 'function') scheduleData[key] = genSchedule(year, month);
+        else scheduleData[key] = {};
+      }
+      var sch = scheduleData[key];
+      if (!sch[workerId]) sch[workerId] = [];
+      var prev = (sch[workerId][dayIdx] || '').toString();
+      sch[workerId][dayIdx] = shift;
+      spiaHistory.push({ workerId: workerId, year: year, month: month, dayIdx: dayIdx, shift: shift, prevValue: prev, ts: Date.now() });
+      if (typeof window.scheduleSaveThrottled === 'function') window.scheduleSaveThrottled();
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.textContent = '✓';
+      }
+      if (typeof showToast === 'function') {
+        var w = (typeof workers !== 'undefined') ? workers.find(function (x) { return x.id === workerId; }) : null;
+        showToast((w ? w.name : 'Trabajador') + ' → ' + shift + ' día ' + (dayIdx + 1) + '/' + (month + 1), 'success');
+      }
+      try { if (typeof renderDashboard === 'function') renderDashboard(); } catch (e) {}
+      // Refresca el modal proactivo para reflejar el nuevo estado.
+      setTimeout(function () { renderSuggestionsModal(); }, 250);
+    } catch (e) {
+      console.warn('[spia proactive apply]', e.message);
+    }
+  };
+
+  // Bulk apply de todas las sugerencias proactivas (top-1 por gap, respeta MAX_BULK_PER_WORKER).
+  window.spiaApplyAllProactive = function () {
+    var plan = null;
+    try {
+      plan = buildSuggestionPlan({ mode: 'proactive', daysAhead: PROACTIVE_DAYS, useCrossPlant: true });
+    } catch (e) { return; }
+    if (!plan || !plan.perGap) return;
+    var btn = document.getElementById('spiaApplyAllBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Aplicando…'; }
+    var usage = {};
+    var applied = 0;
+    plan.perGap.forEach(function (entry) {
+      if (!entry.candidates.length) return;
+      var pick = null;
+      for (var i = 0; i < entry.candidates.length; i++) {
+        var c = entry.candidates[i];
+        if ((usage[c.w.id] || 0) < MAX_BULK_PER_WORKER) { pick = c; break; }
+      }
+      if (!pick) return;
+      usage[pick.w.id] = (usage[pick.w.id] || 0) + 1;
+      var meta = entry.gapMeta;
+      var key = meta.year + '-' + meta.month;
+      if (!scheduleData[key]) {
+        if (typeof genSchedule === 'function') scheduleData[key] = genSchedule(meta.year, meta.month);
+        else scheduleData[key] = {};
+      }
+      var sch = scheduleData[key];
+      if (!sch[pick.w.id]) sch[pick.w.id] = [];
+      var prev = (sch[pick.w.id][meta.dayIdx] || '').toString();
+      sch[pick.w.id][meta.dayIdx] = meta.shift;
+      spiaHistory.push({ workerId: pick.w.id, year: meta.year, month: meta.month, dayIdx: meta.dayIdx, shift: meta.shift, prevValue: prev, ts: Date.now() });
+      applied++;
+    });
+    if (typeof window.scheduleSaveThrottled === 'function') window.scheduleSaveThrottled();
+    if (typeof showToast === 'function') showToast('Aplicadas ' + applied + ' sugerencias proactivas', 'success');
+    try { if (typeof renderDashboard === 'function') renderDashboard(); } catch (e) {}
+    setTimeout(function () { renderSuggestionsModal(); }, 250);
+  };
+
   window.openSPAutoSuggest = function () {
     var ov = document.getElementById('spiaOverlay');
     var modal = document.getElementById('spiaModal');
     if (!ov || !modal) return;
+    // Fase 3.3: si el banner pidió proactive, abrimos en esa pestaña.
+    if (typeof window.__spiaPreferProactive !== 'undefined' && window.__spiaPreferProactive) {
+      spiaMode = 'proactive';
+      window.__spiaPreferProactive = false;
+    }
     renderSuggestionsModal();
     ov.classList.add('is-open');
     modal.classList.add('is-open');

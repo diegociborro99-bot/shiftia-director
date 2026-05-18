@@ -212,7 +212,12 @@ const writeLimiter = rateLimit({ max: 60, windowMs: 60000, scope: 'write' });   
 // ====== DATABASE CONFIG ======
 // Filter out undefined values to avoid overriding connectionString
 const poolConfig = process.env.DATABASE_URL
-  ? { connectionString: process.env.DATABASE_URL, ssl: process.env.PGSSLROOTCERT ? { ca: require('fs').readFileSync(process.env.PGSSLROOTCERT) } : { rejectUnauthorized: process.env.NODE_ENV === 'production' } }
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.PGSSLROOTCERT
+        ? { ca: require('fs').readFileSync(process.env.PGSSLROOTCERT), rejectUnauthorized: true }
+        : (IS_PRODUCTION ? { rejectUnauthorized: true } : false),
+    }
   : {
       host: process.env.PGHOST,
       port: process.env.PGPORT || 5432,
