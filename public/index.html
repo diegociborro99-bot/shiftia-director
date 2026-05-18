@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#5c7a6f">
 <title>Shiftia Director</title>
@@ -19139,8 +19140,17 @@ function saveToStorage() {
       body: JSON.stringify(data)
     }).then(res => {
       if (res && !res.ok) {
-        if (res.status === 401) console.warn('[Shiftia] Token expired — data saved locally only');
-        else console.warn('[Shiftia] Server save returned:', res.status);
+        if (res.status === 401) {
+          console.warn('[Shiftia] Token expired — forcing re-login');
+          if (!window.__shiftiaAuthToastShown) {
+            window.__shiftiaAuthToastShown = true;
+            try { showToast && showToast('Sesión expirada. Volvé a entrar para sincronizar tus cambios.', 'warning', 6000); } catch(_) {}
+            try { clearAuth && clearAuth(); } catch(_) {}
+            try { showLoginScreen && showLoginScreen(); } catch(_) {}
+          }
+        } else {
+          console.warn('[Shiftia] Server save returned:', res.status);
+        }
         showSaveIndicator('saved'); // Local save OK
       } else {
         showSaveIndicator('saved');
