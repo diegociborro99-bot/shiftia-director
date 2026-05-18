@@ -1472,6 +1472,10 @@ app.get('/version', (req, res) => {
   );
 });
 
+// Shiftia Assistant — endpoints deterministas para la extensión Chrome
+const { buildAssistantRouter } = require('./routes/assistant');
+app.use('/api/assistant', buildAssistantRouter({ pool, authMiddleware }));
+
 // 404 JSON para cualquier /api/* no manejado (mejor que el SPA fallback)
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
